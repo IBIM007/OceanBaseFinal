@@ -237,6 +237,7 @@ ObPreBootstrap::ObPreBootstrap(ObSrvRpcProxy &rpc_proxy,
 
 int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
 {
+  
   int ret = OB_SUCCESS;
   bool is_empty = false;
   bool match = false;
