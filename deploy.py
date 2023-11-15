@@ -32,7 +32,7 @@ def __clear_env(cluster_home_path:str) -> None:
     observer_bin_path = __observer_bin_path(cluster_home_path)
     pid = subprocess.getoutput(f'pidof {observer_bin_path}')
     if pid:
-        subprocess.run(f'kill -9 {pid}', shell=True)
+        subprocess.Popen(f'kill -9 {pid}', shell=True)
 
     paths_to_clear = ['audit', 'etc', 'etc2', 'etc3', 'log', 'run', __data_path(cluster_home_path)]
     for path in paths_to_clear:

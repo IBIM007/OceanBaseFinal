@@ -229,6 +229,7 @@ int PriorityV1::refresh_(const share::ObLSID &ls_id)
     COORDINATOR_LOG_(WARN, "get_scn failed");
   } else {
     zone_priority_ = election_reference_info.element<1>();
+    //这里设置值
     is_manual_leader_ = election_reference_info.element<2>();
     is_in_blacklist_ = election_reference_info.element<3>().element<0>();
     is_zone_stopped_ = election_reference_info.element<4>();
@@ -333,7 +334,7 @@ int PriorityV1::compare_zone_stopped_flag_(int &ret, const PriorityV1&rhs) const
   }
   return compare_result;
 }
-
+//这是比较优先级吧，我不应该改的
 int PriorityV1::compare_manual_leader_flag_(int &ret, const PriorityV1&rhs) const
 {
   LC_TIME_GUARD(1_s);

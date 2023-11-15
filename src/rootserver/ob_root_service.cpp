@@ -1859,9 +1859,10 @@ int ObRootService::self_check()
 int ObRootService::after_restart()
 {
   ObCurTraceId::init(GCONF.self_addr_);
-
-  while(bootstrapget==false);
+  //只编译这个文件花不了什么时间
+  //while(bootstrapget==false);
   // avoid concurrent with bootstrap
+  sleep(3);
   FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in after_restart");
   ObLatchRGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
 
@@ -1996,7 +1997,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     LOG_WARN("成功拿到锁了");
     //会不会出现重排序的问题。应该不会吧，因为guard前面有锁
     //volatile应该是写完了立刻就刷回内存吧，而不是等待方法执行完了后才刷回。
-    bootstrapget=true;
+    //bootstrapget=true;
     FLOG_INFO("[ROOTSERVICE_NOTICE] success to get lock for bootstrap in execute_bootstrap");
     //从抢到锁到最后执行完成这个方法大概执行了14秒。也需要细致优化
     ObBootstrap bootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
@@ -5618,10 +5619,14 @@ int ObRootService::ObRefreshServerTask::process()
 
   ObLatchRGuard guard(root_service_.bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
   //暂时先不管吧，感觉现在好像没什么性能开销了。
-  //LOG_WARN("refresh 上锁成功了",K(ret));
+  //这个好像也要依赖boostrap完成了才能成功，但是并没有很大的开销，加了锁立刻就释放了
+  LOG_WARN("refresh 上锁成功了",K(ret));
   if (OB_FAIL(root_service_.refresh_server(load_frozen_status, need_retry))) {
     FLOG_WARN("refresh server failed", K(ret), K(load_frozen_status));
-  } else {}
+  } else {
+    LOG_WARN("refresh server成功了",K(ret));
+
+  }
   return ret;
 }
 
