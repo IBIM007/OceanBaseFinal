@@ -194,6 +194,7 @@ ObServer::ObServer()
     refresh_active_time_task_(),
     refresh_network_speed_task_(),
     refresh_cpu_frequency_task_(),
+    //这里是单独的复制吧，感觉GCTX搞不好就是OBSERVER
     schema_status_proxy_(sql_proxy_),
     is_log_dir_empty_(false),
     conn_res_mgr_(),
@@ -2476,7 +2477,7 @@ int ObServer::init_pl()
   }
   return ret;
 }
-
+//这里是初始化全局内容
 int ObServer::init_global_context()
 {
   int ret = OB_SUCCESS;

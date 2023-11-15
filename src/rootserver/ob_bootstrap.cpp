@@ -235,16 +235,22 @@ ObPreBootstrap::ObPreBootstrap(ObSrvRpcProxy &rpc_proxy,
 {
 }
 
+//重点分析方法
+//注意类名区别
 int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
 {
-  
+  //传入的应该就是IP和端口。打印一下吧
   int ret = OB_SUCCESS;
   bool is_empty = false;
   bool match = false;
+  //现在的时间
   begin_ts_ = ObTimeUtility::current_time();
+  //前面这几个是检查
   if (OB_FAIL(check_inner_stat())) {
+    //这是一个检查吧
     LOG_WARN("check_inner_stat failed", KR(ret));
   } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
+    //rs list是rootservice list吗？
     LOG_WARN("failed to check_bootstrap_rs_list", KR(ret), K_(rs_list));
   } else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {
     LOG_WARN("fail to check all server bootstrap mode match", KR(ret));
@@ -256,7 +262,8 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } else if (!is_empty) {
     ret = OB_INIT_TWICE;
     LOG_WARN("cannot do bootstrap on not empty server", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_root_key())) {
+  }//注意这里开始就是通知 系统租户，这里通知应该就会到rootservice日志开始执行了execute_bootstrap吧？
+  else if (OB_FAIL(notify_sys_tenant_root_key())) {
     LOG_WARN("fail to notify sys tenant root key", KR(ret));
   } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {
     LOG_WARN("fail to notify sys tenant server unit resource", KR(ret));
@@ -267,6 +274,7 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } else if (OB_FAIL(wait_elect_ls(master_rs))) {
     LOG_WARN("failed to wait elect master partition", KR(ret));
   }
+  //前面都是检查，这里才是真正做事吧。
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
 }
@@ -275,6 +283,7 @@ int ObPreBootstrap::notify_sys_tenant_root_key()
 {
   int ret = OB_SUCCESS;
 #ifdef OB_BUILD_TDE_SECURITY
+//可以打印一下进来没有
   ObArray<ObAddr> addrs;
   obrpc::ObRootKeyArg arg;
   arg.tenant_id_ = OB_SYS_TENANT_ID;
@@ -294,7 +303,9 @@ int ObPreBootstrap::notify_sys_tenant_root_key()
                                                                 result.root_key_))) {
   } else if (obrpc::RootKeyType::INVALID != result.key_type_ || !result.root_key_.empty()) {
     LOG_INFO("root key existed in local");
-  } else if (OB_FAIL(ObDDLService::notify_root_key(rpc_proxy_, arg, addrs, result, false))) {
+  }
+  //这里还是存在rpc 
+  else if (OB_FAIL(ObDDLService::notify_root_key(rpc_proxy_, arg, addrs, result, false))) {
     LOG_WARN("fail to notify root key", K(ret));
   } else if (obrpc::RootKeyType::INVALID != result.key_type_ || !result.root_key_.empty()) {
     LOG_INFO("root key existed in remote");
@@ -322,6 +333,8 @@ int ObPreBootstrap::notify_sys_tenant_server_unit_resource()
     LOG_WARN("sys unit id array and rs list count not match", KR(ret),
              "unit_id_array_cnt", sys_unit_id_array.count(), "rs_list_cnt", rs_list_.count());
   } else {
+    //这里可以打印一下会不会进来
+    //LOG_WARN("这里进来了else在方法notify_sys_tenant_server_unit_resource");
     ObNotifyTenantServerResourceProxy notify_proxy(
                                       rpc_proxy_,
                                       &ObSrvRpcProxy::notify_tenant_server_unit_resource);
@@ -340,13 +353,16 @@ int ObPreBootstrap::notify_sys_tenant_server_unit_resource()
               false/*if not grant*/,
               false/*create new*/))) {
         LOG_WARN("fail to init tenant unit server config", KR(ret));
-      } else if (OB_FAIL(notify_proxy.call(
+      } 
+      //这里就是调用了吧
+      else if (OB_FAIL(notify_proxy.call(
               rs_list_[i].server_, rpc_timeout, tenant_unit_server_config))) {
         LOG_WARN("fail to call notify resource to server",
                  K(ret), "dst", rs_list_[i].server_, K(rpc_timeout));
       }
     }
     int tmp_ret = OB_SUCCESS;
+    //这里会阻塞吗？
     if (OB_SUCCESS != (tmp_ret = notify_proxy.wait())) {
       LOG_WARN("fail to wait notify resource", K(ret), K(tmp_ret));
       ret = (OB_SUCCESS == ret) ? tmp_ret : ret;
@@ -375,6 +391,7 @@ int ObPreBootstrap::notify_sys_tenant_config_()
       LOG_WARN("fail to push back server", KR(ret));
     }
   } // end for
+  //这里还会rpc吧
   if (FAILEDx(ObDDLService::notify_init_tenant_config(
               rpc_proxy_, init_configs, addrs))) {
     LOG_WARN("fail to notify init tenant config", KR(ret), K(init_configs), K(addrs));
@@ -390,12 +407,14 @@ int ObPreBootstrap::create_ls()
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("fail to check inner stat", KR(ret));
   } else {
+    //创建系统系统租户，资源组件吗？
     common::ObArray<share::ObUnit> unit_array;
     ObLSCreator ls_creator(rpc_proxy_, OB_SYS_TENANT_ID, SYS_LS);
     if (OB_FAIL(gen_sys_units(unit_array))) {
       LOG_WARN("fail to gen sys unit array", KR(ret));
     } else if (OB_FAIL(ls_creator.create_sys_tenant_ls(
             rs_list_, unit_array))) {
+              //系统日志流
       LOG_WARN("fail to create sys log stream", KR(ret));
     }
   }
@@ -408,6 +427,7 @@ int ObPreBootstrap::create_ls()
   return ret;
 }
 
+//这是等待选举出主rootservice吗？就调用了两次吧。注意是方法结束了才打印这个方法执行成功了。
 int ObPreBootstrap::wait_elect_ls(
     common::ObAddr &master_rs)
 {
@@ -426,9 +446,12 @@ int ObPreBootstrap::wait_elect_ls(
     LOG_WARN("leader_waiter_ wait failed", K(tenant_id), K(SYS_LS), K(timeout), K(ret));
   }
   if (OB_SUCC(ret)) {
+    //进入了这里的
     ObTaskController::get().allow_next_syslog();
+    //等待选举日志流
     LOG_INFO("succeed to wait elect log stream");
   }
+  //第二次调用走的这里
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
 }
@@ -547,6 +570,7 @@ ObBootstrap::ObBootstrap(
 {
 }
 
+//rpc应该是调用到这里来的
 int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zone_op_service)
 {
   int ret = OB_SUCCESS;
@@ -556,6 +580,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
 
   BOOTSTRAP_LOG(INFO, "start do execute_bootstrap");
 
+  //相当于先执行操作，操作失败了就打印。
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", K(ret));
   } else if (OB_FAIL(check_is_already_bootstrap(already_bootstrap))) {
@@ -580,13 +605,17 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   } else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) {
     LOG_WARN("create_all_schema failed",  K(table_schemas), K(ret));
   }
+  //上面检查全部成功，就开始创建什么东西。多版本并发控制？
   BOOTSTRAP_CHECK_SUCCESS_V2("create_all_schema");
   ObMultiVersionSchemaService &schema_service = ddl_service_.get_schema_service();
 
   if (OB_SUCC(ret)) {
+    //初始化系统数据
     if (OB_FAIL(init_system_data())) {
       LOG_WARN("failed to init system data", KR(ret));
-    } else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+    } 
+    //
+    else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
   }

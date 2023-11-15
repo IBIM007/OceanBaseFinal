@@ -1662,6 +1662,7 @@ int ObRootService::submit_update_rslist_task(const bool force_update)
         LOG_WARN("inner queue push task failed", K(ret));
       } else {
         task_added = true;
+        //进入了这里打印
         LOG_INFO("added async task to update rslist", K(force_update));
       }
       if (!task_added) {
@@ -1746,7 +1747,9 @@ int ObRootService::update_rslist()
 {
   int ret = OB_SUCCESS;
   ObUpdateRsListTask task;
+  //有个设置时间的东西，好像没怎么用吧
   ObTimeoutCtx ctx;
+  //这里设置了一个时间参数
   ctx.set_timeout(config_->rpc_timeout);
   const bool force_update = true;
   if (OB_FAIL(task.init(*lst_operator_, addr_agent_,
@@ -1857,6 +1860,7 @@ int ObRootService::after_restart()
 {
   ObCurTraceId::init(GCONF.self_addr_);
 
+  while(bootstrapget==false);
   // avoid concurrent with bootstrap
   FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in after_restart");
   ObLatchRGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
@@ -1864,25 +1868,36 @@ int ObRootService::after_restart()
   // NOTE: Following log print after lock
   FLOG_INFO("[ROOTSERVICE_NOTICE] start to do restart task");
 
+  //这些日子都得看看一下执行了多久。
   int ret = OB_SUCCESS;
   if (!inited_) {
     ret = OB_NOT_INIT;
+    //没进去
     FLOG_WARN("rootservice not init", KR(ret));
   } else if (!ObRootServiceRoleChecker::is_rootserver()) {
     ret = OB_NOT_MASTER;
+    //没进去
     FLOG_WARN("not master", KR(ret));
-  } else if (need_do_restart() && OB_FAIL(do_restart())) {
+  }
+  //感觉这里面进入了do_restart是等待了很久。
+  //首先是需要满足need_do_restart才会进入后面的，所以第二次并没有进入这个do_restart了。 
+  else if (need_do_restart() && OB_FAIL(do_restart())) {
+    //2892行打印了这个语句
     FLOG_WARN("do restart failed, retry again", KR(ret));
   } else if (OB_FAIL(do_after_full_service())) {
+    //没进去
     FLOG_WARN("fail to do after full service", KR(ret));
   }
-
+  //这个cost怎么看，感觉是/1000000，大概29.9秒
   int64_t cost = ObTimeUtility::current_time() - start_service_time_;
   if (OB_FAIL(ret)) {
+    //2893行打印了这个
     FLOG_WARN("do restart task failed, retry again", KR(ret), K(cost));
   } else if (OB_FAIL(rs_status_.set_rs_status(status::STARTED))) {
+    //没进去
     FLOG_WARN("fail to set rs status", KR(ret));
   } else {
+    //29927行打印了一下
     FLOG_INFO("do restart task success, finish restart", KR(ret), K(cost), K_(start_service_time));
   }
 
@@ -1890,19 +1905,23 @@ int ObRootService::after_restart()
     rs_status_.try_set_stopping();
     if (rs_status_.is_stopping()) {
       // need stop
+      //没进去
       FLOG_INFO("rs_status_ is set to stopping");
     } else {
       const int64_t RETRY_TIMES = 3;
       int64_t tmp_ret = OB_SUCCESS;
       for (int64_t i = 0; i < RETRY_TIMES; ++i) {
         if (OB_SUCCESS != (tmp_ret = schedule_restart_timer_task(config_->rootservice_ready_check_interval))) {
+          //没进去
           FLOG_WARN("fail to schedule_restart_timer_task at this retry", KR(tmp_ret), K(i));
         } else {
+          //2896行打印了这个
           FLOG_INFO("success to schedule_restart_timer_task");
           break;
         }
       }
       if (OB_SUCCESS != tmp_ret) {
+        //两个都没进来
         LOG_ERROR("fatal error, fail to add restart task", KR(tmp_ret));
         if (OB_FAIL(rs_status_.set_rs_status(status::STOPPING))) {
           LOG_ERROR("fail to set rs status", KR(ret));
@@ -1912,6 +1931,7 @@ int ObRootService::after_restart()
   }
 
   // NOTE: Following log print after lock
+  //2897行第一次完成，后面还有一点。
   FLOG_INFO("[ROOTSERVICE_NOTICE] finish do restart task", KR(ret));
   return ret;
 }
@@ -1941,13 +1961,16 @@ int ObRootService::do_after_full_service() {
 }
 
 ////////////////////////////////////////////////////////////////
+//重点方法，分析。
 int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
 {
   int ret = OB_SUCCESS;
+  //拿到所有的observer吧也就是。
   const obrpc::ObServerInfoList &server_list = arg.server_list_;
   BOOTSTRAP_LOG(INFO, "STEP_1.1:execute_bootstrap start to executor.");
   if (!inited_) {
     ret = OB_NOT_INIT;
+    //不会进去
     LOG_WARN("root_service not inited", K(ret));
   } else if (!sql_proxy_.is_inited() || !sql_proxy_.is_active()) {
     ret = OB_INVALID_ARGUMENT;
@@ -1960,13 +1983,25 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("lst_operator_ ptr is null", KR(ret), KP(lst_operator_));
   } else {
+    //应该是进入的这里
+    //这个不用管吧。
     update_cpu_quota_concurrency_in_memory_();
     // avoid bootstrap and do_restart run concurrently
     FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in execute_bootstrap");
+    //就是这一把锁。锁了特别久，大概30S，为什么会有锁冲突？
+    LOG_WARN("马上开始上锁了");
+    //std::lock(lock);
+    //TODO两个线程跑这个地方同一次
     ObLatchWGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
+    LOG_WARN("成功拿到锁了");
+    //会不会出现重排序的问题。应该不会吧，因为guard前面有锁
+    //volatile应该是写完了立刻就刷回内存吧，而不是等待方法执行完了后才刷回。
+    bootstrapget=true;
     FLOG_INFO("[ROOTSERVICE_NOTICE] success to get lock for bootstrap in execute_bootstrap");
+    //从抢到锁到最后执行完成这个方法大概执行了14秒。也需要细致优化
     ObBootstrap bootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
                           *config_, arg, common_proxy_);
+    //这里应该是RPC调用吧
     if (OB_FAIL(bootstrap.execute_bootstrap(server_zone_op_service_))) {
       LOG_ERROR("failed to execute_bootstrap", K(server_list), K(ret));
     }
@@ -1975,6 +2010,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     ObGlobalStatProxy global_proxy(sql_proxy_, OB_SYS_TENANT_ID);
     ObArray<ObAddr> self_addr;
     if (OB_FAIL(ret)) {
+      //bootstrap貌似也会调用这个do_restart方法
     } else if (OB_FAIL(do_restart())) {
       LOG_WARN("do restart task failed", K(ret));
     } else if (OB_FAIL(check_ddl_allowed())) {
@@ -2037,6 +2073,7 @@ int ObRootService::check_sys_tenant_initial_master_key_valid()
   const int64_t IDLING_US = 100L * 1000L; // 100ms
   while (OB_SUCC(ret)) {
     if (ObTimeUtility::current_time() >= end) {
+      LOG_WARN("进入了ObRootService::check_sys_tenant_initial_master_key_valid()了，设置ret为TIMEOUT", K(ret));
       ret = OB_TIMEOUT;
       LOG_WARN("wait sys tenant initial master key valid timeout", KR(ret));
     } else {
@@ -2074,6 +2111,7 @@ int ObRootService::check_config_result(const char *name, const char* value)
     }
     while(OB_SUCC(ret) || OB_ERR_WAIT_REMOTE_SCHEMA_REFRESH == ret /* remote schema not ready, return -4029 on remote */) {
       if (ObTimeUtility::current_time() - start > timeout) {
+        LOG_WARN("进入了ObRootService::check_config_result了，设置ret为TIMEOUT", K(ret));
         ret = OB_TIMEOUT;
         LOG_WARN("sync config info use too much time", K(ret), K(name), K(value),
                  "cost_us", ObTimeUtility::current_time() - start);
@@ -2112,6 +2150,7 @@ int ObRootService::check_ddl_allowed()
       ret = OB_RS_SHUTDOWN;
       LOG_WARN("rs shutdown", K(ret));
     } else if (THIS_WORKER.is_timeout()) {
+      LOG_WARN("进入了ObRootService::check_ddl_allowed了，设置ret为TIMEOUT", K(ret));
       ret = OB_TIMEOUT;
       LOG_WARN("wait too long", K(ret));
     } else {
@@ -4965,6 +5004,7 @@ int ObRootService::init_debug_database()
   return ret;
 }
 
+//进入了这里
 int ObRootService::do_restart()
 {
   int ret = OB_SUCCESS;
@@ -4984,36 +5024,54 @@ int ObRootService::do_restart()
   }
 
   // renew master rootservice, ignore error
+  //是成功的话
   if (OB_SUCC(ret)) {
     int tmp_ret = rs_mgr_->renew_master_rootserver();
     if (OB_SUCCESS != tmp_ret) {
+      //进入了这里
       FLOG_WARN("renew master rootservice failed", KR(tmp_ret));
     }
   }
 
   //fetch root partition info
+  //这里应该没有进去
   if (FAILEDx(fetch_sys_tenant_ls_info())) {
     FLOG_WARN("fetch root partition info failed", KR(ret));
   } else {
+    //这里进去打印了的
     FLOG_INFO("fetch root partition info succeed", KR(ret));
   }
 
   // broadcast root server address, ignore error
   if (OB_SUCC(ret)) {
+    //应该进入了这里的，这里调用了update_rslist()
     int tmp_ret = update_rslist();
     if (OB_SUCCESS != tmp_ret) {
       FLOG_WARN("failed to update rslist but ignored", KR(tmp_ret));
     }
   }
 
+  //这前面都没有卡顿。
+
+
   if (OB_SUCC(ret)) {
     //standby cluster trigger load_refresh_schema_status by heartbeat.
     //due to switchover, primary cluster need to load schema_status too.
+    //这里开始卡顿的，不知道是不是那个RPC的时间问题。
+    //这里可能会多态。GCTX是什么东西？
+    //ObSchemaStatusProxy可能是基类，然后后面这个是子类对象。
     ObSchemaStatusProxy *schema_status_proxy = GCTX.schema_status_proxy_;
     if (OB_ISNULL(schema_status_proxy)) {
       ret = OB_ERR_UNEXPECTED;
+      //这里没有进去
       FLOG_WARN("schema_status_proxy is null", KR(ret));
-    } else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status())) {
+    } 
+    //这里进去了，RPC调用。用了30S。没有传入参数
+    //多态那也肯定子类需要实现这个方法撒。
+    //第一次并没有进入方法内部去。感觉这个代理应该做了些其它事情吧？为什么会没打印呢第一次。
+    //真需要调试一下
+    else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status())) {
+      //这里打印了的
       FLOG_WARN("fail to load refresh schema status", KR(ret));
     } else {
       FLOG_INFO("load schema status success");
@@ -5207,6 +5265,7 @@ int ObRootService::do_restart()
   }
 
   if (OB_FAIL(ret)) {
+    //直接就到这里来了
     update_fail_count(ret);
   }
 
@@ -5556,7 +5615,10 @@ int ObRootService::ObRefreshServerTask::process()
   const bool load_frozen_status = true;
   const bool need_retry = true;
   FLOG_INFO("refresh server task process");
+
   ObLatchRGuard guard(root_service_.bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
+  //暂时先不管吧，感觉现在好像没什么性能开销了。
+  //LOG_WARN("refresh 上锁成功了",K(ret));
   if (OB_FAIL(root_service_.refresh_server(load_frozen_status, need_retry))) {
     FLOG_WARN("refresh server failed", K(ret), K(load_frozen_status));
   } else {}

@@ -594,7 +594,12 @@ stmt:
   | variable_set_stmt       { $$ = $1; question_mark_issue($$, result); }
   | execute_stmt            { $$ = $1; check_question_mark($$, result); }
   | alter_table_stmt        { $$ = $1; check_question_mark($$, result); }
-  | alter_system_stmt       { $$ = $1; check_question_mark($$, result); }
+  | alter_system_stmt       { 
+    $$ = $1;
+    //这里还会check一下，应该是设置标志吧 ，好像还是没有设置标志
+    //SCF—select。
+    check_question_mark($$, result); 
+    }
   | audit_stmt              { $$ = $1; check_question_mark($$, result); }
   | deallocate_prepare_stmt { $$ = $1; check_question_mark($$, result); }
   | create_user_stmt        { $$ = $1; check_question_mark($$, result); }
@@ -15047,11 +15052,14 @@ DUMP MEMORY LEAK
  *	ALTER SYSTEM grammar
  *
  *****************************************************************************/
+ //词法解析入口在这里 SCF_SELECT
 alter_system_stmt:
 ALTER SYSTEM BOOTSTRAP server_info_list
 {
   ParseNode *server_list = NULL;
+  //应该是合并到一个数据结构去吧
   merge_nodes(server_list, result, T_SERVER_INFO_LIST, $4);
+  //这个也是合并非终结符吧？
   malloc_non_terminal_node($$, result->malloc_pool_, T_BOOTSTRAP, 1, server_list);
 }
 |

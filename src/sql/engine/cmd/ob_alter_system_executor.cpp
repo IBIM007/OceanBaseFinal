@@ -1593,7 +1593,9 @@ int ObBootstrapExecutor::execute(ObExecContext &ctx, ObBootstrapStmt &stmt)
   if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
     rpc_timeout = max(THIS_WORKER.get_timeout_remain(), BS_TIMEOUT);
   }
+  //超时
   LOG_INFO("bootstrap timeout", K(rpc_timeout));
+  //后面循环if一个都没有进入貌似。
 	if (OB_ISNULL(task_exec_ctx = GET_TASK_EXECUTOR_CTX(ctx))) {
 		ret = OB_NOT_INIT;
 		LOG_WARN("get task executor context failed");

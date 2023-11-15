@@ -228,60 +228,82 @@ int ObSchemaStatusProxy::get_refresh_schema_status(
   }
   return ret;
 }
-
+//应该进入的这里，确定应该是这里，但是RPC时间怎么发现的呢
 int ObSchemaStatusProxy::load_refresh_schema_status()
 {
+  
   int ret = OB_SUCCESS;
+  LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status1111111了", K(ret));
   if (OB_FAIL(check_inner_stat())) {
+    //没进入这里
     LOG_WARN("check inner stat failed", K(ret));
   } else {
+    //这里又是一个rpc调用？
+    LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status2222222222222222了", K(ret));
     ObCoreTableProxy core_table(OB_ALL_SCHEMA_STATUS_TNAME, sql_proxy_, OB_SYS_TENANT_ID);
+    LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status33333333333333333了", K(ret));
     if (OB_FAIL(core_table.load())) {
+      //没进入这里
       LOG_WARN("fail to load core table", K(ret));
     } else {
+      LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status44444444444444444444了", K(ret));
       uint64_t tenant_id = OB_INVALID_TENANT_ID;
       int64_t snapshot_timestamp = OB_INVALID_TIMESTAMP;
       int64_t readable_schema_version = OB_INVALID_VERSION;
       while(OB_SUCC(ret)) {
         if (OB_FAIL(core_table.next())) {
+          LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status777777777777777了", K(ret));
           if (OB_ITER_END == ret) {
+            LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status8888888888888888了", K(ret));
             ret = OB_SUCCESS;
             break;
           } else {
+            //没进入这里
             LOG_WARN("fail to next", K(ret));
           }
         } else if (OB_FAIL(core_table.get_uint(TENANT_ID_CNAME, tenant_id))) {
+          //没进入这里
           LOG_WARN("fail to get int", K(ret));
         } else if (OB_FAIL(core_table.get_int(SNAPSHOT_TIMESTAMP_CNAME, snapshot_timestamp))) {
+          //没进入这里
           LOG_WARN("fail to get int", K(ret));
         } else if (OB_FAIL(core_table.get_int(READABLE_SCHEMA_VERSION_CNAME, readable_schema_version))) {
+          //没进入这里
           LOG_WARN("fail to get int", K(ret));
         }
         if (OB_FAIL(ret)) {
         } else {
+          LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status555555555555555555了", K(ret));
           ObRefreshSchemaStatus schema_status;
           schema_status.tenant_id_ = tenant_id;
           schema_status.snapshot_timestamp_ = snapshot_timestamp;
           schema_status.readable_schema_version_ = readable_schema_version;
           ObSchemaStatusUpdater updater(schema_status);
           if (OB_FAIL(schema_status_cache_.atomic_refactored(tenant_id, updater))) {
+            LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status666666666666666666666了", K(ret));
             if (OB_HASH_NOT_EXIST != ret) {
+              //没进入这里
               LOG_WARN("fail to update schema_status", K(ret), K(tenant_id), K(schema_status));
             } else if (OB_FAIL(schema_status_cache_.set_refactored(tenant_id, schema_status))) {
               if (OB_HASH_EXIST == ret) {
+                //没进入这里
                 LOG_WARN("concurrent set, just ignore", K(ret), K(tenant_id), K(schema_status));
                 ret = OB_SUCCESS;
               } else {
+                //没进入这里
                 LOG_WARN("fail to set schema_status", K(ret), K(tenant_id), K(schema_status));
               }
             }
           }
         }
       }
+      LOG_WARN("进入了ObSchemaStatusProxy::load_refresh_schema_status循环已经结束了了", K(ret));
     }
   }
-  
+  //28829行才打印。但是已经回去了啊
+  //15:19:24.744909时间对不上呢
   LOG_INFO("[SCHEMA_STATUS] load refreshed schema status", K(ret));
+  //只有这一个返回呀
   return ret;
 }
 

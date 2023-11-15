@@ -1008,7 +1008,7 @@ private:
       }
     }
   }
-
+  //怎么走到这里来的，也是重点方法
   void print_session_info() {
     static const int64_t max_process_time = 1000L * 1000L * 20L; // 20s
     if (TC_REACH_TIME_INTERVAL(15*1000*1000L)) {

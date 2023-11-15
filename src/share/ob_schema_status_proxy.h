@@ -50,6 +50,7 @@ private:
 
 // dodge the bug :
 // all operation of __all_core_table must be single partition transaction
+//并没有继承呢
 class ObSchemaStatusProxy
 {
 public:
@@ -93,6 +94,7 @@ public:
 private:
   int check_inner_stat();
 private:
+//这里还有一个代理
   common::ObISQLClient &sql_proxy_;
   common::hash::ObHashMap<uint64_t, share::schema::ObRefreshSchemaStatus, common::hash::ReadWriteDefendMode> schema_status_cache_;
   bool is_inited_;

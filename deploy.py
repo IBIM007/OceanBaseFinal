@@ -89,14 +89,14 @@ if __name__ == "__main__":
     #添加各种参数
     #部署的路径
     parser.add_argument("--cluster-home-path", dest='cluster_home_path', type=str, help="the path of sys log / config file / sql.sock / audit info")
-    #这两个参数啥意思
+    #这两个参数是指如果有这个参数那么跳到对应方法吧
     parser.add_argument("--only_build_env", action='store_true', help="build env & start observer without bootstrap and basic check")
     parser.add_argument('--clean', action='store_true', help='clean deploy directory and exit')
-    #mysql怎么冒出来的
+    #端口默认2881
     parser.add_argument("-p", dest="mysql_port", type=str, default="2881")
-    #rpc为啥有端口
+    #rpc端口默认2882
     parser.add_argument("-P", dest="rpc_port", type=str, default="2882")
-    #地区
+    #zone默认就一个
     parser.add_argument("-z", dest="zone", type=str, default="zone1")
     #集群id
     parser.add_argument("-c", dest="cluster_id", type=str, default="1")
@@ -104,19 +104,19 @@ if __name__ == "__main__":
     parser.add_argument("-i", dest="devname", type=str, default="lo")
     #ip
     parser.add_argument("-I", dest="ip", type=str, default="127.0.0.1")
-    #一些内存，文件设置？
+    #住户的资源设置吧
     parser.add_argument("-o", dest="opt_str", type=str, default="__min_full_resource_pool_memory=1073741824,datafile_size=60G,datafile_next=20G,datafile_maxsize=100G,log_disk_size=40G,memory_limit=10G,system_memory=1G,cpu_count=24,cache_wash_threshold=1G,workers_per_cpu_quota=10,schema_history_expire_time=1d,net_thread_count=4,syslog_io_bandwidth_limit=10G")
-    #不知道tenant
+    #租户相关
     tenant_group = parser.add_argument_group('tenant', 'tenant options')
-    #不知道，租户相关
+    #租户名字
     tenant_group.add_argument('--tenant-name', dest='tenant_name', type=str, default='test')
-    #不知道，租户相关
+    #租户资源池
     tenant_group.add_argument('--tenant-resource-pool-name', dest='tenant_resource_pool_name', type=str, default='test_pool')
-    #不知道，租户相关
+    #租户资源单元
     tenant_group.add_argument('--tenant-unit-name', dest='tenant_unit_name', type=str, default='test_unit')
-    #不知道，租户相关
+    #租户的CPU
     tenant_group.add_argument('--tenant-cpu', dest='tenant_cpu', type=str, default='18')
-    #不知道，租户相关
+    #租户的内存
     tenant_group.add_argument('--tenant-memory', dest='tenant_memory', type=str, default='8589934592')
 
     args = parser.parse_args()
@@ -124,37 +124,67 @@ if __name__ == "__main__":
     if not param_check(args):
         _logger.error("param check failed")
         exit(1)
-
+    #指定路径
     home_abs_path = os.path.abspath(args.cluster_home_path)
     bin_abs_path = __observer_bin_path(home_abs_path)
     data_abs_path = os.path.abspath(__data_path(args.cluster_home_path))
 
+    #清除原来路径下的东西
     if args.clean:
         __clear_env(home_abs_path)
         exit(0)
 
+    #构建环境，应该就是创建目录吧
     __build_env(home_abs_path)
 
+    #root的配置
     rootservice = f'{args.ip}:{args.rpc_port}'
+    #observer的相关配置
     observer_args = f"-p {args.mysql_port} -P {args.rpc_port} -z {args.zone} -c {args.cluster_id} -d {data_abs_path} -i {args.devname} -r {rootservice} -I {args.ip} -o {args.opt_str}"
 
+    #就是我们指定的目录
     os.chdir(args.cluster_home_path)
+    #命令
     observer_cmd = f"{bin_abs_path} {observer_args}"
     _logger.info(observer_cmd)
-    shell_result = subprocess.run(observer_cmd, shell=True)
+    #官方说这个
+    #启动Observe
+    #不要run。
+    #启动子进程。
+    shell_result = subprocess.Popen(observer_cmd, shell=True)
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
+    #这个应该是等子进程彻底跑起来
+    #TODO，群里有人说等的久一点，bootstrap时间反而减少了？
+    # 试了一下2.5秒和3秒等待，没发现时间更短。
+    #感觉可能的原因是如果过早连接，子进程有些东西没准备好，就会造成这边alter system bootstrap阻塞？
+    #TODO探活方式
     time.sleep(2)
     try:
+        #尝试连接
         db = __try_to_connect(args.ip, int(args.mysql_port))
+        #类似于拿到数据库的对象吧
         cursor = db.cursor(cursor=mysql.cursors.DictCursor)
         _logger.info(f'connect to server success! host={args.ip}, port={args.mysql_port}')
 
+        #计时开始时间
+        #执行之前需要input卡一下，然后先attach上进程号，哪个程序，再继续跑,断点打到哪里？
+        #前面其实把进程启动了
+        #a=input()
+        #打印一下
+        #print(args.zone)
+        #print(rootservice)
         bootstrap_begin = datetime.datetime.now()
+        #关键的执行语句,真正初始化
+        #这里的zone只有一个，那就是不用选举，但是还应该涉及到分区吧，多个分区仍然需要选举？
+        #一个zone，一个observer，分区数应该也一定是1.因为有其他分区的概念一定是其它observer的分区副本。
         cursor.execute(f"ALTER SYSTEM BOOTSTRAP ZONE '{args.zone}' SERVER '{rootservice}'")
+        #计时结束时间
         bootstrap_end = datetime.datetime.now()
+            #60S
         _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
         # checkout server status
+        #TODO检查服务器状态，这里其实也可以注销掉，减少时间
         cursor.execute("select * from oceanbase.__all_server")
         server_status = cursor.fetchall()
         if len(server_status) != 1 or server_status[0]['status'] != 'ACTIVE':
@@ -163,6 +193,7 @@ if __name__ == "__main__":
         _logger.info('checkout server status ok')
         # ObRootService::check_config_result
 
+        #创建租户。这后面也要算时间.25S
         __create_tenant(cursor,
                         cpu=args.tenant_cpu,
                         memory_size=args.tenant_memory,
@@ -172,6 +203,7 @@ if __name__ == "__main__":
                         tenant_name=args.tenant_name)
         _logger.info('create tenant done')
 
+    #异常不用管
     except mysql.err.Error as e:
         _logger.info("deploy observer failed. ex=%s", str(e))
         _logger.info(traceback.format_exc())

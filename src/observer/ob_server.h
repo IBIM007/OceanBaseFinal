@@ -421,6 +421,7 @@ private:
   // observer. The whole pointers stored in gctx wouldn't be changed
   // once they're assigned. So other class can only get a reference of
   // constant gctx.
+  //这里是全局内容,GTCX就是这个玩意儿
   ObGlobalContext gctx_;
 
   //observer start time
@@ -436,6 +437,7 @@ private:
   ObRefreshNetworkSpeedTask refresh_network_speed_task_; // repeat & no retry
   ObRefreshCpuFreqTimeTask refresh_cpu_frequency_task_;
   blocksstable::ObStorageEnv storage_env_;
+  //这里应该就是我们用的那个玩意儿吧
   share::ObSchemaStatusProxy schema_status_proxy_;
 
   // for locality

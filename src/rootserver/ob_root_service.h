@@ -899,7 +899,10 @@ private:
   // use mysql server backend for debug.
   bool debug_;
 
+  volatile bool bootstrapget=false;
+  
   common::ObAddr self_addr_;
+  //这里有config_
   common::ObServerConfig *config_;
   common::ObConfigManager *config_mgr_;
 
