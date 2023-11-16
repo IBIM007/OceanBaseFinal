@@ -481,6 +481,7 @@ int ObPreBootstrap::check_all_server_bootstrap_mode_match(
     LOG_WARN("fail to check inner stat", K(ret));
   } else {
     ObCheckDeploymentModeArg arg;
+    //是否是单zone
     arg.single_zone_deployment_on_ = OB_FILE_SYSTEM_ROUTER.is_single_zone_deployment_on();
     for (int64_t i = 0; OB_SUCC(ret) && match && i < rs_list_.count(); ++i) {
       if (OB_FAIL(rpc_proxy_.to(rs_list_[i].server_).check_deployment_mode_match(

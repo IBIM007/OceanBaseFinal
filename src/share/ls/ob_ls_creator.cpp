@@ -141,7 +141,9 @@ int ObLSCreator::create_sys_tenant_ls(
       LOG_WARN("failed to create log stream", KR(ret), K_(id), K_(tenant_id),
                                               K(addr), K(paxos_replica_num), K(tenant_info),
                                               K(create_scn), K(compat_mode), K(palf_base_info));
-    } else if (OB_FAIL(set_member_list_(member_list, arbitration_service, paxos_replica_num, learner_list))) {
+    } 
+    //这里有个set_member_list就是跟选举有关的了。
+    else if (OB_FAIL(set_member_list_(member_list, arbitration_service, paxos_replica_num, learner_list))) {
       LOG_WARN("failed to set member list", KR(ret), K(member_list), K(arbitration_service), K(paxos_replica_num));
     }
   }
@@ -415,7 +417,9 @@ int ObLSCreator::create_ls_(const ObILSAddr &addrs,
                 create_with_palf, palf_base_info))) {
           LOG_WARN("failed to init create log stream arg", KR(ret), K(addr), K(create_with_palf),
               K_(id), K_(tenant_id), K(tenant_info), K(create_scn), K(new_compat_mode), K(palf_base_info));
-        } else if (OB_TMP_FAIL(create_ls_proxy_.call(addr.addr_, ctx.get_timeout(),
+        } 
+        //这里的call应该才是真的rpc吧？
+        else if (OB_TMP_FAIL(create_ls_proxy_.call(addr.addr_, ctx.get_timeout(),
                 GCONF.cluster_id, tenant_id_, arg))) {
           LOG_WARN("failed to all async rpc", KR(tmp_ret), K(addr), K(ctx.get_timeout()),
               K(arg), K(tenant_id_));
@@ -611,6 +615,7 @@ int ObLSCreator::check_create_ls_result_(const int64_t rpc_count,
         }
       }
     }
+    //这里面有个什么大多数。
     if (rootserver::majority(paxos_replica_num) > member_list.get_member_number()) {
       ret = OB_REPLICA_NUM_NOT_ENOUGH;
       LOG_WARN("success count less than majority", KR(ret), K(paxos_replica_num),

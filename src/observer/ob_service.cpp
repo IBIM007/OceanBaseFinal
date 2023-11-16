@@ -1462,6 +1462,7 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
         }
       }
       if (boot_done) {
+        //打印过这个的
         BOOTSTRAP_LOG(INFO, "succeed to do_boot_strap", K(rs_list), K(master_rs));
       }
     }
