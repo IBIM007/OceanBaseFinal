@@ -171,6 +171,7 @@ int ObLeaderCoordinator::get_ls_election_reference_info(const share::ObLSID &ls_
     }
     if (idx == all_ls_election_reference_info_->count()) {
       ret = OB_ENTRY_NOT_EXIST;
+      //进入了这里
       COORDINATOR_LOG(WARN, "can not find this ls_id in all_ls_election_reference_info_",
                             KR(ret), K(ls_id), KPC_(all_ls_election_reference_info));
     }

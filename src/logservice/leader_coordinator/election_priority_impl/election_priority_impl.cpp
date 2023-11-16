@@ -264,6 +264,7 @@ int ElectionPriorityImpl::refresh()
   LC_TIME_GUARD(1_s);
   int ret = OB_SUCCESS;
   RefeshPriority functor(ret, ls_id_);
+  //这里遍历了所有的优先级哇
   if (CLICK_FAIL(priority_tuple_.for_each(functor))) {
     COORDINATOR_LOG(WARN, "refresh priority failed", KR(ret), K(MTL_ID()), K_(ls_id), K(*this));
   }

@@ -1403,6 +1403,7 @@ int ObService::broadcast_consensus_version(
 int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
 {
   int ret = OB_SUCCESS;
+  //十分钟超时
   const int64_t timeout = 600 * 1000 * 1000LL; // 10 minutes
   const obrpc::ObServerInfoList &rs_list = arg.server_list_;
   LOG_INFO("bootstrap timeout", K(timeout), "worker_timeout_ts", THIS_WORKER.get_timeout_ts());
@@ -1413,12 +1414,14 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
     ret = OB_INVALID_ARGUMENT;
     BOOTSTRAP_LOG(WARN, "rs_list is empty", K(rs_list), K(ret));
   } else {
+    //准备bootstrap
     ObPreBootstrap pre_bootstrap(*gctx_.srv_rpc_proxy_,
                                  rs_list,
                                  *gctx_.lst_operator_,
                                  *gctx_.config_,
                                  arg,
                                  *gctx_.rs_rpc_proxy_);
+    //master root service的地址
     ObAddr master_rs;
     bool server_empty = false;
     ObCheckServerEmptyArg new_arg;
@@ -1428,9 +1431,12 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
     } else if (!server_empty) {
       ret = OB_ERR_SYS;
       BOOTSTRAP_LOG(WARN, "this observer is not empty", KR(ret), K(GCTX.self_addr()));
-    } else if (OB_FAIL(pre_bootstrap.prepare_bootstrap(master_rs))) {
+    } 
+    //前面的都没打印了，直接进了这里执行，并且成功了
+    else if (OB_FAIL(pre_bootstrap.prepare_bootstrap(master_rs))) {
       BOOTSTRAP_LOG(ERROR, "failed to prepare boot strap", K(rs_list), K(ret));
     } else {
+      //最后进入的这里面
       const ObCommonRpcProxy &rpc_proxy = *gctx_.rs_rpc_proxy_;
       bool boot_done = false;
       const int64_t MAX_RETRY_COUNT = 30;

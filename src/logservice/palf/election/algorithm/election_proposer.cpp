@@ -201,6 +201,9 @@ void ElectionProposer::
      advance_ballot_number_and_reset_related_states_(const int64_t new_ballot_number,
                                                      const char *reason)
 {
+  //能否判断只有一个成员，那么把优先级里面的is_manual设置为true。
+  //问题：重启时应该成员还是只有一个的，不能这样判断吧，另外*this到底怎么打印的，找不到那个is_manual的入口
+  //时间500ms
   ELECT_TIME_GUARD(500_ms);
   assert(new_ballot_number >= ballot_number_);
   ELECT_LOG(INFO, "advance ballot number", K(new_ballot_number), K(reason), K(*this));
@@ -213,6 +216,7 @@ void ElectionProposer::
 
 int ElectionProposer::register_renew_lease_task_()
 {
+  //有个时间
   ELECT_TIME_GUARD(500_ms);
   #define PRINT_WRAPPER KR(ret), K(*this)
   int ret = OB_SUCCESS;
@@ -341,7 +345,9 @@ void ElectionProposer::prepare(const ObRole role)
     last_do_prepare_ts_ = cur_ts;
     // 1. Leader prepare不推ballot number，Follower prepare需要推大自己的ballot number再进行
     if (role == ObRole::FOLLOWER) {
+      //先进入的prepare，再进入的这个
       (void) advance_ballot_number_and_reset_related_states_(ballot_number_ + 1, "do prepare");
+      //打印了这里
       LOG_PHASE(INFO, phase, "do prepare");
     } else if (role == ObRole::LEADER) {
       LOG_PHASE(INFO, phase, "do leader prepare");
@@ -357,7 +363,9 @@ void ElectionProposer::prepare(const ObRole role)
                                           p_election_->get_ls_biggest_min_cluster_version_ever_seen_(),
                                           p_election_->inner_priority_seed_,
                                           p_election_->get_membership_version_());
+      //这里调用了refresh
     (void) p_election_->refresh_priority_();
+    //这里设置了一个什么优先级
     if (CLICK_FAIL(prepare_req.set(p_election_->get_priority_(),
                                    role))) {
       LOG_PHASE(ERROR, phase, "create prepare request failed");

@@ -1585,27 +1585,37 @@ int ObStopUpgradeJobExecutor::execute(
 int ObBootstrapExecutor::execute(ObExecContext &ctx, ObBootstrapStmt &stmt)
 {
   int ret = OB_SUCCESS;
+  //BS有个时间
 	const int64_t BS_TIMEOUT = 600 * 1000 * 1000;  // 10 minutes
+  //任务执行上下文
 	ObTaskExecutorCtx *task_exec_ctx = NULL;
+  //一个代理
   obrpc::ObSrvRpcProxy *srv_rpc_proxy = NULL;
+  //bootstrap参数
   obrpc::ObBootstrapArg &bootstarp_arg = stmt.bootstrap_arg_;
+  //rpc的时间设置成了这个
   int64_t rpc_timeout = BS_TIMEOUT;
+  //再次设置吧
   if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
     rpc_timeout = max(THIS_WORKER.get_timeout_remain(), BS_TIMEOUT);
   }
-  //超时
+  //超时，打印的600000000，应该是微妙
   LOG_INFO("bootstrap timeout", K(rpc_timeout));
   //后面循环if一个都没有进入貌似。
 	if (OB_ISNULL(task_exec_ctx = GET_TASK_EXECUTOR_CTX(ctx))) {
+    //没进去
 		ret = OB_NOT_INIT;
 		LOG_WARN("get task executor context failed");
 	} else if (OB_ISNULL(srv_rpc_proxy = task_exec_ctx->get_srv_rpc())) {
+    //没进去
 		ret = OB_NOT_INIT;
 		LOG_WARN("get common rpc proxy failed");
-	} else if (OB_FAIL(srv_rpc_proxy->to(task_exec_ctx->get_self_addr()).timeout(rpc_timeout).bootstrap(bootstarp_arg))) {
+	} 
+  else if (OB_FAIL(srv_rpc_proxy->to(task_exec_ctx->get_self_addr()).timeout(rpc_timeout).bootstrap(bootstarp_arg))) {
 		LOG_WARN("rpc proxy bootstrap failed", K(ret), K(rpc_timeout));
 		BOOTSTRAP_LOG(WARN, "STEP_0.1:alter_system execute fail");
 	} else {
+    //这里面执行rpc调用，并且成功了，最后打印了alter_system execute success
 		BOOTSTRAP_LOG(INFO, "STEP_0.1:alter_system execute success");
 	}
 	return ret;

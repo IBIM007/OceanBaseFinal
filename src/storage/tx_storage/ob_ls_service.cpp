@@ -448,6 +448,7 @@ int ObLSService::create_ls(const obrpc::ObCreateLSArg &arg)
   const SCN create_scn = arg.get_create_scn();
   palf::PalfBaseInfo palf_base_info;
   const ObMigrationStatus migration_status = ObMigrationStatus::OB_MIGRATION_STATUS_NONE;
+  //打印了
   LOG_INFO("create_ls begin", K(arg));
   DEBUG_SYNC(BEFORE_CREATE_USER_LS);
 

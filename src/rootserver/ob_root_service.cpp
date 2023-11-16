@@ -1862,6 +1862,7 @@ int ObRootService::after_restart()
   //只编译这个文件花不了什么时间
   //while(bootstrapget==false);
   // avoid concurrent with bootstrap
+  //可能后面改成2S
   sleep(3);
   FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in after_restart");
   ObLatchRGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
@@ -1985,7 +1986,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     LOG_WARN("lst_operator_ ptr is null", KR(ret), KP(lst_operator_));
   } else {
     //应该是进入的这里
-    //这个不用管吧。
+    //这个不用管吧。更新CPU在内存中的并发限额
     update_cpu_quota_concurrency_in_memory_();
     // avoid bootstrap and do_restart run concurrently
     FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in execute_bootstrap");
@@ -2000,6 +2001,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     //bootstrapget=true;
     FLOG_INFO("[ROOTSERVICE_NOTICE] success to get lock for bootstrap in execute_bootstrap");
     //从抢到锁到最后执行完成这个方法大概执行了14秒。也需要细致优化
+    //这个代理是什么意思
     ObBootstrap bootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
                           *config_, arg, common_proxy_);
     //这里应该是RPC调用吧
@@ -2012,28 +2014,48 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     ObArray<ObAddr> self_addr;
     if (OB_FAIL(ret)) {
       //bootstrap貌似也会调用这个do_restart方法
-    } else if (OB_FAIL(do_restart())) {
+    } 
+    //这里面的逻辑暂时不管吧，除了这个，其它应该都不耗时，TODO这个方法执行了6秒.而且到进去，居然等了2秒钟
+    //renew_master_rootserver和sleep_before_local_retry大量
+    else if (OB_FAIL(do_restart())) {
       LOG_WARN("do restart task failed", K(ret));
-    } else if (OB_FAIL(check_ddl_allowed())) {
+    } 
+    //检查所有的ddl是否被允许
+    else if (OB_FAIL(check_ddl_allowed())) {
       LOG_WARN("fail to check ddl allowed", K(ret));
-    } else if (OB_FAIL(update_all_server_and_rslist())) {
+    } 
+    //更新所有的server在rs列表
+    else if (OB_FAIL(update_all_server_and_rslist())) {
       LOG_WARN("failed to update all_server and rslist", K(ret));
-    } else if (OB_FAIL(zone_manager_.reload())) {
+    } 
+    //分区管理器重新加载
+    else if (OB_FAIL(zone_manager_.reload())) {
       LOG_WARN("failed to reload zone manager", K(ret));
-    } else if (OB_FAIL(set_cluster_version())) {
+    } 
+    //设置集群版本
+    else if (OB_FAIL(set_cluster_version())) {
       LOG_WARN("set cluster version failed", K(ret));
-    } else if (OB_FAIL(pl::ObPLPackageManager::load_all_sys_package(sql_proxy_))) {
+    } 
+    //加载所有系统包
+    else if (OB_FAIL(pl::ObPLPackageManager::load_all_sys_package(sql_proxy_))) {
       LOG_WARN("load all system package failed", K(ret));
-    } else if (OB_FAIL(finish_bootstrap())) {
+    } 
+    //完成bootstrap
+    else if (OB_FAIL(finish_bootstrap())) {
       LOG_WARN("failed to finish bootstrap", K(ret));
-    } else if (OB_FAIL(update_baseline_schema_version())) {
+    } 
+    //更新基本shcema的版本
+    else if (OB_FAIL(update_baseline_schema_version())) {
       LOG_WARN("failed to update baseline schema version", K(ret));
     } else if (OB_FAIL(global_proxy.get_baseline_schema_version(
                        baseline_schema_version_))) {
       LOG_WARN("fail to get baseline schema version", KR(ret));
-    } else if (OB_FAIL(set_cpu_quota_concurrency_config_())) {
+    } 
+    //设置cpu限额的并发配置
+    else if (OB_FAIL(set_cpu_quota_concurrency_config_())) {
       LOG_WARN("failed to update cpu_quota_concurrency", K(ret));
     }
+
 
     if (OB_SUCC(ret)) {
       char ori_min_server_version[OB_SERVER_VERSION_LENGTH] = {'\0'};
@@ -2054,6 +2076,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
 
     //clear bootstrap flag, regardless failure or success
     int tmp_ret = OB_SUCCESS;
+    
     if (OB_SUCCESS != (tmp_ret = clear_special_cluster_schema_status())) {
       LOG_WARN("failed to clear special cluster schema status",
                 KR(ret), K(tmp_ret));

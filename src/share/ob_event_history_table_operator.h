@@ -286,6 +286,7 @@ int ObEventHistoryTableOperator::add_event(const char *module, const char *event
       }
     }
   }
+  //感觉没啥好看的
   ObTaskController::get().allow_next_syslog();
   SHARE_LOG(INFO, "event table add task", K(ret), K_(event_table_name), K(sql));
   return ret;

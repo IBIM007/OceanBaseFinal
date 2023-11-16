@@ -1625,7 +1625,9 @@ int ObLocalityCheckHelp::check_alter_single_zone_locality_valid(
 int ObRootUtils::get_rs_default_timeout_ctx(ObTimeoutCtx &ctx)
 {
   int ret = OB_SUCCESS;
+  //这里设置了一个两秒
   const int64_t DEFAULT_TIMEOUT_US = 2 * 1000 * 1000; // 2s
+  //这是设置默认超时时间？
   if (OB_FAIL(ObShareUtil::set_default_timeout_ctx(ctx, DEFAULT_TIMEOUT_US))) {
     LOG_WARN("fail to set default_timeout_ctx", KR(ret));
   }

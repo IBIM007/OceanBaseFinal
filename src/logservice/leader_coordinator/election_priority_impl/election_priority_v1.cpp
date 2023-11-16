@@ -222,6 +222,7 @@ int PriorityV1::refresh_(const share::ObLSID &ls_id)
   } else if (CLICK_FAIL(detector->get_specified_level_event(FailureLevel::SERIOUS, serious_failures_))) {
     COORDINATOR_LOG_(WARN, "get serious failures failed");
   } else if (CLICK_FAIL(coordinator->get_ls_election_reference_info(ls_id, election_reference_info))) {
+    //这里调用的
     COORDINATOR_LOG_(WARN, "fail to get ls election reference info");
   } else if (CLICK_FAIL(in_blacklist_reason_.assign(election_reference_info.element<3>().element<1>()))) {
     COORDINATOR_LOG_(WARN, "fail to copy removed reason string");

@@ -285,7 +285,7 @@ bool ObNetKeepAlive::in_black(const easy_addr_t &addr)
   }
   return in_blacklist;
 }
-
+//这个方法就是在ob_service前面
 DestKeepAliveState *ObNetKeepAlive::regist_dest_if_need(const easy_addr_t &addr)
 {
   DestKeepAliveState *ret = NULL;
@@ -315,11 +315,13 @@ DestKeepAliveState *ObNetKeepAlive::regist_dest_if_need(const easy_addr_t &addr)
           ret = s;
           int index = ATOMIC_FAA(&regist_dest_count_, 1);
           if (index >= MAX_RS_COUNT) {
+            //没进入这里
             LOG_WARN_RET(OB_ERR_UNEXPECTED, "regist dest keepalive state failed", K(index));
             ATOMIC_FAA(&regist_dest_count_, -1);
           } else {
             ATOMIC_STORE(&regist_dests_[index], s);
           }
+          //进入了这里打印
           _LOG_INFO("add new rs, addr: %s", addr_to_string(addr));
         }
       } else {

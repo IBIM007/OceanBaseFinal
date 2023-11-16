@@ -681,7 +681,7 @@ int ObUnitResource::gen_sys_tenant_default_unit_resource(const bool is_hidden_sy
     ret = OB_RESOURCE_UNIT_VALUE_INVALID;
     LOG_ERROR("sys tenant default unit resource is not valid for unit", KR(ret), K(is_hidden_sys), KPC(this));
   }
-
+  //这里打印了一下
   LOG_INFO("gen_sys_tenant_default_unit_resource", KR(ret), K(is_hidden_sys), KPC(this), K(lbt()));
 
   if (OB_FAIL(ret)) {

@@ -328,7 +328,9 @@ void ElectionImpl::refresh_priority_()
     // do nothing
   } else if (OB_ISNULL(priority_)) {
     ELECT_LOG(INFO, "priority is null", K(*this));
-  } else if (CLICK_FAIL(priority_->refresh())) {
+  } 
+  //这里调用了一次刷新
+  else if (CLICK_FAIL(priority_->refresh())) {
     ELECT_LOG(WARN, "refresh priority failed", KR(ret), K(*this));
   }
 }

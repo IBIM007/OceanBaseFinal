@@ -157,6 +157,7 @@ private:// 定向暴露给友元类
     int ret = OB_SUCCESS;
     bool rhs_is_higher = false;
     int compare_result = 0;
+    //指向的自己这个
     ElectionPriority *self_priority = priority_;
     ElectionPriority *lhs_priority = nullptr;
     ElectionPriority *rhs_priority = nullptr;
@@ -285,6 +286,7 @@ private:
   int64_t id_;
   ElectionProposer proposer_;// 对应PAXOS算法中的proposer
   ElectionAcceptor acceptor_;// 对应PAXOS算法中的acceptor
+  //这个实际指向的对象应该是election_priority_impl类吧，然后那里面有priority1，然后里面就有各种信息了
   ElectionPriority *priority_;// 由外部实现的选举优先级模块
   ElectionMsgSender *msg_handler_;// 由外部实现的消息收发模块
   common::ObAddr self_addr_;

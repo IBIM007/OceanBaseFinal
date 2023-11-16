@@ -89,11 +89,13 @@ protected:
   // 刷新优先级的方法
   virtual int refresh_(const share::ObLSID &ls_id) override;
 private:
+//只有一个成员变量端口号
   int64_t port_number_;
 };
 OB_SERIALIZE_MEMBER_TEMP(inline, PriorityV0, is_valid_, port_number_);
 
 // 适用于[4_0_0, latest]
+//这个是核心数据结构，它有一个继承，可能是多态使用？
 struct PriorityV1 : public AbstractPriority
 {
 /*********************************************************************************/
@@ -147,6 +149,7 @@ OB_SERIALIZE_MEMBER_TEMP(inline, PriorityV1, is_valid_, is_observer_stopped_, is
                          scn_, is_in_blacklist_, in_blacklist_reason_,
                          is_manual_leader_, zone_priority_);
 
+//它继承了ElectionPriority，这玩意儿在
 class ElectionPriorityImpl : public palf::election::ElectionPriority
 {
   friend class unittest::TestElectionPriority;

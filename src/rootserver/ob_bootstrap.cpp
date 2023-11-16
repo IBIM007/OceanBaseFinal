@@ -126,6 +126,7 @@ int ObBaseBootstrap::check_multiple_zone_deployment_rslist(
   //In the multi zone deployment mode,
   //each server must come from a different zone,
   //and it will throw exception if there are duplicate zones
+  //只要这个rslist为1，应该不耗时吧
   for (int64_t i = 0; OB_SUCC(ret) && i < rs_list.count(); ++i) {
     const ObZone &zone = rs_list[i].zone_;
     for (int64_t j = 0; OB_SUCC(ret) && j < rs_list.count(); ++j) {
@@ -252,12 +253,16 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
     //rs list是rootservice list吗？
     LOG_WARN("failed to check_bootstrap_rs_list", KR(ret), K_(rs_list));
-  } else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {
+  } 
+  //检查成功
+  else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {
     LOG_WARN("fail to check all server bootstrap mode match", KR(ret));
   } else if (!match) {
     ret = OB_NOT_SUPPORTED;
     LOG_WARN("cannot do bootstrap with different bootstrap mode on servers", KR(ret));
-  } else if (OB_FAIL(check_is_all_server_empty(is_empty))) {
+  } 
+  //检查成功
+  else if (OB_FAIL(check_is_all_server_empty(is_empty))) {
     LOG_WARN("failed to check bootstrap stat", KR(ret));
   } else if (!is_empty) {
     ret = OB_INIT_TWICE;
@@ -265,13 +270,19 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   }//注意这里开始就是通知 系统租户，这里通知应该就会到rootservice日志开始执行了execute_bootstrap吧？
   else if (OB_FAIL(notify_sys_tenant_root_key())) {
     LOG_WARN("fail to notify sys tenant root key", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {
+  } 
+  //这里是创建系统租户默认资源配置
+  else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {
     LOG_WARN("fail to notify sys tenant server unit resource", KR(ret));
   } else if (OB_FAIL(notify_sys_tenant_config_())) {
     LOG_WARN("fail to notify sys tenant config", KR(ret));
-  } else if (OB_FAIL(create_ls())) {
+  } 
+  //这里是创建日志流？注意走的代理，走的另外的cpp。但是日志打印的创建核心表分区
+  else if (OB_FAIL(create_ls())) {
     LOG_WARN("failed to create core table partition", KR(ret));
-  } else if (OB_FAIL(wait_elect_ls(master_rs))) {
+  } 
+  //等待选举日志流，这里执行完也就是选举会执行完了
+  else if (OB_FAIL(wait_elect_ls(master_rs))) {
     LOG_WARN("failed to wait elect master partition", KR(ret));
   }
   //前面都是检查，这里才是真正做事吧。
@@ -323,7 +334,7 @@ int ObPreBootstrap::notify_sys_tenant_server_unit_resource()
   ObUnitConfig unit_config;
   common::ObArray<uint64_t> sys_unit_id_array;
   const bool is_hidden_sys = false;
-
+  //这里面就是生成系统租户的资源吧
   if (OB_FAIL(unit_config.gen_sys_tenant_unit_config(is_hidden_sys))) {
     LOG_WARN("gen sys tenant unit config fail", KR(ret), K(is_hidden_sys));
   } else if (OB_FAIL(gen_sys_unit_ids(sys_unit_id_array))) {
@@ -368,7 +379,7 @@ int ObPreBootstrap::notify_sys_tenant_server_unit_resource()
       ret = (OB_SUCCESS == ret) ? tmp_ret : ret;
     }
   }
-
+  //在这之前还打印了很多东西
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
 }
@@ -431,9 +442,10 @@ int ObPreBootstrap::create_ls()
 int ObPreBootstrap::wait_elect_ls(
     common::ObAddr &master_rs)
 {
+  //打印一下这个master_rs
   int ret = OB_SUCCESS;
   const uint64_t tenant_id = OB_SYS_TENANT_ID;
-
+  //等待选举系统leader超时时间
   int64_t timeout = WAIT_ELECT_SYS_LEADER_TIMEOUT_US;
   if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
     timeout = max(timeout, THIS_WORKER.get_timeout_remain());
@@ -441,14 +453,16 @@ int ObPreBootstrap::wait_elect_ls(
 
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", K(ret));
-  } else if (OB_FAIL(ls_leader_waiter_.wait(
+  } 
+  //重点应该是进入这个方法
+  else if (OB_FAIL(ls_leader_waiter_.wait(
       tenant_id, SYS_LS, timeout, master_rs))) {
     LOG_WARN("leader_waiter_ wait failed", K(tenant_id), K(SYS_LS), K(timeout), K(ret));
   }
   if (OB_SUCC(ret)) {
     //进入了这里的
     ObTaskController::get().allow_next_syslog();
-    //等待选举日志流
+    //等待选举日志流，这里是打印了的
     LOG_INFO("succeed to wait elect log stream");
   }
   //第二次调用走的这里
@@ -588,21 +602,38 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   } else if (already_bootstrap) {
     ret = OB_INIT_TWICE;
     LOG_WARN("ob system is already bootstrap, cannot bootstrap again", K(ret));
-  } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
+  } 
+  //检查所有rs列表，应该不耗时
+  else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
+    //没有进去过
     LOG_WARN("failed to check_bootstrap_rs_list", K_(rs_list), K(ret));
-  } else if (OB_FAIL(create_all_core_table_partition())) {
+  } 
+  //创建所有核心表分区，应该不耗时,TODO貌似耗时
+  else if (OB_FAIL(create_all_core_table_partition())) {
     LOG_WARN("fail to create all core_table partition", KR(ret));
-  } else if (OB_FAIL(set_in_bootstrap())) {
+  } 
+  //不耗时
+  else if (OB_FAIL(set_in_bootstrap())) {
     LOG_WARN("failed to set in bootstrap", K(ret));
-  } else if (OB_FAIL(init_global_stat())) {
+  } 
+  //初始化全局状态，不耗时
+  else if (OB_FAIL(init_global_stat())) {
     LOG_WARN("failed to init_global_stat", K(ret));
-  } else if (OB_FAIL(construct_all_schema(table_schemas))) {
+  } 
+  //构造所有schema，可能耗时，目前也没发现有啥问题，TODO里面有个双重循环
+  else if (OB_FAIL(construct_all_schema(table_schemas))) {
     LOG_WARN("construct all schema fail", K(ret));
-  } else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {
+  } 
+  //广播所有系统schema，可能耗时，有wait，TODO有一个循环，看cost1S
+  else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {
     LOG_WARN("broadcast_sys_schemas failed", K(table_schemas), K(ret));
-  } else if (OB_FAIL(create_all_partitions())) {
+  } 
+  //创建所有分区，有循环可能耗时，TODO但是看cost2S
+  else if (OB_FAIL(create_all_partitions())) {
     LOG_WARN("create all partitions fail", K(ret));
-  } else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) {
+  } 
+  //创建所有schema，TODO可能耗时，确定耗时，大概4S
+  else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) {
     LOG_WARN("create_all_schema failed",  K(table_schemas), K(ret));
   }
   //上面检查全部成功，就开始创建什么东西。多版本并发控制？
@@ -614,16 +645,18 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     if (OB_FAIL(init_system_data())) {
       LOG_WARN("failed to init system data", KR(ret));
     } 
-    //
+    //刷新所有schema，TODO，可能耗时cost3秒多，但是应该还好吧，感觉就看cost
     else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
   }
   BOOTSTRAP_CHECK_SUCCESS_V2("refresh_schema");
-
+  //添加所有服务器到rs列表
   if (FAILEDx(add_servers_in_rs_list(server_zone_op_service))) {
     LOG_WARN("fail to add servers in rs_list_", KR(ret));
-  } else if (OB_FAIL(wait_all_rs_in_service())) {
+  } 
+  //等待所有的rootservice进行服务？TODO耗时，大概4秒，就看cost吧
+  else if (OB_FAIL(wait_all_rs_in_service())) {
     LOG_WARN("failed to wait all rs in service", KR(ret));
   } else {
     ROOTSERVICE_EVENT_ADD("bootstrap", "bootstrap_succeed");
@@ -1454,13 +1487,21 @@ int ObBootstrap::init_system_data()
     LOG_WARN("check_inner_stat failed", KR(ret));
   } else if (OB_FAIL(unit_mgr_.load())) {
     LOG_WARN("unit_mgr load failed", KR(ret));
-  } else if (OB_FAIL(create_sys_unit_config())) {
+  } 
+  //创建系统资源配置，应该不咋耗时
+  else if (OB_FAIL(create_sys_unit_config())) {
     LOG_WARN("create_sys_unit_config failed", KR(ret));
-  } else if (OB_FAIL(create_sys_resource_pool())) {
+  } 
+  //创建系统资源池，应该也还好
+  else if (OB_FAIL(create_sys_resource_pool())) {
     LOG_WARN("create sys resource pool failed", KR(ret));
-  } else if (OB_FAIL(create_sys_tenant())) {
+  }
+  //创建系统租户 
+  else if (OB_FAIL(create_sys_tenant())) {
     LOG_WARN("create system tenant failed", KR(ret));
-  } else if (OB_FAIL(init_all_zone_table())) {
+  } 
+  //创建所有的分区表，应该不耗时
+  else if (OB_FAIL(init_all_zone_table())) {
     LOG_WARN("failed to init all zone table", KR(ret));
   }
   BOOTSTRAP_CHECK_SUCCESS();

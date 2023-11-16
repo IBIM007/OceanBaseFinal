@@ -160,24 +160,34 @@ int ObLSTableOperator::get(
   const bool inner_table_only = (ObLSTable::INNER_TABLE_ONLY_MODE == mode);
   if (OB_UNLIKELY(!is_inited())) {
     ret = OB_NOT_INIT;
+    //没打印
     LOG_WARN("not init", KR(ret));
   } else if (!is_valid_key(tenant_id, ls_id)) {
     ret = OB_INVALID_ARGUMENT;
+    //不用管
     LOG_WARN("invalid argument", KR(ret), KT(tenant_id), K(ls_id));
-  } else if (OB_FAIL(get_ls_table_(cluster_id, tenant_id, ls_id, inner_table_only, lst))) {
+  } 
+  //这是去拿到日志表吧
+  else if (OB_FAIL(get_ls_table_(cluster_id, tenant_id, ls_id, inner_table_only, lst))) {
+    //没打印过
     LOG_WARN("get ls table failed", KR(ret), K(tenant_id), K(ls_id), K(mode));
   } else if (OB_ISNULL(lst)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("NULL ls table", KR(ret));
   } else {
+    //应该会进入这里吧
     ls_info.reset();
     ObTimeoutCtx ctx;
+    //获取rootservice默认的超时时间，2S
     if (OB_FAIL(rootserver::ObRootUtils::get_rs_default_timeout_ctx(ctx))) {
       LOG_WARN("fail to get timeout ctx", KR(ret), K(ctx));
-    } else if (OB_FAIL(lst->get(cluster_id, tenant_id, ls_id, mode, ls_info))) {
+    } 
+    //这是获取日志信息失败了
+    else if (OB_FAIL(lst->get(cluster_id, tenant_id, ls_id, mode, ls_info))) {
       LOG_WARN("get log stream info failed", KR(ret), KT(tenant_id), K(ls_id), K(mode));
     }
   }
+  //如果前面成功了，并且是系统租户，并且是对等模式
   if (OB_SUCC(ret)
       && is_sys_tenant(tenant_id)
       && ObLSTable::COMPOSITE_MODE == mode) {

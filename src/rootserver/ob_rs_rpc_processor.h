@@ -101,6 +101,7 @@ public:
   ObRootServerRPCProcessorBase(ObRootService &rs, const bool full_service, const bool major_freeze_done, const bool is_ddl_like, obrpc::ObDDLArg *arg)
       : root_service_(rs), full_service_(full_service), major_freeze_done_(major_freeze_done), is_ddl_like_(is_ddl_like), ddl_arg_(arg) {}
 protected:
+//这个方法也很耗时，大概14秒
   int process_(const obrpc::ObRpcPacketCode pcode) __attribute__((noinline))
   {
     int ret = common::OB_SUCCESS;

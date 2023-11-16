@@ -101,8 +101,10 @@ int ObLSLeaderElectionWaiter::wait(
     const int64_t timeout,
     common::ObAddr &leader)
 {
+  //最后一个就是前面传入的master_rs
   int ret = OB_SUCCESS;
   const int64_t start_time = ObTimeUtility::current_time();
+  //这个时间应该是最终判断是否超时的时间
   const int64_t abs_timeout = start_time + timeout;
   if (OB_UNLIKELY(OB_INVALID_ID == tenant_id
                   || !ls_id.is_valid()
@@ -110,8 +112,11 @@ int ObLSLeaderElectionWaiter::wait(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(ls_id), K(timeout));
   } else {
+    //前面不用管，它判断参数而已。重点应该分析这个方法
+    //第三个参数是检查leader选举的间隔，500ms
     if (OB_FAIL(wait_elect_leader(
             tenant_id, ls_id, CHECK_LEADER_ELECT_INTERVAL_US, abs_timeout, leader))) {
+              //没有打印的
       LOG_WARN("fail to wait elect leader",
                KR(ret), K(tenant_id), K(ls_id), K(timeout), K(abs_timeout));
     }
@@ -159,7 +164,10 @@ int ObLSLeaderElectionWaiter::wait_elect_leader(
     common::ObAddr &leader)
 {
   int ret = OB_SUCCESS;
+  //日志信息
   ObLSInfo ls_info;
+  //leader就是前面传入的master_rs，是引用，说明要修改这个值
+  //leader的副本
   const ObLSReplica *leader_replica = NULL;
   if (OB_UNLIKELY(OB_INVALID_ID == tenant_id
                   || !ls_id.is_valid())
@@ -169,16 +177,25 @@ int ObLSLeaderElectionWaiter::wait_elect_leader(
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(ls_id),
              K(check_interval), K(abs_timeout));
   } else {
+    //前面判断的参数不用管
+    //睡眠的间隔时间，500ms/100那就是5ms吧。
     int64_t sleep_interval = std::max(1l, check_interval / 100);
+    //开始循环
     while (!stop_) {
       const int64_t cluster_id = GCONF.cluster_id;
+      //这个就是获取日志流和日志信息吧
       if (OB_FAIL(lst_operator_.get(cluster_id, tenant_id,
           ls_id, share::ObLSTable::DEFAULT_MODE,ls_info))) {
+            //没打印过
         LOG_WARN("get partition info failed", K(tenant_id), K(ls_id), KR(ret));
       } else if (OB_FAIL(ls_info.find_leader(leader_replica))) {
+        //这就是一直调的那个方法呀，不对，文件名都不同。对的，因为是调用了ls_info的
+        LOG_WARN("find_ledaer失败了",K(ret));
         // failure is normal, since leader may have not taked over
+        //失败是正常的，因为leader可能还没有接管？
       } else if (NULL == leader_replica) {
         ret = OB_ERR_UNEXPECTED;
+        //没打印过
         LOG_WARN("NULL leader", KR(ret));
       } else if (!leader.is_valid()) {
         leader = leader_replica->get_server();
@@ -189,12 +206,15 @@ int ObLSLeaderElectionWaiter::wait_elect_leader(
       if (OB_SUCCESS != ret || leader != leader_replica->get_server()) {
         const int64_t now = ObTimeUtility::current_time();
         if (now < abs_timeout) {
+          //这是去睡一会吧，这里的谁只是说等一会再检查，但是核心目的是解决早点选出来呀
           if (OB_FAIL(check_sleep(std::min(sleep_interval, abs_timeout - now)))) {
+            //没打印过
             LOG_WARN("check sleep failed", KR(ret));
             break;
           }
         } else {
           ret = OB_WAIT_ELEC_LEADER_TIMEOUT;
+          //没打印过
           LOG_WARN("wait elect sys leader timeout", KR(ret),
                    K(abs_timeout), K(tenant_id), K(ls_id));
           break;
@@ -202,8 +222,10 @@ int ObLSLeaderElectionWaiter::wait_elect_leader(
       }
       sleep_interval = std::min(sleep_interval * 2, check_interval);
     }
+    //这里已经出了循环了
     if (stop_ && OB_SUCC(ret)) {
       ret = OB_CANCELED;
+      //没打印过
       LOG_WARN("stop flag set, cancel task", KR(ret));
     }
   }

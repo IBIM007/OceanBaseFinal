@@ -836,6 +836,7 @@ int ObLSInfo::find_leader(const ObLSReplica *&replica) const
     }
     if (find_index != -1) {
       if (!replicas_.at(find_index).is_strong_leader()) {
+        //进入了这里的
         ret = OB_ENTRY_NOT_EXIST;
         LOG_WARN("fail to get leader replica", KR(ret), K(find_index), "role", replicas_.at(find_index).get_role(),
                  "proposal_id_", replicas_.at(find_index).get_proposal_id(), K(*this));

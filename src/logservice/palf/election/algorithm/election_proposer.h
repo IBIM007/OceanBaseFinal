@@ -182,9 +182,11 @@ private:
     int64_t epoch_;
     mutable int64_t seq_;// 与memory barrier配合，实现sequence lock，避免原子操作的开销
   };
+  //能否直接设置呢？
   common::ObRole role_;
   // for follower
   int64_t ballot_number_;// proposer感知到的集群中存在的最大的选举轮次
+  //这个也可能有
   MemberListWithStates memberlist_with_states_;// 记录已知的acceptor的状态
   // for leader
   int64_t prepare_success_ballot_;// 被多数派prepare成功的选举轮次，该值将用于续约以及在lease第一次生效的场景下转化为对外的epoch
@@ -196,6 +198,8 @@ private:
   int64_t restart_counter_;// 日志流初始化的次数，从持久化meta中读取，为了识别宕机前的旧消息
   // 实现需要
   // ElectionImpl的指针，可以通过该指针调用外部回调、获取选举优先级等
+  //这里面可以可能存在is_manual_leader，另外优先级可以考虑一下
+  //这个有priority
   ElectionImpl * const p_election_;
   // 周期性进行无主选举和有主连任的定时任务的RAII句柄，在析构的时候会自动取消定时任务
   common::ObOccamTimerTaskRAIIHandle devote_task_handle_;

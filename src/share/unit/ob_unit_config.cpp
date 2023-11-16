@@ -132,6 +132,7 @@ int ObUnitConfig::gen_sys_tenant_unit_config(const bool is_hidden_sys)
   } else if (OB_FAIL(init(unit_config_id, name, ur))) {
     LOG_WARN("init unit config fail", KR(ret), K(unit_config_id), K(name), K(ur));
   }
+  //什么都没答应，应该就是没问题
   return ret;
 }
 

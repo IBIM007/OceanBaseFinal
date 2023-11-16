@@ -97,7 +97,7 @@ public:
 
 private:
   // wait leader elect time + root service start time
-  static const int64_t WAIT_ELECT_SYS_LEADER_TIMEOUT_US = 30 * 1000 * 1000;
+  static const int64_t WAIT_ELECT_SYS_LEADER_TIMEOUT_US = 30 * 1000 * 1000; //30秒
   static const int64_t NOTIFY_RESOURCE_RPC_TIMEOUT = 9 * 1000 * 1000; // 9 second
 
   virtual int check_is_all_server_empty(bool &is_empty);
