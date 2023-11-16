@@ -625,15 +625,15 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   else if (OB_FAIL(construct_all_schema(table_schemas))) {
     LOG_WARN("construct all schema fail", K(ret));
   } 
-  //广播所有系统schema，可能耗时，有wait，TODO有一个循环，看cost1S
+  //广播所有系统schema，可能耗时，有wait，TODO有一个循环，看cost1S，0.1貌似
   else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {
     LOG_WARN("broadcast_sys_schemas failed", K(table_schemas), K(ret));
   } 
-  //创建所有分区，有循环可能耗时，TODO但是看cost2S
+  //创建所有分区，有循环可能耗时，TODO但是看cost2S，应该是0.2吧
   else if (OB_FAIL(create_all_partitions())) {
     LOG_WARN("create all partitions fail", K(ret));
   } 
-  //创建所有schema，TODO可能耗时，确定耗时，大概4S
+  //创建所有schema，重点TODO可能耗时，确定耗时，大概4S
   else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) {
     LOG_WARN("create_all_schema failed",  K(table_schemas), K(ret));
   }
