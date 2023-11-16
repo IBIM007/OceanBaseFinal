@@ -771,7 +771,7 @@ int ObBootstrap::prepare_create_partition(
              "table_name", tschema.get_table_name(),
              "cluster_role", cluster_role_to_str(arg_.cluster_role_));
   }
-
+  //应该是这里打印的
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
 }
@@ -794,6 +794,7 @@ int ObBootstrap::create_all_core_table_partition()
       LOG_WARN("fail to init tablet creator", KR(ret));
     } else {
       // create all core table partition
+      //是一个循环，但是只循环了一次？应该是很多次貌似
       for (int64_t i = 0; OB_SUCC(ret) && NULL != all_core_table_schema_creator[i]; ++i) {
         if (OB_FAIL(prepare_create_partition(
             table_creator, all_core_table_schema_creator[i]))) {
@@ -920,6 +921,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
              OB_SUCCESS == ret && NULL != *creator_ptr; ++creator_ptr) {
           table_schema.reset();
           bool exist = false;
+          //循环了很多次
           if (OB_FAIL(construct_schema(*creator_ptr, table_schema))) {
             LOG_WARN("construct_schema failed", K(table_schema), KR(ret));
           } else if (OB_FAIL(ObSysTableChecker::is_inner_table_exist(
