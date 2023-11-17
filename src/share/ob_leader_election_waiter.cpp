@@ -188,7 +188,9 @@ int ObLSLeaderElectionWaiter::wait_elect_leader(
           ls_id, share::ObLSTable::DEFAULT_MODE,ls_info))) {
             //没打印过
         LOG_WARN("get partition info failed", K(tenant_id), K(ls_id), KR(ret));
-      } else if (OB_FAIL(ls_info.find_leader(leader_replica))) {
+      } 
+      //能否做一个判断，发现server_list只有一个的话，直接赋值，感觉不行，还是需要在选举那里指定。不然很容易出问题，因为其它模块也需要leader吧
+      else if (OB_FAIL(ls_info.find_leader(leader_replica))) {
         //这就是一直调的那个方法呀，不对，文件名都不同。对的，因为是调用了ls_info的
         LOG_WARN("find_ledaer失败了",K(ret));
         // failure is normal, since leader may have not taked over
@@ -197,7 +199,9 @@ int ObLSLeaderElectionWaiter::wait_elect_leader(
         ret = OB_ERR_UNEXPECTED;
         //没打印过
         LOG_WARN("NULL leader", KR(ret));
-      } else if (!leader.is_valid()) {
+      } 
+      //终结应该是这两个
+      else if (!leader.is_valid()) {
         leader = leader_replica->get_server();
         break;
       } else if (leader == leader_replica->get_server()) {

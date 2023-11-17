@@ -61,6 +61,7 @@ MemberListWithStates::~MemberListWithStates()
 
 int MemberListWithStates::set_member_list(const MemberList &new_member_list)
 {
+  //能否直接在这里面设置manual_leader,应该不行
   ELECT_TIME_GUARD(500_ms);
   #define PRINT_WRAPPER K(new_member_list), K(*this)
   int ret = OB_SUCCESS;

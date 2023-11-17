@@ -62,23 +62,31 @@ public:
   }
   // virtual void SetUp() { }
   // virtual void TearDown() { }
+  //把这里看懂
   static void test_normal()
   {
     ElectionPriorityImpl impl1, impl2;
     ASSERT_EQ(CLUSTER_VERSION_2100 > CLUSTER_VERSION_2000, true);
+    //这是比较priority0吧，是要先设置priority0吗？不太懂
     impl1.priority_tuple_.element<0>().port_number_ = 1;
     impl1.priority_tuple_.element<0>().is_valid_ = true;
+
+
     impl2.priority_tuple_.element<0>().port_number_ = 2;
     impl2.priority_tuple_.element<0>().is_valid_ = true;
     int result = 0;
     ObStringHolder reason;
     oceanbase::common::ObClusterVersion::get_instance().cluster_version_ = CLUSTER_VERSION_2100;
+    //这里比较了一下
     ASSERT_EQ(OB_SUCCESS, impl1.compare_with(impl2, result, reason));
     ASSERT_EQ(result, -1);
     OB_LOG(DEBUG, "compare1", K(reason));
     result = 0;
+    //这里才比较priority1吧。
+    //注意要设置is_valid吗？
     impl1.priority_tuple_.element<1>().is_valid_ = true;
     impl2.priority_tuple_.element<1>().is_valid_ = true;
+    //注意这里有设置的
     impl1.priority_tuple_.element<1>().is_manual_leader_ = true;
     oceanbase::common::ObClusterVersion::get_instance().cluster_version_ = CLUSTER_VERSION_4_0_0_0;
     ASSERT_EQ(OB_SUCCESS, impl1.compare_with(impl2, result, reason));

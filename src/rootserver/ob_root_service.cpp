@@ -2015,7 +2015,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     if (OB_FAIL(ret)) {
       //bootstrap貌似也会调用这个do_restart方法
     } 
-    //这里面的逻辑暂时不管吧，除了这个，其它应该都不耗时，TODO这个方法执行了6秒.而且到进去，居然等了2秒钟
+    //这里面的逻辑暂时不管吧，除了这个，其它应该都不耗时，重点TODO这个方法执行了6秒.而且到进去，居然等了2秒钟
     //renew_master_rootserver和sleep_before_local_retry大量
     else if (OB_FAIL(do_restart())) {
       LOG_WARN("do restart task failed", K(ret));
@@ -5052,7 +5052,7 @@ int ObRootService::do_restart()
   if (OB_SUCC(ret)) {
     int tmp_ret = rs_mgr_->renew_master_rootserver();
     if (OB_SUCCESS != tmp_ret) {
-      //进入了这里
+      //没进入了这里
       FLOG_WARN("renew master rootservice failed", KR(tmp_ret));
     }
   }
@@ -5067,6 +5067,7 @@ int ObRootService::do_restart()
   }
 
   // broadcast root server address, ignore error
+  //重点我的TODO，耗时最多的地方，大概2秒，11-13
   if (OB_SUCC(ret)) {
     //应该进入了这里的，这里调用了update_rslist()
     int tmp_ret = update_rslist();
@@ -5193,6 +5194,7 @@ int ObRootService::do_restart()
     FLOG_INFO("start lost replica checker success");
   }
 
+  //从这里开始
   // broadcast root server address again, this task must be in the end part of do_restart,
   // because system may work properly without it.
   if (FAILEDx(update_rslist())) {

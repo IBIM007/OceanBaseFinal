@@ -1440,14 +1440,17 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
       const ObCommonRpcProxy &rpc_proxy = *gctx_.rs_rpc_proxy_;
       bool boot_done = false;
       const int64_t MAX_RETRY_COUNT = 30;
+      //循环30次
       for (int i = 0; !boot_done && i < MAX_RETRY_COUNT; i++) {
         ret = OB_SUCCESS;
         int64_t rpc_timeout = timeout;
         if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
           rpc_timeout = max(rpc_timeout, THIS_WORKER.get_timeout_remain());
         }
+        //这里要执行30次？应该不会，代理模式可能在真正调用之前，会先判断一下是否调用过了。
         if (OB_FAIL(rpc_proxy.to_addr(master_rs).timeout(rpc_timeout)
                     .execute_bootstrap(arg))) {
+          //没进入过这里面
           if (OB_RS_NOT_MASTER == ret) {
             BOOTSTRAP_LOG(INFO, "master root service not ready",
                           K(master_rs), "retry_count", i, K(rpc_timeout), K(ret));

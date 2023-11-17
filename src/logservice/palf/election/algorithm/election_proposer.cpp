@@ -10,7 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
-
+#include "logservice/leader_coordinator/election_priority_impl/election_priority_impl.h"
 #include "logservice/palf/election/message/election_message.h"
 #include "ob_role.h"
 #include "share/ob_occam_time_guard.h"
@@ -206,12 +206,24 @@ void ElectionProposer::
   //时间500ms
   ELECT_TIME_GUARD(500_ms);
   assert(new_ballot_number >= ballot_number_);
+  /*if(memberlist_with_states_.get_member_list().get_addr_list().size()==1)
+  {
+    if(p_election_==NULL)ELECT_LOG(INFO, "p_election_为空", K(*this));
+    else{
+      ElectionPriority *priority=p_election_->get_priority_();
+      if(priority==NULL)ELECT_LOG(INFO, "priority为空", K(*this));
+      else{
+        logservice::coordinator::ElectionPriorityImpl *priorityImpl=static_cast<logservice::coordinator::ElectionPriorityImpl *>(priority);
+        priorityImpl->setPriority();
+      }
+    }
+  }*/
   ELECT_LOG(INFO, "advance ballot number", K(new_ballot_number), K(reason), K(*this));
   ballot_number_ = new_ballot_number;
   memberlist_with_states_.clear_prepare_and_accept_states();
   // 如果在切主过程中推大ballot number需要清理切主流程中的相关状态
   switch_source_leader_ballot_ = INVALID_VALUE;
-  switch_source_leader_addr_.reset();
+  switch_source_leader_addr_.reset();  
 }
 
 int ElectionProposer::register_renew_lease_task_()
