@@ -165,7 +165,10 @@ int ObCreateTenantExecutor::wait_schema_refreshed_(const uint64_t tenant_id)
 
 int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
 {
+  
   int ret = OB_SUCCESS;
+  //创建租户才能看到
+  LOG_WARN("马上开始循环检查是否能设置成为有效了11111111111", KR(ret));
   int64_t start_ts = ObTimeUtility::current_time();
   if (OB_ISNULL(GCTX.sql_proxy_)) {
     ret = OB_ERR_UNEXPECTED;
@@ -181,7 +184,8 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
     ObLSID ls_id;
     //wait user ls create success
     //循环等待用户日志流创建成功
-    while (OB_SUCC(ret) && !user_ls_valid) {
+    //就这个while循环耗时
+    /*while (OB_SUCC(ret) && !user_ls_valid) {
       ls_array.reset();
       if (THIS_WORKER.is_timeout()) {
         ret = OB_TIMEOUT;
@@ -191,7 +195,9 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
       else if (OB_FAIL(status_op.get_all_ls_status_by_order(tenant_id, ls_array, *GCTX.sql_proxy_))) {
         LOG_WARN("failed to get ls status", KR(ret), K(tenant_id));
       } else {
-        //这是检查每一个吧
+        //这个循环不耗时
+        LOG_WARN("马上开始循环检查是否能设置成为有效了", KR(ret));
+        //这是检查每一个吧，怎么感觉是上面这个耗时呢
         for (int64_t i = 0; OB_SUCC(ret) && i < ls_array.count() && !user_ls_valid; ++i) {
           const ObLSStatusInfo &ls_status = ls_array.at(i);
           if (!ls_status.ls_id_.is_sys_ls() && ls_status.ls_is_normal()) {
@@ -207,16 +213,18 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
       } else {
         //否者睡觉
         const int64_t INTERVAL = 500 * 1000L; // 500ms
+        //总共大概4秒钟
         LOG_INFO("wait user ls valid", KR(ret), K(tenant_id));
         ob_usleep(INTERVAL);
       }
     }// end while
+    //主要是这里耗时，全在这里8秒
     LOG_INFO("[CREATE TENANT] wait user ls created", KR(ret), K(tenant_id),
              "cost", ObTimeUtility::current_time() - start_ts);
 
     if (OB_SUCC(ret)) {
       start_ts = ObTimeUtility::current_time();
-      //wait user ls election
+      //wait user ls election。等待用户日志流选举
       if (OB_ISNULL(GCTX.lst_operator_)) {
         ret = OB_ERR_UNEXPECTED;
         LOG_WARN("ls operator is null", KR(ret));
@@ -224,13 +232,15 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
         volatile bool stopped = false;
         share::ObLSLeaderElectionWaiter ls_leader_waiter(*GCTX.lst_operator_, stopped);
         const int64_t timeout = THIS_WORKER.get_timeout_remain();
+        //这里会用到ls_id。这里都不需要同步等待吧
         if (OB_FAIL(ls_leader_waiter.wait(tenant_id, ls_id, timeout))) {
           LOG_WARN("fail to wait election leader", KR(ret), K(tenant_id), K(ls_id), K(timeout));
         }
       }
+      //选举基本不耗时
       LOG_INFO("[CREATE TENANT] wait user ls election result", KR(ret), K(tenant_id),
                "cost", ObTimeUtility::current_time() - start_ts);
-    }
+    }*/
   }
   return ret;
 }
