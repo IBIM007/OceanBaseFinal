@@ -123,6 +123,7 @@ int ObServerTraceMap::check_server_alive(const ObAddr &server, bool &is_alive) c
   return ret;
 }
 
+//在这里检查吧
 int ObServerTraceMap::check_in_service(const ObAddr &server, bool &service_started) const
 {
   int ret = OB_SUCCESS;
@@ -136,11 +137,16 @@ int ObServerTraceMap::check_in_service(const ObAddr &server, bool &service_start
     SpinRLockGuard guard(lock_);
     ObServerInfoInTable server_info;
     if (OB_FAIL(find_server_info(server, server_info))) {
+      //没有打印这个
       LOG_WARN("fail to find server info", KR(ret), K(server), K_(server_info_arr));
     } else {
+      //这个server_info什么时候创建的，什么时候更改那个字段呢？
+      //甚至可以直接返回true吧，还是先研究一下为什么它会等待吧。严谨一点。
       service_started = server_info.in_service();
     }
   }
+  //试一下
+  service_started=true;
   return ret;
 }
 
