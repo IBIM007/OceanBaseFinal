@@ -40,6 +40,7 @@ public:
   typedef ObFixedLengthString<common::OB_SERVER_VERSION_LENGTH> ObBuildVersion;
   ObServerInfoInTable();
   virtual ~ObServerInfoInTable();
+  //这个可以改时间
   int init(
     const common::ObAddr &server,
     const uint64_t server_id,
@@ -51,10 +52,13 @@ public:
     const int64_t stop_time,
     const int64_t start_service_time,
     const int64_t last_offline_time);
+  //这个可以改时间
   int assign(const ObServerInfoInTable &other);
   bool is_valid() const;
   void reset();
+  //这个可以改
   int build_server_info_in_table(const share::ObServerStatus &server_status);
+  //这个不考虑，是往外构建的
   int build_server_status(share::ObServerStatus &server_status) const;
   const common::ObAddr &get_server() const { return server_; }
   uint64_t get_server_id() const { return server_id_; }

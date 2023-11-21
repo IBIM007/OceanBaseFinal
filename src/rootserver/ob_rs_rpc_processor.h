@@ -229,6 +229,7 @@ protected:
               }
             }
           }
+          //这里打印了
           RS_LOG(INFO, "[DDL] execute ddl like stmt", K(ret),
                  "cost", ObTimeUtility::current_time() - start_ts, KPC_(ddl_arg));
         }

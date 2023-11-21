@@ -1407,6 +1407,7 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
   const int64_t timeout = 600 * 1000 * 1000LL; // 10 minutes
   const obrpc::ObServerInfoList &rs_list = arg.server_list_;
   LOG_INFO("bootstrap timeout", K(timeout), "worker_timeout_ts", THIS_WORKER.get_timeout_ts());
+  //LOG_INFO("bootstrap timeout", K(rs_list)
   if (!inited_) {
     ret = OB_NOT_INIT;
     BOOTSTRAP_LOG(WARN, "not init", K(ret));
@@ -1440,7 +1441,7 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
       const ObCommonRpcProxy &rpc_proxy = *gctx_.rs_rpc_proxy_;
       bool boot_done = false;
       const int64_t MAX_RETRY_COUNT = 30;
-      //循环30次
+      //循环30次，重试次数
       for (int i = 0; !boot_done && i < MAX_RETRY_COUNT; i++) {
         ret = OB_SUCCESS;
         int64_t rpc_timeout = timeout;

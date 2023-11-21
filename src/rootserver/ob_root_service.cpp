@@ -1046,6 +1046,7 @@ int ObRootService::start_service()
   int ret = OB_SUCCESS;
   start_service_time_ = ObTimeUtility::current_time();
   ROOTSERVICE_EVENT_ADD("root_service", "start_rootservice", K_(self_addr));
+  //并没有打印呢？
   FLOG_INFO("[ROOTSERVICE_NOTICE] start to start rootservice", K_(start_service_time));
   if (!inited_) {
     ret = OB_NOT_INIT;
@@ -1080,7 +1081,9 @@ int ObRootService::start_service()
       FLOG_WARN("failed to schedule global ctx task", KR(ret));
     } else if (OB_FAIL(lst_operator_->set_callback_for_rs(rs_list_change_cb_))) {
       FLOG_WARN("lst_operator set as rs leader failed", KR(ret));
-    } else if (OB_FAIL(rs_status_.set_rs_status(status::IN_SERVICE))) {
+    } 
+    //这里设置了正在服务
+    else if (OB_FAIL(rs_status_.set_rs_status(status::IN_SERVICE))) {
       FLOG_WARN("fail to set rs status", KR(ret));
     } else if (OB_FAIL(schedule_refresh_server_timer_task(0))) {
       FLOG_WARN("failed to schedule refresh_server task", KR(ret));
@@ -5215,7 +5218,7 @@ int ObRootService::do_restart()
     //这个没有打印的
     FLOG_INFO("broadcast root address succeed");
   }*/
-  //放后台任务还是会受影响的吧
+  //放后台任务还是会受影响的吧，可以把这个放在设置成为full_service下面，这样避免自旋，甚至好像都没有自旋
   if (OB_FAIL(submit_update_rslist_task(true))) {
       FLOG_WARN("submit_update_rslist_task failed", KR(ret));
     } else {
@@ -5287,9 +5290,11 @@ int ObRootService::do_restart()
     FLOG_INFO("success to start disaster recovery task manager");
   }
 
+  //这里设置了状态_FULL_SERVICE
   if (FAILEDx(rs_status_.set_rs_status(status::FULL_SERVICE))) {
     FLOG_WARN("fail to set rs status", KR(ret));
   } else {
+    //现在rpc就能够使用了，马上就do_restart执行完毕了
     FLOG_INFO("full_service !!! start to work!!");
     ROOTSERVICE_EVENT_ADD("root_service", "full_rootservice",
                           "result", ret, K_(self_addr));

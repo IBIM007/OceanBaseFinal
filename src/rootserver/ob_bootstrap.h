@@ -106,6 +106,10 @@ private:
   virtual int notify_sys_tenant_server_unit_resource();
   virtual int create_ls();
   virtual int wait_elect_ls(common::ObAddr &master_rs);
+  obrpc::ObServerInfoList getRsList()
+  {
+    return rs_list_;
+  }
 
   int notify_sys_tenant_config_();
 private:

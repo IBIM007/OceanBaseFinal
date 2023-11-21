@@ -286,6 +286,7 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } 
   //我的TODO重点关注,需要讲一下内部。这里是创建日志流？注意走的代理，走的另外的cpp。但是日志打印的创建核心表分区
   //创建系统租户日志流，初始化服务该副本的PalfEnv，初始化工作的核心就是启动Election Acceptor以及Proposer
+  
   else if (OB_FAIL(create_ls())) {
     LOG_WARN("failed to create core table partition", KR(ret));
   } 
@@ -468,6 +469,7 @@ int ObPreBootstrap::wait_elect_ls(
       tenant_id, SYS_LS, timeout, master_rs))) {
     LOG_WARN("leader_waiter_ wait failed", K(tenant_id), K(SYS_LS), K(timeout), K(ret));
   }
+  //master_rs=(this->getRsList())[0].server_;
   if (OB_SUCC(ret)) {
     //进入了这里的
     ObTaskController::get().allow_next_syslog();
@@ -678,6 +680,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   //等待所有的rootservice进行服务？重点TODO耗时，大概4秒，就看cost吧
   //等待rs_list中的所有rootservice处于服务状态
   //检查ObServerInfoIntable结构中的start_service_time_是否不为0
+  //它这个和那个RS is not 初始化是两条线
   else if (OB_FAIL(wait_all_rs_in_service())) {
     LOG_WARN("failed to wait all rs in service", KR(ret));
   } else {
@@ -1175,6 +1178,7 @@ int ObBootstrap::add_servers_in_rs_list(rootserver::ObServerZoneOpService &serve
         if (OB_FAIL(GCTX.root_service_->add_server_for_bootstrap_in_version_smaller_than_4_2_0(server, zone))) {
           LOG_WARN("fail to add server in version < 4.2", KR(ret), K(server), K(zone));
         }
+        //没有打印
         FLOG_INFO("add servers in rs_list_ in version < 4.2", KR(ret), K(server), K(zone));
       }
     } else {
@@ -1187,6 +1191,7 @@ int ObBootstrap::add_servers_in_rs_list(rootserver::ObServerZoneOpService &serve
         } else if (OB_FAIL(server_zone_op_service.add_servers(servers, zone, true /* is_bootstrap */))) {
           LOG_WARN("fail to add servers", KR(ret), K(servers), K(zone));
         }
+        //这里打印了的
         FLOG_INFO("add servers in rs_list_ in version >= 4.2", KR(ret), K(servers), K(zone));
       }
       if (FAILEDx(GCTX.root_service_->load_server_manager())) {

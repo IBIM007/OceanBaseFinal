@@ -104,6 +104,7 @@ private:
 private:
   volatile bool &stop_;
   common::ObArenaAllocator allocator_;
+  //日志流表操作器
   share::ObLSTableOperator &lst_operator_;
 
   DISALLOW_COPY_AND_ASSIGN(ObLSLeaderElectionWaiter);

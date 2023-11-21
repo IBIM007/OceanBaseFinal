@@ -40,6 +40,7 @@ ObServerInfoInTable::ObServerInfoInTable()
 ObServerInfoInTable::~ObServerInfoInTable()
 {
 }
+//初始化在这里
 int ObServerInfoInTable::init(
     const common::ObAddr &server,
     const uint64_t server_id,
@@ -86,6 +87,7 @@ int ObServerInfoInTable::init(
   }
   return ret;
 }
+//assign方法
 int ObServerInfoInTable::assign(const ObServerInfoInTable &other)
 {
   int ret = OB_SUCCESS;
@@ -100,7 +102,10 @@ int ObServerInfoInTable::assign(const ObServerInfoInTable &other)
     with_rootserver_ = other.with_rootserver_;
     status_ = other.status_;
     stop_time_ = other.stop_time_;
+    
     start_service_time_ = other.start_service_time_;
+    //没有打印呢
+    if(start_service_time_!=0)LOG_WARN("这是在assign修改的",KR(ret));
     block_migrate_in_time_ = other.block_migrate_in_time_;
     last_offline_time_ = other.last_offline_time_;
   }
@@ -119,6 +124,7 @@ bool ObServerInfoInTable::is_valid() const
       && ((0 == last_offline_time_ && ObServerStatus::OB_SERVER_INACTIVE != status_)
           || (last_offline_time_ > 0 && ObServerStatus::OB_SERVER_ACTIVE != status_));
 }
+//重置
 void ObServerInfoInTable::reset()
 {
   server_.reset();
@@ -156,8 +162,10 @@ int ObServerInfoInTable::build_server_info_in_table(const share::ObServerStatus 
       server_status.last_offline_time_))) {
     LOG_WARN("fail to build server_info_in_table", KR(ret), K(server_status), K(build_version));
   }
+  if(start_service_time_!=0)LOG_WARN("这是在build_server_info_in_table修改的",KR(ret));
   return ret;
 }
+//构建服务器状态
 int ObServerInfoInTable::build_server_status(share::ObServerStatus &server_status) const
 {
   int ret = OB_SUCCESS;
@@ -707,6 +715,7 @@ int ObServerTableOperator::get(
       int tmp_ret = OB_SUCCESS;
       ObMySQLResult *result = NULL;
       ObServerStatus server_status;
+      //应该是在这里吧？通过
       if (OB_FAIL(sql_proxy.read(res, OB_SYS_TENANT_ID, sql.ptr()))) {
         LOG_WARN("fail to execute sql", KR(ret), K(sql));
       } else if (OB_ISNULL(result = res.get_result())) {

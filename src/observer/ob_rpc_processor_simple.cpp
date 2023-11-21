@@ -530,6 +530,7 @@ int ObRpcNotifyTenantServerUnitResourceP::process()
   return ret;
 }
 
+//注意是在这里打印的
 int ObRpcNotifySwitchLeaderP::process()
 {
   int ret = OB_SUCCESS;
