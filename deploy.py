@@ -169,8 +169,8 @@ if __name__ == "__main__":
 
         #计时开始时间
         #执行之前需要input卡一下，然后先attach上进程号，哪个程序，再继续跑,断点打到哪里？
-        #前面其实把进程启动了
-        #a=input()
+        # 前面其实把进程启动了
+        # a=input()
         #打印一下
         #print(args.zone)
         #print(rootservice)
