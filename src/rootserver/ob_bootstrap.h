@@ -19,6 +19,7 @@
 #include "share/inner_table/ob_inner_table_schema.h"
 #include "rootserver/ob_ddl_service.h"
 #include "rootserver/ob_unit_manager.h"
+#include <thread>
 
 namespace oceanbase
 {
@@ -53,6 +54,68 @@ class ObRsGtsManager;
 struct ObSysStat;
 class ObTableCreator;
 class ObServerZoneOpService;
+
+// 创建一个create schema的线程类
+class CreateSchemaTask : public lib::TGRunnable 
+{
+  public:
+  CreateSchemaTask(int thread_num, ObDDLService& ddl_service,
+                   ObIArray<ObTableSchema>& table_schemas, int64_t& finish_cnt)
+      :  ddl_service_(ddl_service),
+        table_schemas_(table_schemas), finish_cnt_(finish_cnt) {}
+  virtual ~CreateSchemaTask() {}
+
+  void run1() override;
+  // {
+  //   LOG_INFO("Worker thread started");
+  //   int ret = OB_SUCCESS;
+  //   const int64_t MAX_RETRY_TIMES = 3;
+
+  //   int64_t begin = 0;
+  //   int64_t end = 0;
+
+  //   if (OB_FAIL(get_range(begin, end))) {
+  //     LOG_WARN("Failed to get range", KR(ret));
+  //   } else {
+  //     while (begin < end && OB_SUCC(ret)) {
+  //       if (OB_FAIL(batch_create_schema(begin, end))) {
+  //         LOG_WARN("batch create schema failed", K(ret), "table count", end - begin);
+  //         int64_t retry_times = 1;
+  //         // Retry logic
+  //         while (retry_times <= MAX_RETRY_TIMES) {
+  //           ret = OB_SUCCESS;
+  //           LOG_INFO("schema error while create table, need retry", KR(ret), K(retry_times));
+  //           usleep(1 * 1000 * 1000L);  // 1s
+  //           if (OB_FAIL(batch_create_schema(begin, end))) {
+  //             retry_times++;
+  //           } else {
+  //             ATOMIC_AAF(&finish_cnt_, end - begin);
+  //             break;
+  //           }
+  //         }
+  //       } else {
+  //         ATOMIC_AAF(&finish_cnt_, end - begin);
+  //         break;
+  //       }
+  //     }
+  //   }
+  //   LOG_INFO("Worker thread finished", K(ret));
+  // }
+  int init();
+  int start();
+  void wait();
+
+private:
+  int tg_id_;
+  bool is_inited_;
+  bool task_registed_;
+  ObDDLService& ddl_service_;
+  ObIArray<ObTableSchema>& table_schemas_;
+  int64_t& finish_cnt_;
+  int64_t begin_;
+  const int64_t batch_count_ = 5;  // Adjust this value based on your requirements
+  ObMutex lock_;
+};
 
 class ObBaseBootstrap
 {
@@ -152,6 +215,11 @@ private:
   static const int64_t HEAT_BEAT_INTERVAL_US = 2 * 1000 * 1000; //2s
   static const int64_t WAIT_RS_IN_SERVICE_TIMEOUT_US = 40 * 1000 * 1000; //40s
   static const int64_t BATCH_INSERT_SCHEMA_CNT = 128;
+  static int parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas);
+  static int batch_create_schema_local(uint64_t tenant_id,
+                              ObDDLService &ddl_service,
+                              ObIArray<ObTableSchema> &table_schemas,
+                              const int64_t begin, const int64_t end);
   virtual int generate_table_schema_array_for_create_partition(
       const share::schema::ObTableSchema &tschema,
       common::ObIArray<share::schema::ObTableSchema> &table_schema_array);

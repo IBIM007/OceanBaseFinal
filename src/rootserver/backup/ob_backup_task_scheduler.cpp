@@ -1199,7 +1199,7 @@ int ObBackupTaskScheduler::resume_leader()
 
 void ObBackupTaskScheduler::run2()
 {
-  int ret = OB_SUCCESS;
+  int ret = OB_SUCCESS;   // [x]
   ObCurTraceId::init(GCONF.self_addr_);
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
@@ -1207,15 +1207,15 @@ void ObBackupTaskScheduler::run2()
   } else {
     LOG_INFO("backup task Scheduler start");
     int64_t last_dump_time = ObTimeUtility::current_time();
-    int64_t last_check_alive_ts = ObTimeUtility::current_time();
-    int64_t last_reload_task_ts = ObTimeUtility::current_time();
+    int64_t last_check_alive_ts = last_dump_time;
+    int64_t last_reload_task_ts = last_dump_time;
     bool reload_flag = false;
     while (!has_set_stop()) {
       bool is_normal = false;
       if (!is_meta_tenant(tenant_id_)) { // only meta tenant has backup task need to schedule
         set_idle_time(ObBackupBaseService::OB_MAX_IDLE_TIME);
         idle();
-      } else if (OB_FAIL(check_tenant_status_normal_(is_normal))) {
+      } else if (OB_FAIL(check_tenant_status_normal_(is_normal))) {  
         LOG_WARN("fail to chaeck tenant status normal", K(ret));
       } else if (is_normal) {
         dump_statistics_(last_dump_time);
