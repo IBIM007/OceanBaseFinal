@@ -1943,6 +1943,7 @@ int ObService::batch_broadcast_schema(
     const obrpc::ObBatchBroadcastSchemaArg &arg,
     ObBatchBroadcastSchemaResult &result)
 {
+  //广播进入这里面
   int ret = OB_SUCCESS;
   ObMultiVersionSchemaService *schema_service = gctx_.schema_service_;
   const int64_t sys_schema_version = arg.get_sys_schema_version();
@@ -1958,7 +1959,9 @@ int ObService::batch_broadcast_schema(
   } else if (OB_FAIL(schema_service->async_refresh_schema(
              OB_SYS_TENANT_ID, sys_schema_version))) {
     LOG_WARN("fail to refresh sys schema", KR(ret), K(sys_schema_version));
-  } else if (OB_FAIL(schema_service->broadcast_tenant_schema(
+  } 
+  //
+  else if (OB_FAIL(schema_service->broadcast_tenant_schema(
              arg.get_tenant_id(), arg.get_tables()))) {
     LOG_WARN("fail to broadcast tenant schema", KR(ret), K(arg));
   }

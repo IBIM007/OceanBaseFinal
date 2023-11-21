@@ -1149,6 +1149,7 @@ int ObMultiVersionSchemaService::get_cluster_schema_guard(
  *   - tenant_schema_version: Indicates the version of the schema of the user tenant except the system tables.
  *   - sys_schema_version: Indicates the version of the schema of the system tenant and the sys tables in user tenant.
  */
+//这里是实现
 int ObMultiVersionSchemaService::get_tenant_schema_guard(
     const uint64_t tenant_id,
     ObSchemaGetterGuard &guard,
@@ -1866,6 +1867,7 @@ int ObMultiVersionSchemaService::broadcast_tenant_schema(
       LOG_WARN("put sys schema to schema cache failed",
                KR(ret), K(tenant_id), KPC(table_schema));
     } else {
+      //打印了这个的
       LOG_INFO("add sys table schema", KR(ret), K(tenant_id), KPC(table_schema));
     }
   }

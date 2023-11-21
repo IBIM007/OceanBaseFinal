@@ -980,6 +980,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
   return ret;
 }
 
+//这里面好像还涉及到update_rslist
 int ObBootstrap::broadcast_sys_schema(const ObSArray<ObTableSchema> &table_schemas)
 {
   int ret = OB_SUCCESS;
@@ -1033,6 +1034,7 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
 {
   int ret = OB_SUCCESS;
   const int64_t begin_time = ObTimeUtility::current_time();
+  //1652个table_schemas
   LOG_INFO("start create all schemas", "table count", table_schemas.count());
   if (table_schemas.count() <= 0) {
     ret = OB_INVALID_ARGUMENT;

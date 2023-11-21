@@ -468,6 +468,7 @@ int ObPrimaryLSService::process_all_ls_status_to_steady_(const share::schema::Ob
 }
 
 //the interface may reentry
+//进入这里处理
 int ObPrimaryLSService::create_ls_for_create_tenant()
 {
   int ret = OB_SUCCESS;
@@ -511,7 +512,9 @@ int ObPrimaryLSService::create_ls_for_create_tenant()
               LOG_WARN("failed to fetch new LS id", KR(ret), K(tenant_id_));
             } else if (OB_FAIL(ObLSAttrOperator::get_tenant_gts(tenant_id_, create_scn))) {
               LOG_WARN("failed to get tenant gts", KR(ret), K(tenant_id_));
-            } else if (OB_FAIL(new_ls.init(ls_id, ls_group_id, flag, share::OB_LS_CREATING,
+            } 
+            //初始化
+            else if (OB_FAIL(new_ls.init(ls_id, ls_group_id, flag, share::OB_LS_CREATING,
                            share::OB_LS_OP_CREATE_PRE, create_scn))) {
               LOG_WARN("failed to init new operation", KR(ret), K(create_scn),
                        K(ls_id), K(ls_group_id));

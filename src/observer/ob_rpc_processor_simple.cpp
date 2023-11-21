@@ -881,6 +881,7 @@ int ObRpcSwitchSchemaP::process()
   return ret;
 }
 
+//这里进行处理的
 int ObRpcCreateTenantUserLSP::process()
 {
   int ret = OB_SUCCESS;

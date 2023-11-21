@@ -88,6 +88,7 @@ int ObLSLeaderElectionWaiter::wait(
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(ls_id), K(timeout));
   } else {
     common::ObAddr dummy_leader;
+    //这里传入了一个dummy_leader，应该不会用到的
     if (OB_FAIL(wait(tenant_id, ls_id, timeout, dummy_leader))) {
       LOG_WARN("fail to wait leader", KR(ret), K(tenant_id), K(ls_id), K(timeout));
     }

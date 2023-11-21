@@ -90,7 +90,9 @@ int ObCreateTenantExecutor::execute(ObExecContext &ctx, ObCreateTenantStmt &stmt
   } else if (OB_ISNULL(common_rpc_proxy = task_exec_ctx->get_common_rpc())) {
     ret = OB_NOT_INIT;
     LOG_WARN("get common rpc proxy failed");
-  } else if (OB_FAIL(common_rpc_proxy->create_tenant(create_tenant_arg, tenant_id))) {
+  } 
+  //这里rpc进入的吧
+  else if (OB_FAIL(common_rpc_proxy->create_tenant(create_tenant_arg, tenant_id))) {
     LOG_WARN("rpc proxy create tenant failed", K(ret));
   } else if (!create_tenant_arg.if_not_exist_ && OB_INVALID_ID == tenant_id) {
     ret = OB_ERR_UNEXPECTED;
@@ -172,19 +174,24 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("tenant id is invalid", KR(ret), K(tenant_id));
   } else {
+    //从这里开始吧
     bool user_ls_valid = false;
     ObLSStatusOperator status_op;
     ObLSStatusInfoArray ls_array;
     ObLSID ls_id;
     //wait user ls create success
+    //循环等待用户日志流创建成功
     while (OB_SUCC(ret) && !user_ls_valid) {
       ls_array.reset();
       if (THIS_WORKER.is_timeout()) {
         ret = OB_TIMEOUT;
         LOG_WARN("failed to wait user ls valid", KR(ret));
-      } else if (OB_FAIL(status_op.get_all_ls_status_by_order(tenant_id, ls_array, *GCTX.sql_proxy_))) {
+      } 
+      //这是获取所有日志流的状态
+      else if (OB_FAIL(status_op.get_all_ls_status_by_order(tenant_id, ls_array, *GCTX.sql_proxy_))) {
         LOG_WARN("failed to get ls status", KR(ret), K(tenant_id));
       } else {
+        //这是检查每一个吧
         for (int64_t i = 0; OB_SUCC(ret) && i < ls_array.count() && !user_ls_valid; ++i) {
           const ObLSStatusInfo &ls_status = ls_array.at(i);
           if (!ls_status.ls_id_.is_sys_ls() && ls_status.ls_is_normal()) {
@@ -194,8 +201,11 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
         }//end for
       }
       if (OB_FAIL(ret)) {
-      } else if (user_ls_valid) {
+      } 
+      //这是有效了
+      else if (user_ls_valid) {
       } else {
+        //否者睡觉
         const int64_t INTERVAL = 500 * 1000L; // 500ms
         LOG_INFO("wait user ls valid", KR(ret), K(tenant_id));
         ob_usleep(INTERVAL);

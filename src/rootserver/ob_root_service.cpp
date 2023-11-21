@@ -2781,8 +2781,11 @@ int ObRootService::create_tenant(const ObCreateTenantArg &arg, UInt64 &tenant_id
     LOG_WARN("not init", KR(ret));
   } else if (!tmp_tenant && OB_FAIL(ObResolverUtils::check_not_supported_tenant_name(tenant_name))) {
     LOG_WARN("unsupported tenant name", KR(ret), K(tenant_name));
-  } else if (OB_FAIL(ddl_service_.create_tenant(arg, tenant_id))) {
+  } 
+  //调用了ddl_service的create_tanant方法
+  else if (OB_FAIL(ddl_service_.create_tenant(arg, tenant_id))) {
     LOG_WARN("fail to create tenant", KR(ret), K(arg));
+    //提交了重新加载资源管理器的任务，不会进入这里面的，失败才会进入。
     if (OB_TMP_FAIL(submit_reload_unit_manager_task())) {
       if (OB_CANCELED != tmp_ret) {
         LOG_ERROR("fail to reload unit_mgr, please try 'alter system reload unit'", KR(ret), KR(tmp_ret));
@@ -5067,14 +5070,15 @@ int ObRootService::do_restart()
   }
 
   // broadcast root server address, ignore error
-  //重点我的TODO，耗时最多的地方，大概2秒，11-13
-  if (OB_SUCC(ret)) {
+  //重点我的TODO，耗时最多的地方，大概2秒，11-13，暂时删除
+  /*if (OB_SUCC(ret)) {
     //应该进入了这里的，这里调用了update_rslist()
     int tmp_ret = update_rslist();
     if (OB_SUCCESS != tmp_ret) {
+      //打印了的，可以注释吗，不要这句，它就是不断重试
       FLOG_WARN("failed to update rslist but ignored", KR(tmp_ret));
     }
-  }
+  }*/
 
   //这前面都没有卡顿。
 
@@ -5197,17 +5201,28 @@ int ObRootService::do_restart()
   //从这里开始
   // broadcast root server address again, this task must be in the end part of do_restart,
   // because system may work properly without it.
-  if (FAILEDx(update_rslist())) {
+  //外面这里也可以跳过吧，暂时删除  TODO,搞懂RS is initializing, can not process this request为什么出现这个问题
+  /*if (FAILEDx(update_rslist())) {
     FLOG_WARN("broadcast root address failed but ignored", KR(ret));
     // it's ok ret be overwritten, update_rslist_task will retry until succeed
     if (OB_FAIL(submit_update_rslist_task(true))) {
       FLOG_WARN("submit_update_rslist_task failed", KR(ret));
     } else {
+      //这个打印了的
       FLOG_INFO("submit_update_rslist_task succeed");
     }
   } else {
+    //这个没有打印的
     FLOG_INFO("broadcast root address succeed");
-  }
+  }*/
+  //放后台任务还是会受影响的吧
+  if (OB_FAIL(submit_update_rslist_task(true))) {
+      FLOG_WARN("submit_update_rslist_task failed", KR(ret));
+    } else {
+      //这个打印了的
+      FLOG_INFO("submit_update_rslist_task succeed");
+    }
+
 
   if (FAILEDx(report_single_replica(tenant_id, SYS_LS))) {
     FLOG_WARN("report all_core_table replica failed, but ignore",

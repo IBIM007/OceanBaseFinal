@@ -35,6 +35,7 @@ int ObLSLifeAgentManager::create_new_ls(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(ls_info), K(create_ls_scn), K(zone_priority));
   } else {
+    //第一个是函数名，应该就是调这个函数吧？
     TAKE_IN_TRANS(create_new_ls, proxy_,
         exec_tenant_id, ls_info, create_ls_scn, zone_priority, working_sw_status);
   }

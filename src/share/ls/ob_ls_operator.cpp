@@ -389,7 +389,9 @@ int ObLSAttrOperator::insert_ls(
       }
     }
   }
+  //打印了的
   LOG_INFO("[LS_OPERATOR] insert ls", KR(ret), K(ls_attr), K(sql));
+  //添加了一个什么事件,最后还是交给rootservice完成？所以还是等它做完吧？
   ALL_LS_EVENT_ADD(tenant_id_, ls_attr.get_ls_id(), "insert_ls", ret, sql);
   return ret;
 }
