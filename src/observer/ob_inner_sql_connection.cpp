@@ -1445,8 +1445,8 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
   FLTSpanGuard(inner_execute_write);
   ObSqlQueryExecutor executor(sql);
   //是否要本地执行？
-  //const bool local_execute = is_local_execute(GCONF.cluster_id, tenant_id);
-  const bool local_execute =true;//试一下
+  const bool local_execute = is_local_execute(GCONF.cluster_id, tenant_id);
+  //const bool local_execute =true;//试一下
   SMART_VAR(ObInnerSQLResult, res, get_session()) {
     if (!inited_) {
       ret = OB_NOT_INIT;
