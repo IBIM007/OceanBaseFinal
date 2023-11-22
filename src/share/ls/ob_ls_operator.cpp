@@ -311,6 +311,7 @@ int ObLSAttrOperator::operator_ls_in_trans_(
     bool skip_sub_trans = false;
     ObAllTenantInfo tenant_info;
     ObLSAttr duplicate_ls_attr;
+    //如果是系统日志流的话才进去
     if (ls_attr.get_ls_id().is_sys_ls()) {
       if (OB_LS_NORMAL == ls_attr.get_ls_status()) {
         skip_sub_trans = true;
@@ -346,9 +347,12 @@ int ObLSAttrOperator::operator_ls_in_trans_(
         LOG_WARN("duplicate ls already exist", KR(ret), K(duplicate_ls_attr), K(ls_attr));
       }
     }
+    //传入的是一个事务呢ObMySQLTransaction
     if (FAILEDx(exec_write(tenant_id_, sql, this, trans))) {
       LOG_WARN("failed to exec write", KR(ret), K(tenant_id_), K(sql));
-    } else if (!skip_sub_trans && OB_FAIL(process_sub_trans_(ls_attr, trans))) {
+    } 
+    //这里打印了，说明前面干完了
+    else if (!skip_sub_trans && OB_FAIL(process_sub_trans_(ls_attr, trans))) {
       LOG_WARN("failed to process sub trans", KR(ret), K(ls_attr));
     }
   }
@@ -361,6 +365,7 @@ int ObLSAttrOperator::insert_ls(
     ObMySQLTransaction *trans)
 {
   int ret = OB_SUCCESS;
+  //LOG_WARN("进入了ObLSAttrOperator::insert_ls", K(ret));
   ObLSFlagStr flag_str;
   common::ObSqlString sql;
   if (OB_UNLIKELY(!ls_attr.is_valid())) {
@@ -372,6 +377,7 @@ int ObLSAttrOperator::insert_ls(
   } else if (OB_FAIL(ls_attr.get_ls_flag().flag_to_str(flag_str))) {
     LOG_WARN("fail to convert flag to string", KR(ret), K(ls_attr));
   } else {
+    //这里构造语句直接插入normal吧
     if (FAILEDx(sql.assign_fmt(
             "insert into %s (ls_id, ls_group_id, status, flag, create_scn) values(%ld, "
             "%ld, '%s', '%s', '%lu')",
@@ -379,11 +385,24 @@ int ObLSAttrOperator::insert_ls(
             ls_status_to_str(ls_attr.get_ls_status()), flag_str.ptr(),
             ls_attr.get_create_scn().get_val_for_inner_table_field()))) {
       LOG_WARN("failed to assign sql", KR(ret), K(ls_attr), K(sql));
-    } else if (OB_ISNULL(trans)) {
+    } 
+    
+   //但是这里是插入系统日志流也会走吧，应该问题不大
+   /*if (FAILEDx(sql.assign_fmt(
+            "insert into %s (ls_id, ls_group_id, status, flag, create_scn) values(%ld, "
+            "%ld, '%s', '%s', '%lu')",
+            OB_ALL_LS_TNAME, ls_attr.get_ls_id().id(), ls_attr.get_ls_group_id(),
+            ls_status_to_str(OB_LS_NORMAL), flag_str.ptr(),
+            ls_attr.get_create_scn().get_val_for_inner_table_field()))) {
+      LOG_WARN("failed to assign sql", KR(ret), K(ls_attr), K(sql));
+    }*/ 
+    else if (OB_ISNULL(trans)) {
+      //LOG_WARN("进入了operator_ls_1111111111111111", K(ret));
       if (OB_FAIL(operator_ls_(ls_attr, sql, working_sw_status))) {
         LOG_WARN("failed to operator ls", KR(ret), K(ls_attr), K(sql));
       }
     } else {
+      //LOG_WARN("进入了operator_ls_in_trans_22222222222222222", K(ret));
       if (OB_FAIL(operator_ls_in_trans_(ls_attr, sql, working_sw_status, *trans))) {
         LOG_WARN("failed to operator ls", KR(ret), K(ls_attr), K(sql));
       }

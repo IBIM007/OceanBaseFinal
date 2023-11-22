@@ -22101,7 +22101,9 @@ int ObDDLService::create_tenant(
   } else if (!tenant_role.is_primary()) {
     LOG_INFO("restore or standby user tenant cannot create end", K(tenant_role),
         K(user_tenant_id), K(arg));
-  } else if (OB_FAIL(create_tenant_end(user_tenant_id))) {
+  } 
+  //第二个才结束用户
+  else if (OB_FAIL(create_tenant_end(user_tenant_id))) {
     LOG_WARN("failed to create tenant end", KR(ret), K(user_tenant_id));
   }
 
@@ -22834,7 +22836,7 @@ int ObDDLService::create_tenant_sys_ls(
       LOG_WARN("fail to create tenant sys ls", KR(ret), K(pool_list), K(palf_base_info),
                K(locality), K(paxos_replica_num), K(tenant_schema), K(zone_priority));
     } else {
-      //这里还会进入等待。跟之前的wait_elect_ls一样的好像。
+      //这里还会进入等待。跟之前的wait_elect_ls一样的好像。可以直接注释掉吧
       share::ObLSLeaderElectionWaiter ls_leader_waiter(*lst_operator_, stopped_);
       int64_t timeout = GCONF.rpc_timeout;
       if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {

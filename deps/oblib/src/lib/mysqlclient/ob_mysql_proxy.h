@@ -89,6 +89,7 @@ public:
 
 // thread safe sql proxy
 // TODO baihua: implement retry logic by general method (macros e.t.)
+//它继承了刚才那个客户端
 class ObCommonSqlProxy : public ObISQLClient
 {
 public:
@@ -119,6 +120,7 @@ public:
                    const char *sql) override;
   using ObISQLClient::read;
   // execute update sql
+  //这里执行
   virtual int write(const uint64_t tenant_id, const char *sql, int64_t &affected_rows) override { return this->write(tenant_id, sql, 0/**/, affected_rows); }
   virtual int write(const uint64_t tenant_id, const char *sql, const int32_t group_id, int64_t &affected_rows) override;
   int write(const uint64_t tenant_id, const ObString sql, int64_t &affected_rows, int64_t compatibility_mode,

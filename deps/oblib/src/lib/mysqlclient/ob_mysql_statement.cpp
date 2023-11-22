@@ -108,6 +108,7 @@ int ObMySQLStatement::execute_update(int64_t &affected_rows)
                "err_msg", errmsg, K(tmp_ret), K(ret), K(sql_str_));
       if (OB_NOT_MASTER == tmp_ret) {
         // conn -> server pool -> connection pool
+        //LOG_WARN("进入了OB_NOT_MASTER == tmp_ret", K(conn_));
         conn_->get_root()->get_root()->signal_refresh(); // refresh server pool immediately
       }
       if (OB_INVALID_ID != conn_->get_dblink_id()) {
@@ -128,9 +129,11 @@ int ObMySQLStatement::execute_update(int64_t &affected_rows)
         conn_->set_usable(false);
       }
     } else {
+      //应该是进入的这里面，这里面好像就是异步了吧？
       affected_rows = mysql_affected_rows(stmt_);
     }
     int64_t end = ObTimeUtility::current_monotonic_raw_time();
+    //LOG_WARN("execute stat", "excute time(us)", (end - begin), "SQL:", sql_str_, K(ret));
     LOG_TRACE("execute stat", "excute time(us)", (end - begin), "SQL:", sql_str_, K(ret));
   }
   return ret;

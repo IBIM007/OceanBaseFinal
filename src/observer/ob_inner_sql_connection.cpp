@@ -706,7 +706,9 @@ int ObInnerSQLConnection::query(sqlclient::ObIExecutor &executor,
                                 ObInnerSQLResult &res,
                                 ObVirtualTableIteratorFactory *vt_iter_factory)
 {
+  
   int ret = OB_SUCCESS;
+  //LOG_WARN("进入了ObInnerSQLConnection::query", K(ret));
   lib::CompatModeGuard g(get_compat_mode());
   ObExecRecord exec_record;
   ObExecTimestamp exec_timestamp;
@@ -911,7 +913,9 @@ common::sqlclient::ObCommonServerConnectionPool *ObInnerSQLConnection::get_commo
 template <typename T>
 int ObInnerSQLConnection::retry_while_no_tenant_resource(const int64_t cluster_id, const uint64_t &tenant_id, T function)
 {
+  
   int ret = OB_SUCCESS;
+  //LOG_WARN("进入ObInnerSQLConnection::retry_while_no_tenant_resource了", K(ret));
   share::ObLSID ls_id(share::ObLSID::SYS_LS_ID);
   const int64_t max_retry_us = 128 * 1000;
   int64_t retry_us = 2 * 1000;
@@ -926,13 +930,17 @@ int ObInnerSQLConnection::retry_while_no_tenant_resource(const int64_t cluster_i
   if (OB_FAIL(set_timeout(abs_timeout_us))) {
     LOG_WARN("set timeout failed", K(ret));
   } else {
+    //这里有一个循环
     do {
       int64_t now = ObTimeUtility::current_time();
       if (now >= abs_timeout_us) {
         need_retry = false;
         ret = OB_TIMEOUT;
+        //没有打印
         LOG_WARN("timeout, do not need retry", K(ret), K(abs_timeout_us), K(now));
-      } else if (OB_FAIL(function())) {
+      } 
+      //接下来细看这个function
+      else if (OB_FAIL(function())) {
         if (is_unit_migrate(ret)) {
           LOG_INFO("failed to get newest location and will force renew", K(ret), K(tenant_id), K(ls_id));
           int tmp_ret = GCTX.location_service_->nonblock_renew(cluster_id, tenant_id, ls_id);
@@ -1399,6 +1407,7 @@ int ObInnerSQLConnection::execute_write(const uint64_t tenant_id, const char *sq
   if (OB_FAIL(execute_write(tenant_id, ObString::make_string(sql), affected_rows, is_user_sql, sql_exec_addr))) {
     LOG_WARN("execute_write failed", K(ret), K(tenant_id), K(sql));
   }
+  //LOG_WARN("这里执行完了ObInnerSQLConnection::execute_write111111", K(ret), K(tenant_id), K(sql));
   return ret;
 }
 
@@ -1407,9 +1416,11 @@ int ObInnerSQLConnection::execute_write(const uint64_t tenant_id, const ObString
 {
   int ret = OB_SUCCESS;
   auto function = [&]() { return execute_write_inner(tenant_id, sql, affected_rows, is_user_sql, sql_exec_addr); };
+  //追一下这里面，
   if (OB_FAIL(retry_while_no_tenant_resource(GCONF.cluster_id, tenant_id, function))) {
     LOG_WARN("execute_write failed", K(ret), K(tenant_id), K(sql), K(is_user_sql));
   }
+  //LOG_WARN("这里执行完了ObInnerSQLConnection::execute_write22222", K(ret), K(tenant_id), K(sql));
   return ret;
 }
 
@@ -1430,39 +1441,51 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
     int64_t &affected_rows, bool is_user_sql, const common::ObAddr *sql_exec_addr)
 {
   int ret = OB_SUCCESS;
+  //LOG_WARN("进入ObInnerSQLConnection::execute_write_inner了", K(ret));
   FLTSpanGuard(inner_execute_write);
   ObSqlQueryExecutor executor(sql);
-  const bool local_execute = is_local_execute(GCONF.cluster_id, tenant_id);
+  //是否要本地执行？
+  //const bool local_execute = is_local_execute(GCONF.cluster_id, tenant_id);
+  const bool local_execute =true;//试一下
   SMART_VAR(ObInnerSQLResult, res, get_session()) {
     if (!inited_) {
       ret = OB_NOT_INIT;
+      //没打印
       LOG_WARN("connection not inited", K(ret));
     } else if (0 == sql.length() || NULL == sql.ptr()  || '\0' == *(sql.ptr())
                || OB_INVALID_ID == tenant_id) {
       ret = OB_INVALID_ARGUMENT;
+      //没打印
       LOG_WARN("invalid argument", K(ret), K(sql), K(tenant_id));
     }
     if (OB_SUCC(ret)) {
+      //如果是本地执行
       if (local_execute && OB_FAIL(switch_tenant(tenant_id))) {
+        //没打印
         LOG_WARN("switch tenant_id failed", K(ret), K(tenant_id));
       } else if (OB_FAIL(res.init(local_execute))) {
+        //没打印
         LOG_WARN("init result set", K(ret));
       }
     }
     if (OB_FAIL(ret)) {
     } else if (local_execute) {
+      //LOG_WARN("进入了local_execute", K(ret));
       res.result_set().set_user_sql(is_user_sql);
       if (OB_FAIL(query(executor, res))) {
         LOG_WARN("execute sql failed", K(ret), K(tenant_id), K(sql));
       } else if (FALSE_IT(affected_rows = res.result_set().get_affected_rows())) {
       } else if (OB_FAIL(res.close())) {
+        //没打印
         LOG_WARN("close result set failed", K(ret), K(tenant_id), K(sql));
       }
     } else if (is_resource_conn()) {
       ret = OB_ERR_UNEXPECTED;
+      //没打印
       LOG_WARN("resource_conn of resource_svr still doesn't has the tenant resource",
                K(ret), K(MYADDR), K(tenant_id), K(get_resource_conn_id()));
-    } else { // !has_tenant_resource
+    } else { // !has_tenant_resource 没有租户的资源
+      //LOG_INFO("进入了没有租户的资源", K(ret));
       TimeoutGuard timeout_guard(*this); // backup && restore worker/session timeout
       int64_t query_timeout = OB_DEFAULT_SESSION_TIMEOUT;
       int64_t trx_timeout = OB_DEFAULT_SESSION_TIMEOUT;
@@ -1490,6 +1513,7 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
           set_resource_conn_id(OB_INVALID_ID);
         }
       }
+      //这里有个什么rpc
       if (FAILEDx(get_session_timeout_for_rpc(query_timeout, trx_timeout))) {
         LOG_WARN("fail to get_session_timeout_for_rpc", K(ret), K(query_timeout), K(trx_timeout));
       }
@@ -1502,6 +1526,7 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
         }
       }
       if (OB_SUCC(ret)) {
+        //LOG_INFO("进入马上好像要rpc了", K(ret));
         get_session().store_query_string(sql);
         ObInnerSQLTransmitArg arg (MYADDR, get_resource_svr(), tenant_id, get_resource_conn_id(),
             sql, ObInnerSQLTransmitArg::OPERATION_TYPE_EXECUTE_WRITE,
@@ -1511,6 +1536,7 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
         arg.set_nls_formats(get_session().get_local_nls_date_format(),
                             get_session().get_local_nls_timestamp_format(),
                             get_session().get_local_nls_timestamp_tz_format());
+        //这里有个什么rpc
         ObInnerSqlRpcStreamHandle *handler = res.remote_result_set().get_stream_handler();
 
         if (OB_ISNULL(handler)) {
@@ -1542,8 +1568,9 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
         }
       }
     }
+    //LOG_WARN("execute write sql", K(ret), K(tenant_id), K(affected_rows), K(sql));
 #ifndef NDEBUG
-    if (tenant_id < OB_MAX_RESERVED_TENANT_ID) {  //only print log for sys table
+    if (tenant_id < OB_MAX_RESERVED_TENANT_ID) {  //only print log for sys table。只打印系统表
       LOG_INFO("execute write sql", K(ret), K(tenant_id), K(affected_rows), K(sql));
     }
 #endif

@@ -488,6 +488,7 @@ int ObMySQLConnection::execute_write(const uint64_t tenant_id, const ObString &s
     int64_t &affected_rows, bool is_user_sql, const common::ObAddr *sql_exec_addr)
 {
   UNUSEDx(tenant_id, sql, affected_rows, is_user_sql, sql_exec_addr);
+  //LOG_WARN("进入了这里不支持", K(tenant_id));
   return OB_NOT_SUPPORTED;
 }
 
@@ -508,6 +509,7 @@ int ObMySQLConnection::execute_write(const uint64_t tenant_id, const char *sql,
       LOG_WARN("statement execute update failed", KCSTRING(sql), K(ret));
     }
   }
+  //LOG_WARN("这里执行完了ObMySQLConnection::execute_write", KCSTRING(sql), K(ret));
   return ret;
 }
 

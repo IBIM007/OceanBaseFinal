@@ -104,7 +104,8 @@ int ObSchemaRetrieveUtils::retrieve_table_schema(
       allocator.free(allocated_table_schema);
       allocated_table_schema = NULL;
     } else {
-      SHARE_SCHEMA_LOG(INFO, "retrieve table schema", KR(ret), K(table_schema), K(is_deleted));
+      //我的TODO暂时删掉吧
+      //SHARE_SCHEMA_LOG(INFO, "retrieve table schema", KR(ret), K(table_schema), K(is_deleted));
     }
     if (OB_FAIL(ret)) {
       SHARE_SCHEMA_LOG(WARN, "retrieve table schema failed", KR(ret),
@@ -2752,7 +2753,8 @@ int ObSchemaRetrieveUtils::retrieve_system_variable(const uint64_t tenant_id, T 
     } else if (OB_FAIL(ob_write_string(tmp_allocator, sysvar_schema.get_name(), prev_sys_name))) {
       SHARE_SCHEMA_LOG(WARN, "write sysvar name failed", K(ret), K(sysvar_schema));
     } else {
-      SHARE_SCHEMA_LOG(INFO, "fetch system variable schema finish", K(sysvar_schema));
+      //我的TODO暂时删掉吧
+      //SHARE_SCHEMA_LOG(INFO, "fetch system variable schema finish", K(sysvar_schema));
     }
   }
   if (ret != common::OB_ITER_END) {

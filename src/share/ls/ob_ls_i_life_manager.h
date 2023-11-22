@@ -202,6 +202,7 @@ int ObLSTemplateOperator::exec_read(const uint64_t &tenant_id,
     } else {
       HEAP_VAR(ObMySQLProxy::MySQLResult, res) {
         common::sqlclient::ObMySQLResult *result = NULL;
+        //这里执行
         if (OB_FAIL(client.read(res, exec_tenant_id, sql.ptr()))) {
           SHARE_LOG(WARN, "failed to read", KR(ret), K(exec_tenant_id), K(sql));
         } else if (OB_ISNULL(result = res.get_result())) {
@@ -213,7 +214,9 @@ int ObLSTemplateOperator::exec_read(const uint64_t &tenant_id,
              single_res.reset();
              if (OB_FAIL(table_operator->fill_cell(result, single_res))) {
                SHARE_LOG(WARN, "failed to read cell from result", KR(ret), K(sql));
-             } else if (OB_FAIL(ls_res.push_back(single_res))) {
+             } 
+             //这里有推进吧
+             else if (OB_FAIL(ls_res.push_back(single_res))) {
                SHARE_LOG(WARN, "failed to get cell", KR(ret), K(single_res));
              }
            }  // end while
@@ -240,6 +243,7 @@ int ObLSTemplateOperator::exec_write(const uint64_t &tenant_id,
                                       const bool ignore_row)
 {
   int ret = OB_SUCCESS;
+  //SHARE_LOG(WARN, "进入这里ObLSTemplateOperator::exec_write了", KR(ret));
   if (OB_UNLIKELY(sql.empty() || OB_INVALID_TENANT_ID == tenant_id)
       || OB_ISNULL(table_operator)) {
     ret = OB_INVALID_ARGUMENT;
@@ -252,12 +256,15 @@ int ObLSTemplateOperator::exec_write(const uint64_t &tenant_id,
     uint64_t exec_tenant_id = table_operator->get_exec_tenant_id(tenant_id);
     if (OB_UNLIKELY(OB_INVALID_TENANT_ID == exec_tenant_id)) {
       ret = OB_ERR_UNEXPECTED;
+      //没打印
       SHARE_LOG(WARN, "failed to get exec tenant id", KR(ret), K(exec_tenant_id));
     } else if (OB_FAIL(ObShareUtil::set_default_timeout_ctx(ctx,
                                                             default_timeout))) {
       SHARE_LOG(WARN, "failed to set default timeout ctx", KR(ret),
                K(default_timeout));
-    } else if (OB_FAIL(
+    } 
+    //重点应该追踪这里吧
+    else if (OB_FAIL(
                    client.write(exec_tenant_id, sql.ptr(), affected_rows))) {
       SHARE_LOG(WARN, "failed to execute sql", KR(ret), K(exec_tenant_id), K(sql));
     } else if (!is_single_row(affected_rows) && !ignore_row) {
@@ -265,6 +272,8 @@ int ObLSTemplateOperator::exec_write(const uint64_t &tenant_id,
       SHARE_LOG(WARN, "expected one row, may need retry", KR(ret), K(affected_rows),
                K(sql), K(ignore_row));
     }
+    //这个在创建用户日志流都没打印
+    //SHARE_LOG(WARN, "执行成功了吧", KR(ret));
   }
   return ret;
 }
