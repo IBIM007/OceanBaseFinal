@@ -212,6 +212,7 @@ int ObTenantThreadHelper::wait_tenant_schema_and_version_ready_(
     share::schema::ObTenantSchema tenant_schema;
     while (!is_ready && !has_set_stop()) {
       ret = OB_SUCCESS;
+      //一直调用这个方法
       if (OB_FAIL(get_tenant_schema(tenant_id, tenant_schema))) {
         LOG_WARN("failed to get tenant schema", KR(ret), K(tenant_id));
       } else if (tenant_schema.is_creating()) {
@@ -220,9 +221,10 @@ int ObTenantThreadHelper::wait_tenant_schema_and_version_ready_(
       } else {
         is_ready = true;
       }
-
+      //不应该等待10秒吧。，可能也没用，因为会被唤醒的吧。不会通知的吧，那边更改了，应该不会通知我感觉。试一下吧，感觉因为没看到singal
       if (!is_ready) {
-        idle(10 * 1000 *1000);
+        //微妙
+        idle(0.25 * 1000 *1000);
       }
     }
 

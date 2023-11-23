@@ -55,7 +55,7 @@ void ObCommonSqlProxy::operator=(const ObCommonSqlProxy &o)
   active_ = o.active_;
   pool_ = o.pool_;
 }
-
+//我应该进入的这里
 int ObCommonSqlProxy::read(ReadResult &result, const uint64_t tenant_id, const char *sql, const int32_t group_id)
 {
   int ret = OB_SUCCESS;

@@ -70,7 +70,9 @@ void ObCommonLSService::do_work()
   } else if (is_user_tenant(tenant_id_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("is user tenant", KR(ret), K(tenant_id_));
-  } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
+  } 
+  //这里也要等待啊
+  else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
     LOG_WARN("failed to wait tenant schema version ready", KR(ret), K(tenant_id_), K(DATA_CURRENT_VERSION));
   } else {
     int64_t idle_time_us = 1000 * 1000L;//1s
@@ -117,6 +119,7 @@ void ObCommonLSService::do_work()
 int ObCommonLSService::try_create_ls_(const share::schema::ObTenantSchema &tenant_schema)
 {
   int ret = OB_SUCCESS;
+  LOG_WARN("进入了ObCommonLSService::try_create_ls_", K(ret));
   const uint64_t tenant_id = tenant_schema.get_tenant_id();
   if (OB_ISNULL(GCTX.sql_proxy_)) {
     ret = OB_ERR_UNEXPECTED;
@@ -137,6 +140,7 @@ int ObCommonLSService::try_create_ls_(const share::schema::ObTenantSchema &tenan
     }
     for (int64_t i = 0; OB_SUCC(ret) && i < status_info_array.count(); ++i) {
       const ObLSStatusInfo &status_info = status_info_array.at(i);
+      if(status_info.get_ls_id().id()>1)LOG_WARN("进入了ObCommonLSService::try_create_ls_，并且id是", K(status_info.get_ls_id().id()));
       if (status_info.ls_is_creating()) {
         recovery_stat.reset();
         if (OB_FAIL(ls_recovery_operator.get_ls_recovery_stat(
@@ -144,7 +148,9 @@ int ObCommonLSService::try_create_ls_(const share::schema::ObTenantSchema &tenan
                   recovery_stat, *GCTX.sql_proxy_))) {
           LOG_WARN("failed to get ls recovery stat", KR(ret), K(tenant_id),
                      K(status_info));
-        } else if (OB_FAIL(do_create_user_ls(tenant_schema, status_info,
+        } 
+        //这里do_create_user_ls
+        else if (OB_FAIL(do_create_user_ls(tenant_schema, status_info,
                                              recovery_stat.get_create_scn(),
                                              false, palf_base_info))) {
           LOG_WARN("failed to create new ls", KR(ret), K(status_info),

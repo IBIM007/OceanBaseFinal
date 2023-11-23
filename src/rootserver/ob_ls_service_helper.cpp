@@ -638,9 +638,12 @@ int ObLSServiceHelper::revision_to_equal_status_(const ObLSStatusMachineParamete
                                       const share::ObTenantSwitchoverStatus &working_sw_status,
                                       ObTenantLSInfo& tenant_ls_info)
 {
+  
   int ret = OB_SUCCESS;
+  LOG_WARN("进入ObLSServiceHelper::revision_to_equal_status_了", KR(ret));
   const share::ObLSStatusInfo &status_info = machine.status_info_;
   const share::ObLSAttr &ls_info = machine.ls_info_;
+  if(ls_info.get_ls_id().id()>1)LOG_WARN("进入ObLSServiceHelper::revision_to_equal_status_了,并且发现了普通用户日志流", KR(ret));
   const uint64_t tenant_id = tenant_ls_info.get_tenant_id();
   ObLSStatusOperator status_op;
   if (OB_UNLIKELY(!machine.is_valid())) {

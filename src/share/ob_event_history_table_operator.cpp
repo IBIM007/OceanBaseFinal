@@ -347,8 +347,11 @@ int ObEventHistoryTableOperator::process_task(const ObString &sql, const bool is
       ret = OB_CANCELED;
       LOG_WARN("server is stopped, cancel task", K(ret));
     } else {
+      LOG_WARN("后台执行sql了", K(sql), K(ret));
       int64_t affected_rows = 0;
+      //不是删除的话就走这里面
       if (!is_delete) {
+        //这里可以写入
         if (OB_FAIL(proxy_->write(sql.ptr(), affected_rows))) {
           LOG_WARN("execute sql failed", K(sql), K(ret));
         } else if (!is_single_row(affected_rows)) {

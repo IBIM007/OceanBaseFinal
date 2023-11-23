@@ -154,6 +154,7 @@ int ObCreateTenantExecutor::wait_schema_refreshed_(const uint64_t tenant_id)
         break;
       } else {
         LOG_INFO("wait schema refreshed", K(tenant_id), K(meta_schema_version), K(user_schema_version));
+        //这里会等待
         ob_usleep(500 * 1000L); // 500ms
       }
     }

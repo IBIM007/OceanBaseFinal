@@ -489,6 +489,7 @@ int ObDMLSqlSplicer::splice_insert_sql_without_plancache(const char *table_name,
   return ret;
 }
 
+//可能会进入这里面
 int ObDMLSqlSplicer::splice_insert_sql(const char *table_name, ObSqlString &sql) const
 {
   int ret = OB_SUCCESS;

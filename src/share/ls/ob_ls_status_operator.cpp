@@ -402,7 +402,9 @@ int ObLSStatusOperator::update_ls_status_in_trans(
     }
 
     if (OB_FAIL(ret)) {
-    } else if (OB_FAIL(sql.assign_fmt("UPDATE %s set status = '%s',init_member_list = '', b_init_member_list = ''%.*s"
+    } 
+    //我的重点TODO，可能有用
+    else if (OB_FAIL(sql.assign_fmt("UPDATE %s set status = '%s',init_member_list = '', b_init_member_list = ''%.*s"
                                " where ls_id = %ld and tenant_id = %lu and status = '%s'",
                                OB_ALL_LS_STATUS_TNAME,
                                ls_status_to_str(new_status),
@@ -413,6 +415,7 @@ int ObLSStatusOperator::update_ls_status_in_trans(
     } else if (OB_FAIL(exec_write(tenant_id, sql, this, trans))) {
       LOG_WARN("failed to exec write", KR(ret), K(tenant_id), K(id), K(sql));
     }
+    //这个有打印的
     ALL_LS_EVENT_ADD(tenant_id, id, "update_ls_status", ret, sql);
   }
   return ret;
@@ -1648,7 +1651,9 @@ int ObLSStatusOperator::create_abort_ls_in_switch_tenant(
                            || status != tenant_info.get_switchover_status())) {
       ret = OB_NEED_RETRY;
       LOG_WARN("switchover may concurrency, need retry", KR(ret), K(switchover_epoch), K(status), K(tenant_info));
-    } else if (OB_FAIL(sql.assign_fmt("UPDATE %s set status = '%s',init_member_list = '', b_init_member_list = ''%.*s"
+    } 
+    //我的重点TODO
+    else if (OB_FAIL(sql.assign_fmt("UPDATE %s set status = '%s',init_member_list = '', b_init_member_list = ''%.*s"
                                       " where tenant_id = %lu and status in ('%s', '%s')",
                                       OB_ALL_LS_STATUS_TNAME,
                                       ls_status_to_str(share::OB_LS_CREATE_ABORT),
@@ -1666,6 +1671,7 @@ int ObLSStatusOperator::create_abort_ls_in_switch_tenant(
       }
     }
   }
+  //没打印过
   LOG_INFO("finish create abort ls", KR(ret), K(tenant_id), K(sql));
   ALL_LS_EVENT_ADD(tenant_id, SYS_LS, "create abort ls for switchover", ret, sql);
   return ret;

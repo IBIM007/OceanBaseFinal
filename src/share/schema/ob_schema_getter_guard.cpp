@@ -4711,7 +4711,9 @@ int ObSchemaGetterGuard::get_schema(
              || OB_INVALID_ID == schema_id) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(schema_type), K(schema_id));
-  } else if (OB_FAIL(get_from_local_cache(schema_type, tenant_id, schema_id, schema))) {
+  } 
+  //这里有个什么缓存。
+  else if (OB_FAIL(get_from_local_cache(schema_type, tenant_id, schema_id, schema))) {
     if (OB_ENTRY_NOT_EXIST != ret) {
       LOG_WARN("get from local cache failed [id to schema]",
                KR(ret), K(schema_type), K(tenant_id), K(schema_id));

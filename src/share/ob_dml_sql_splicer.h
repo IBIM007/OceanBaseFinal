@@ -311,6 +311,7 @@ int ObDMLSqlSplicer::append_value(const T &obj, bool &is_null)
 }
 
 template <typename T>
+//进入的这里面
 int ObDMLSqlSplicer::add_column(const char *col_name, const T &value)
 {
   const bool is_pk = false;

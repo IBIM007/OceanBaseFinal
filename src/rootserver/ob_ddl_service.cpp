@@ -22096,6 +22096,7 @@ int ObDDLService::create_tenant(
       }
     }
   } // end HEAP_VARS_4
+  //这里面涉及到refresh
   if (FAILEDx(create_tenant_end(meta_tenant_id))) {
     LOG_WARN("failed to create tenant end", KR(ret), K(meta_tenant_id));
   } else if (!tenant_role.is_primary()) {
@@ -23441,7 +23442,7 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
     So here, force trigger schema refresh refresh cache
   */
   } 
-  //rpc加载刷新后的schema状态
+  //rpc加载刷新后的schema状态。关键应该是这里
   else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status(tenant_id, schema_status))) {
     LOG_WARN("fail to load refresh schema status", KR(ret), K(tenant_id));
   } else if (OB_FAIL(get_tenant_schema_guard_with_version_in_inner_table(OB_SYS_TENANT_ID, schema_guard))) {
@@ -23452,7 +23453,9 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
     LOG_WARN("fail to get tenant schema version", KR(ret));
   } else if (OB_FAIL(trans.start(sql_proxy_, OB_SYS_TENANT_ID, sys_schema_version))) {
     LOG_WARN("start transaction failed", KR(ret), K(tenant_id), K(sys_schema_version));
-  } else if (OB_FAIL(schema_guard.get_tenant_info(tenant_id, tenant_schema))) {
+  } 
+  //注意这里关键tenant_schema.另外的卡住的地方也是一直卡在这里。
+  else if (OB_FAIL(schema_guard.get_tenant_info(tenant_id, tenant_schema))) {
     LOG_WARN("fail to get tenant schema", K(ret), K(tenant_id));
   } else if (OB_ISNULL(tenant_schema)) {
     ret = OB_TENANT_NOT_EXIST;

@@ -67,12 +67,15 @@ void ObPrimaryLSService::do_work()
   if (OB_UNLIKELY(!inited_)) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", K(ret));
-  } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
+  } 
+  //需要等待
+  else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
     LOG_WARN("failed to wait tenant schema version ready", KR(ret), K(tenant_id_), K(DATA_CURRENT_VERSION));
   } else {
     int64_t idle_time_us = 1000 * 1000L;
     int tmp_ret = OB_SUCCESS;
     share::schema::ObTenantSchema tenant_schema;
+    //一个循环，就是一个线程一直跑吧
     while (!has_set_stop()) {
       tenant_schema.reset();
       ObCurTraceId::init(GCONF.self_addr_);
@@ -99,7 +102,7 @@ void ObPrimaryLSService::do_work()
   }
 }
 
-
+//这个方法调用
 int ObPrimaryLSService::process_all_ls(const share::schema::ObTenantSchema &tenant_schema)
 {
   int ret = OB_SUCCESS;
@@ -234,6 +237,7 @@ int ObPrimaryLSService::try_set_next_ls_status_(
     const common::ObIArray<ObLSStatusMachineParameter> &status_machine_array)
 {
   int ret = OB_SUCCESS;
+  LOG_WARN("进入ObPrimaryLSService::try_set_next_ls_status_了", KR(ret));
   if (OB_UNLIKELY(!inited_)) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret));
@@ -245,6 +249,7 @@ int ObPrimaryLSService::try_set_next_ls_status_(
       const ObLSStatusMachineParameter &machine = status_machine_array.at(i);
       const share::ObLSStatusInfo &status_info = machine.status_info_;
       const share::ObLSAttr &ls_info =  machine.ls_info_;
+      if(ls_info.get_ls_id().id()>1)LOG_WARN("进入ObPrimaryLSService::try_set_next_ls_status_了,并且发现了普通用户日志流", KR(ret));
       const uint64_t tenant_id = status_info.tenant_id_;
       if (OB_UNLIKELY(!machine.is_valid())) {
         ret = OB_INVALID_ARGUMENT;
