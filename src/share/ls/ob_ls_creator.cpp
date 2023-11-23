@@ -243,8 +243,10 @@ int ObLSCreator::create_tenant_sys_ls(
     const palf::PalfBaseInfo &palf_base_info)
 {
   int ret = OB_SUCCESS;
+  //这里打印了一下
   LOG_INFO("start to create log stream", K_(id), K_(tenant_id));
   const int64_t start_time = ObTimeUtility::current_time();
+  //日志状态的信息
   share::ObLSStatusInfo status_info;
   if (OB_UNLIKELY(!is_valid())) {
     ret = OB_INVALID_ARGUMENT;
@@ -260,27 +262,37 @@ int ObLSCreator::create_tenant_sys_ls(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("sql proxy is null", KR(ret));
   } else {
+    //从这里开始
+    //地址
     ObLSAddr addr;
+    //成员列表
     common::ObMemberList member_list;
+    //日志状态存在信息
     share::ObLSStatusInfo exist_status_info;
     const SCN create_scn = SCN::base_scn();
     share::ObLSStatusOperator ls_operator;
     ObMember arbitration_service;
     common::GlobalLearnerList learner_list;
-    ObLSFlag flag(ObLSFlag::NORMAL_FLAG); // TODO: sys ls should be duplicate
+    ObLSFlag flag(ObLSFlag::NORMAL_FLAG); // TODO: sys ls should be duplicate 系统日志流应该被冗余
     if (OB_FAIL(status_info.init(tenant_id_, id_, 0, share::OB_LS_CREATING, 0,
                                    primary_zone, flag))) {
       LOG_WARN("failed to init ls info", KR(ret), K(id_), K(primary_zone),
           K(tenant_id_), K(flag));
-    } else if (OB_FAIL(alloc_sys_ls_addr(tenant_id_, pool_list,
+    } 
+    //申请系统日志流的地址
+    else if (OB_FAIL(alloc_sys_ls_addr(tenant_id_, pool_list,
             zone_locality, addr))) {
       LOG_WARN("failed to alloc user ls addr", KR(ret), K(tenant_id_), K(pool_list));
     } else {
+      //获取日志流初始化成员列表
       ret = ls_operator.get_ls_init_member_list(tenant_id_, id_, member_list, exist_status_info, *proxy_, arbitration_service, learner_list);
       if (OB_FAIL(ret) && OB_ENTRY_NOT_EXIST != ret) {
         LOG_WARN("failed to get log stream member list", KR(ret), K_(id), K(tenant_id_));
-      } else if (OB_SUCC(ret) && status_info.ls_is_created()) {
+      } 
+      //日志流是否已经创建过了
+      else if (OB_SUCC(ret) && status_info.ls_is_created()) {
       } else {
+        //刚才报错的就是这个
         if (OB_ENTRY_NOT_EXIST == ret) {
           ret = OB_SUCCESS;
           share::ObLSLifeAgentManager ls_life_agent(*proxy_);
@@ -290,6 +302,7 @@ int ObLSCreator::create_tenant_sys_ls(
           }
         }
         if (OB_SUCC(ret)) {
+          //这里还进入了的吧
           REPEAT_CREATE_LS();
         }
       }
@@ -298,6 +311,7 @@ int ObLSCreator::create_tenant_sys_ls(
 
   const int64_t cost = ObTimeUtility::current_time() - start_time;
   LOG_INFO("finish to create log stream", KR(ret), K_(id), K_(tenant_id), K(cost));
+  //这里又添加了一个什么事件
   LS_EVENT_ADD(tenant_id_, id_, "create_ls_finish", ret, paxos_replica_num, "", K(cost));
   return ret;
 }
@@ -418,7 +432,7 @@ int ObLSCreator::create_ls_(const ObILSAddr &addrs,
           LOG_WARN("failed to init create log stream arg", KR(ret), K(addr), K(create_with_palf),
               K_(id), K_(tenant_id), K(tenant_info), K(create_scn), K(new_compat_mode), K(palf_base_info));
         } 
-        //这里的call应该才是真的rpc吧？
+        //这里的call应该才是真的rpc吧？都是去调用create_ls (ob_ls_service.cpp）的create_ls吧？
         else if (OB_TMP_FAIL(create_ls_proxy_.call(addr.addr_, ctx.get_timeout(),
                 GCONF.cluster_id, tenant_id_, arg))) {
           LOG_WARN("failed to all async rpc", KR(tmp_ret), K(addr), K(ctx.get_timeout()),

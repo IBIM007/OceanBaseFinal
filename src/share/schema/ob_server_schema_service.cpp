@@ -6391,6 +6391,7 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
   return ret;
 }
 
+//这里是实现
 int ObServerSchemaService::get_schema_version_in_inner_table(
     ObISQLClient &sql_client,
     const ObRefreshSchemaStatus &schema_status,

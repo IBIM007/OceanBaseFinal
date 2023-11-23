@@ -168,6 +168,7 @@ int ObLSPrimaryZoneInfo::assign(const ObLSPrimaryZoneInfo &other)
 }
 
 ////////ObLSStatusOperator
+//这里有一个
 int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
                                       const SCN &current_tenant_scn,
                                       const common::ObString &zone_priority,
@@ -179,12 +180,15 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
   ObAllTenantInfo tenant_info;
   ObLSFlagStr flag_str;
   common::ObSqlString sql;
+  //这里面可以看到全是表名
   const char *table_name = OB_ALL_LS_STATUS_TNAME;
   if (OB_UNLIKELY(!ls_info.is_valid()
                   || !working_sw_status.is_valid())) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid_argument", KR(ret), K(ls_info), K(working_sw_status));
-  } else if (OB_FAIL(ObAllTenantInfoProxy::load_tenant_info(
+  } 
+  //加载租户信息
+  else if (OB_FAIL(ObAllTenantInfoProxy::load_tenant_info(
                   ls_info.tenant_id_, &trans, true, tenant_info))) {
     LOG_WARN("failed to load tenant info", KR(ret), K(ls_info));
   } else if (working_sw_status != tenant_info.get_switchover_status()) {
@@ -192,7 +196,9 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
     LOG_WARN("tenant not in specified switchover status", K(ls_info), K(working_sw_status), K(tenant_info));
   } else if (OB_FAIL(ls_info.get_flag().flag_to_str(flag_str))) {
     LOG_WARN("fail to convert ls flag into string", KR(ret), K(ls_info));
-  } else if (ls_info.get_flag().is_duplicate_ls()) {
+  } 
+  //是否是冗余日志流，应该不会进去吧
+  else if (ls_info.get_flag().is_duplicate_ls()) {
     bool is_compatible = false;
     if (OB_FAIL(ObShareUtil::check_compat_version_for_readonly_replica(
                      ls_info.tenant_id_, is_compatible))) {
@@ -205,6 +211,7 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
 
   if (OB_FAIL(ret)) {
   } else {
+    //从这里开始吧
     ObDMLSqlSplicer dml_splicer;
     if (OB_FAIL(dml_splicer.add_pk_column("tenant_id", ls_info.tenant_id_))
       || OB_FAIL(dml_splicer.add_pk_column("ls_id", ls_info.ls_id_.id()))
@@ -217,16 +224,22 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
       LOG_WARN("add flag column failed", KR(ret), K(ls_info), K(flag_str));
     } else if (OB_FAIL(dml_splicer.splice_insert_sql(table_name, sql))) {
       LOG_WARN("fail to splice insert sql", KR(ret), K(sql), K(ls_info), K(flag_str));
-    } else if (OB_FAIL(exec_write(ls_info.tenant_id_, sql, this, trans))) {
+    } 
+    //执行写操作？
+    else if (OB_FAIL(exec_write(ls_info.tenant_id_, sql, this, trans))) {
       LOG_WARN("failed to exec write", KR(ret), K(ls_info), K(sql));
-    } else if (ls_info.ls_id_.is_sys_ls()) {
+    } 
+    //如果是系统日志流
+    else if (ls_info.ls_id_.is_sys_ls()) {
+      //这里打印了的
       LOG_INFO("sys ls no need update max ls id", KR(ret), K(ls_info));
-    } else if (OB_FAIL(ObAllTenantInfoProxy::update_tenant_max_ls_id(
+    } 
+    else if (OB_FAIL(ObAllTenantInfoProxy::update_tenant_max_ls_id(
                    ls_info.tenant_id_, ls_info.ls_id_, trans, false))) {
       LOG_WARN("failed to update tenant max ls id", KR(ret), K(ls_info));
     }
   }
-
+  //这里添加了一个什么事件，对的所以后面就这样走了
   ALL_LS_EVENT_ADD(ls_info.tenant_id_, ls_info.ls_id_, "create_new_ls", ret, sql);
   return ret;
 }
@@ -549,12 +562,15 @@ int ObLSStatusOperator::get_all_ls_status_by_order(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("operation is not valid", KR(ret), K(tenant_id));
   } else {
+    //构造sql语句
     ObSqlString sql;
     if (OB_FAIL(sql.assign_fmt(
                    "SELECT * FROM %s WHERE tenant_id = %lu ORDER BY tenant_id, ls_id",
                    OB_ALL_LS_STATUS_TNAME, tenant_id))) {
       LOG_WARN("failed to assign sql", KR(ret), K(sql), K(tenant_id));
-    } else if (OB_FAIL(exec_read(tenant_id, sql, client, this, ls_array))) {
+    } 
+    //执行读操作，怎么感觉create_user_ls一直没有插入呢？
+    else if (OB_FAIL(exec_read(tenant_id, sql, client, this, ls_array))) {
       LOG_WARN("failed to exec read", KR(ret), K(tenant_id), K(sql));
     }
   }
@@ -1011,10 +1027,14 @@ int ObLSStatusOperator::get_ls_status_(const uint64_t tenant_id,
                   || OB_INVALID_TENANT_ID == tenant_id)) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(id), K(tenant_id));
-  } else if (OB_FAIL(sql.assign_fmt("SELECT * FROM %s where ls_id = %ld and tenant_id = %lu",
+  } 
+  //要先查询？
+  else if (OB_FAIL(sql.assign_fmt("SELECT * FROM %s where ls_id = %ld and tenant_id = %lu",
                                     OB_ALL_LS_STATUS_TNAME, id.id(), tenant_id))) {
     LOG_WARN("failed to assign sql", KR(ret), K(sql));
-  } else if (OB_FAIL(inner_get_ls_status_(sql, get_exec_tenant_id(tenant_id), need_member_list,
+  } 
+  //这里也打印了的
+  else if (OB_FAIL(inner_get_ls_status_(sql, get_exec_tenant_id(tenant_id), need_member_list,
                                           client, member_list, status_info, arb_member, learner_list))) {
     LOG_WARN("fail to inner get ls status info", KR(ret), K(sql), K(tenant_id), "exec_tenant_id",
              get_exec_tenant_id(tenant_id), K(need_member_list));

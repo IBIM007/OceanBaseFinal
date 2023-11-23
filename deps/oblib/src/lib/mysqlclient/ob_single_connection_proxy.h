@@ -40,6 +40,7 @@ public:
   virtual int read(ReadResult &res, const uint64_t tenant_id, const char *sql) override { return this->read(res, tenant_id, sql, 0/*group_id*/); }
   virtual int read(ReadResult &res, const uint64_t tenant_id, const char *sql, const int32_t group_id) override;
   virtual int read(ReadResult &res, const int64_t cluster_id, const uint64_t tenant_id, const char *sql) override;
+  //这里面调用的应该是
   virtual int write(const uint64_t tenant_id, const char *sql, int64_t &affected_rows) override { return this->write(tenant_id, sql, 0/*group_id*/, affected_rows); }
   virtual int write(const uint64_t tenant_id, const char *sql, const int32_t group_id, int64_t &affected_rows) override;
   using ObISQLClient::read;

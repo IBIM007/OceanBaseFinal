@@ -30,6 +30,7 @@ namespace share
 
 using namespace common;
 
+//这里也有一个
 int ObLsElectionReferenceInfoOperator::create_new_ls(const ObLSStatusInfo &ls_info,
                                                      const SCN &create_ls_scn,
                                                      const common::ObString &zone_priority,
@@ -49,7 +50,9 @@ int ObLsElectionReferenceInfoOperator::create_new_ls(const ObLSStatusInfo &ls_in
             OB_ALL_LS_ELECTION_REFERENCE_INFO_TNAME, ls_info.tenant_id_,
             ls_info.ls_id_.id(), zone_priority.ptr(), "0.0.0.0:0", ""))) {
       OB_LOG(WARN, "failed to assing sql", KR(ret), K(ls_info), K(create_ls_scn));
-    } else if (OB_FAIL(exec_write(ls_info.tenant_id_, sql, this, trans))) {
+    } 
+    //找不到地方
+    else if (OB_FAIL(exec_write(ls_info.tenant_id_, sql, this, trans))) {
       OB_LOG(WARN, "failed to exec write", KR(ret), K(ls_info), K(sql));
     }
     OB_LOG(INFO, "[LS_ELECTION] create new ls", KR(ret), K(ls_info), K(create_ls_scn));

@@ -1462,6 +1462,7 @@ int ObDDLOperator::create_user(ObUserInfo &user,
   return ret;
 }
 
+//先进入的这里
 int ObDDLOperator::create_table(ObTableSchema &table_schema,
                                 ObMySQLTransaction &trans,
                                 const ObString *ddl_stmt_str/*=NULL*/,
@@ -1482,6 +1483,7 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
     LOG_WARN("fail to gen new schema_version", K(ret), K(tenant_id));
   } else {
     table_schema.set_schema_version(new_schema_version);
+    //从这里开始吧
     if (OB_FAIL(schema_service->get_table_sql_service().create_table(
         table_schema,
         trans,
@@ -1497,7 +1499,7 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
     }
   }
 
-  // add audit in table if necessary
+  // add audit in table if necessary。添加审计到表中如果有必要的话，应该不用管
   if (OB_SUCC(ret) && !is_truncate_table && (table_schema.is_user_table() || table_schema.is_external_table())) {
     const uint64_t tenant_id = table_schema.get_tenant_id();
     ObArray<const ObSAuditSchema *> audits;
@@ -1540,6 +1542,7 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
               public_sql_string))) {
             LOG_WARN("drop audit_schema failed",  K(new_audit_schema), K(ret));
           } else {
+            //没打印过的
             LOG_INFO("succ to add audit_schema from default", K(new_audit_schema));
           }
         }

@@ -126,6 +126,7 @@ int ObInMemoryLSTable::update(
              "ls_id", replica.get_ls_id().id(), K(inner_table_only));
   } else if (replica.is_strong_leader()) {
     // TODO: try to short the logic of update_leader/follower_replica
+    //更新leader副本
     if (OB_FAIL(update_leader_replica_(replica))) {
       LOG_WARN("update leader replica failed", KR(ret), K(replica));
     }
@@ -138,7 +139,9 @@ int ObInMemoryLSTable::update(
   if (OB_SUCC(ret)) {
     if (OB_FAIL(ls_info_.update_replica_status())) {// TODO: make sure the actions of update_replica_status()
       LOG_WARN("update replica type failed", KR(ret), K_(ls_info));
-    } else if (OB_FAIL(rs_list_change_cb_->submit_update_rslist_task())) {
+    } 
+    //更新了这边
+    else if (OB_FAIL(rs_list_change_cb_->submit_update_rslist_task())) {
       LOG_WARN("submit_update_rslist_task failed", KR(ret));
     }
   }

@@ -2931,6 +2931,7 @@ int ObSchemaServiceSQLImpl::check_sys_schema_change(
   return ret;
 }
 
+//这里是实现
 int ObSchemaServiceSQLImpl::fetch_schema_version(
     const ObRefreshSchemaStatus &schema_status,
     ObISQLClient &sql_client,

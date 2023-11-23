@@ -530,6 +530,7 @@ int ObRpcNotifyTenantServerUnitResourceP::process()
   return ret;
 }
 
+//注意是在这里打印的
 int ObRpcNotifySwitchLeaderP::process()
 {
   int ret = OB_SUCCESS;
@@ -881,6 +882,7 @@ int ObRpcSwitchSchemaP::process()
   return ret;
 }
 
+//这里进行处理的
 int ObRpcCreateTenantUserLSP::process()
 {
   int ret = OB_SUCCESS;

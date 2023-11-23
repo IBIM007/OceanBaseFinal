@@ -25,6 +25,7 @@ using namespace common;
 namespace share
 {
 
+//走到这里
 int ObInnerTableSchema::all_core_table_schema(ObTableSchema &table_schema)
 {
   int ret = OB_SUCCESS;

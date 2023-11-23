@@ -62,6 +62,7 @@ struct AbstractPriority
   }
   // 判断字段内容是否有效的方法，或者refresh()成功后也是true
   bool is_valid() const { return is_valid_; }
+  void set_valid() { is_valid_=true;}
   // fatal failure将绕过RCS在选举层面直接切主
   bool has_fatal_failure() const { return is_valid_ && has_fatal_failure_(); }
   virtual TO_STRING_KV(K_(is_valid));
@@ -110,6 +111,10 @@ public:
   virtual uint64_t get_started_version() const override { return CLUSTER_VERSION_4_0_0_0; }
   // 相同优先级版本的比较策略
   virtual int compare(const AbstractPriority &rhs, int &result, ObStringHolder &reason) const override;
+  void setPriority(){
+    is_manual_leader_=true;
+    AbstractPriority::set_valid();
+  }
   // int assign(const PriorityV1 &rhs);
   TO_STRING_KV(K_(is_valid), K_(is_observer_stopped), K_(is_server_stopped), K_(is_zone_stopped),
                K_(fatal_failures), K_(is_primary_region), K_(serious_failures), K_(is_in_blacklist),
@@ -131,7 +136,7 @@ private:
   int compare_in_blacklist_flag_(int &ret, const PriorityV1&, ObStringHolder &) const;
   int compare_manual_leader_flag_(int &ret, const PriorityV1&) const;
   int compare_zone_priority_(int &ret, const PriorityV1&) const;
-
+  
   bool is_observer_stopped_;// kill -15
   bool is_server_stopped_;
   bool is_zone_stopped_;
@@ -175,6 +180,11 @@ public:
   // fatal failure跳过RCS直接切主
   virtual bool has_fatal_failure() const;
   int64_t to_string(char *buf, const int64_t buf_len) const override;
+  void setPriority(){
+    //使用ElectionPriorityImpl impl1
+    //impl1.priority_tuple_.element<1>().is_valid_ = true;
+    priority_tuple_.element<1>().setPriority();
+  }
 private:
   share::ObLSID ls_id_;
   ObTuple<PriorityV0, PriorityV1> priority_tuple_;

@@ -117,10 +117,13 @@ int ObSingleConnectionProxy::read(ReadResult &res,
   return ret;
 }
 
+//最后会走到这里面来吧
 int ObSingleConnectionProxy::write(
     const uint64_t tenant_id, const char *sql, const int32_t group_id, int64_t &affected_rows)
 {
+  
   int ret = OB_SUCCESS;
+  //LOG_WARN("进入这里ObSingleConnectionProxy::write了", K(ret));
   UNUSED(group_id);
   if (!check_inner_stat()) {
     ret = OB_INNER_STAT_ERROR;
@@ -131,11 +134,15 @@ int ObSingleConnectionProxy::write(
   } else if (!sql_client_->is_active()) {
     ret = OB_INACTIVE_SQL_CLIENT;
     LOG_WARN("inactive sql client can't execute write sql", K(ret), KCSTRING(sql));
-  } else if (OB_FAIL(conn_->execute_write(tenant_id, sql, affected_rows))) {
+  } 
+  //追一下这里面
+  else if (OB_FAIL(conn_->execute_write(tenant_id, sql, affected_rows))) {
     errno_ = ret;
     LOG_WARN("execute sql failed", K(ret), KCSTRING(sql), K_(conn));
   }
   ++statement_count_;
+  //这里会打印的，日志没打印，是在trace里面吧
+  //LOG_WARN("execute sql", KCSTRING(sql), K(ret));
   LOG_TRACE("execute sql", KCSTRING(sql), K(ret));
   return ret;
 }

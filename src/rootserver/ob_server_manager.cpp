@@ -1410,7 +1410,7 @@ int ObServerManager::load_server_manager()
   } else {} // no more to do
   return ret;
 }
-
+//应该是这个方法耗时了，让后面卡住了
 int ObServerManager::load_server_statuses(const ObServerStatusArray &server_statuses)
 {
   int ret = OB_SUCCESS;
@@ -1472,6 +1472,7 @@ int ObServerManager::load_server_statuses(const ObServerStatusArray &server_stat
         exist_status->lease_expire_time_ = bak.lease_expire_time_;
         LOG_INFO("update server admin status, after update",
             "server", status.server_, "status", *exist_status);
+        //这里有个什么更新
         if (OB_SUCCESS != (ret = status_change_callback_->on_server_status_change(status.server_))) {
           LOG_WARN("submit server status update task failed",
               K(ret), "status", *exist_status);

@@ -51,6 +51,7 @@ def __try_to_connect(host, mysql_port:int, *, timeout_seconds=60):
     _logger.info('failed to connect to observer fater %f seconds', timeout_seconds)
     raise error_return
 
+#cpu18,8589934592
 def __create_tenant(cursor, *,
                     cpu:int,
                     memory_size:int,
@@ -58,8 +59,10 @@ def __create_tenant(cursor, *,
                     resource_pool_name:str='test_pool',
                     zone_name:str='zone1',
                     tenant_name:str='test') -> None:
+    #参数
     create_unit_sql = f'CREATE RESOURCE UNIT {unit_name} max_cpu={cpu},min_cpu={cpu}, memory_size={memory_size};'
     create_resource_pool_sql = f"CREATE RESOURCE POOL {resource_pool_name} unit='{unit_name}', unit_num=1,ZONE_LIST=('{zone_name}');"
+    #参数租户名
     create_tenant_sql = f"CREATE TENANT IF NOT EXISTS {tenant_name} resource_pool_list = ('{resource_pool_name}') set ob_tcp_invited_nodes = '%';"
 
     cursor.execute(create_unit_sql)
@@ -194,6 +197,7 @@ if __name__ == "__main__":
         # ObRootService::check_config_result
 
         #创建租户。这后面也要算时间.25S
+        
         __create_tenant(cursor,
                         cpu=args.tenant_cpu,
                         memory_size=args.tenant_memory,

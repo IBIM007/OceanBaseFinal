@@ -417,6 +417,7 @@ int ObSchemaUtils::add_sys_table_lob_aux_table(
     ObIArray<ObTableSchema> &table_schemas)
 {
   int ret = OB_SUCCESS;
+  //如果是系统表的话
   if (is_system_table(data_table_id)) {
     HEAP_VARS_2((ObTableSchema, lob_meta_schema), (ObTableSchema, lob_piece_schema)) {
       if (OB_ALL_CORE_TABLE_TID == data_table_id) {
@@ -429,7 +430,9 @@ int ObSchemaUtils::add_sys_table_lob_aux_table(
       } else if (OB_FAIL(ObSchemaUtils::construct_tenant_space_full_table(
                   tenant_id, lob_piece_schema))) {
         LOG_WARN("fail to construct tenant space table", KR(ret), K(tenant_id));
-      } else if (OB_FAIL(table_schemas.push_back(lob_meta_schema))) {
+      } 
+      //这里会推进去两个东西。
+      else if (OB_FAIL(table_schemas.push_back(lob_meta_schema))) {
         LOG_WARN("fail to push back table schema", KR(ret), K(lob_meta_schema));
       } else if (OB_FAIL(table_schemas.push_back(lob_piece_schema))) {
         LOG_WARN("fail to push back table schema", KR(ret), K(lob_piece_schema));
@@ -440,6 +443,7 @@ int ObSchemaUtils::add_sys_table_lob_aux_table(
 }
 
 // construct inner table schemas in tenant space
+//重点这里应该就是依赖关系
 int ObSchemaUtils::construct_inner_table_schemas(
     const uint64_t tenant_id,
     ObIArray<ObTableSchema> &tables)
@@ -449,39 +453,58 @@ int ObSchemaUtils::construct_inner_table_schemas(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid tenant id", KR(ret), K(tenant_id));
   } else {
+    //这是一个函数数组吧
     const schema_create_func *creator_ptr_arrays[] = {
+      //这应该是关键的表吧
+      //所有核心表，这个函数就是获取all_core_table的schema吧。它是一个数组，里面只有一条
       all_core_table_schema_creator,
+      //核心表。它是数组，里面有3条
       core_table_schema_creators,
+      //系统表，很多条
       sys_table_schema_creators,
+      //虚表，很多条
       virtual_table_schema_creators,
+      //系统视图表，很多条
       sys_view_schema_creators
     };
     HEAP_VARS_2((ObTableSchema, table_schema), (ObTableSchema, data_schema)) {
+      //第一个循环应该就是5，外面的5个表
       for (int64_t i = 0; OB_SUCC(ret) && i < ARRAYSIZEOF(creator_ptr_arrays); ++i) {
+        //第二个循环，这五个函数数组里面具体的函数
         for (const schema_create_func *creator_ptr = creator_ptr_arrays[i];
              OB_SUCC(ret) && OB_NOT_NULL(*creator_ptr); ++creator_ptr) {
           table_schema.reset();
           bool exist = false;
           if (OB_FAIL((*creator_ptr)(table_schema))) {
             LOG_WARN("fail to gen sys table schema", KR(ret));
-          } else if (OB_FAIL(ObSchemaUtils::construct_tenant_space_full_table(
+          } 
+          //构造租户空间满表
+          else if (OB_FAIL(ObSchemaUtils::construct_tenant_space_full_table(
                      tenant_id, table_schema))) {
             LOG_WARN("fail to construct tenant space table", KR(ret), K(tenant_id));
-          } else if (OB_FAIL(ObSysTableChecker::is_inner_table_exist(
+          } 
+          //内部表是否存在，感觉不用管。
+          else if (OB_FAIL(ObSysTableChecker::is_inner_table_exist(
                      tenant_id, table_schema, exist))) {
             LOG_WARN("fail to check inner table exist",
                      KR(ret), K(tenant_id), K(table_schema));
           } else if (!exist) {
             // skip
-          } else if (OB_FAIL(tables.push_back(table_schema))) {
+          } 
+          //这里推进去
+          else if (OB_FAIL(tables.push_back(table_schema))) {
             LOG_WARN("fail to push back table schema", KR(ret), K(table_schema));
-          } else if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+          } 
+          //添加系统表索引schema,这里面好像什么都没干呢
+          else if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
                      tenant_id, table_schema.get_table_id(), tables))) {
             LOG_WARN("fail to append sys table index schemas",
                      KR(ret), K(tenant_id), "table_id", table_schema.get_table_id());
           }
           const int64_t data_table_id = table_schema.get_table_id();
+          //表存在并且成功了,这两条东西是否
           if (OB_SUCC(ret) && exist) {
+            //添加系统表lob表，添加两条。跟前面的schema也没关系啊。
             if (OB_FAIL(add_sys_table_lob_aux_table(tenant_id, data_table_id, tables))) {
               LOG_WARN("fail to add lob table to sys table", KR(ret), K(data_table_id));
             }

@@ -47,9 +47,12 @@ void ObTableCreator::reset()
 int ObTableCreator::execute()
 {
   int ret = OB_SUCCESS;
+  //调用了tablet的创建者，它就是管理数据的
   if (OB_FAIL(tablet_creator_.execute())) {
     LOG_WARN("fail to execute tablet creator", KR(ret));
-  } else if (tablet_infos_.count() > 0
+  } 
+  //插入成功了，还需要通过日志流来更新是吗？后面说白了都是插入到paxos日志部分吧，然后其它来读取。
+  else if (tablet_infos_.count() > 0
              && OB_FAIL(share::ObTabletToLSTableOperator::batch_update(trans_, tenant_id_, tablet_infos_))) {
     LOG_WARN("fail to batch update tablet info", KR(ret));
   }

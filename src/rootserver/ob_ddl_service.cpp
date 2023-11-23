@@ -242,13 +242,19 @@ int ObDDLService::get_zones_in_region(
   return ret;
 }
 
+//应该是进入的这里
 int ObDDLService::get_tenant_schema_guard_with_version_in_inner_table(const uint64_t tenant_id, ObSchemaGetterGuard &schema_guard)
 {
   int ret = OB_SUCCESS;
+  //是否是后备
   bool is_standby = false;
+  //是否是恢复
   bool is_restore = false;
+  //使用局部
   bool use_local = false;
+  //内部表的版本
   int64_t version_in_inner_table = OB_INVALID_VERSION;
+  //刷新scheema的状态
   ObRefreshSchemaStatus schema_status;
   if (OB_INVALID_TENANT_ID == tenant_id) {
     ret = OB_INVALID_ARGUMENT;
@@ -260,7 +266,9 @@ int ObDDLService::get_tenant_schema_guard_with_version_in_inner_table(const uint
     LOG_WARN("failed to get is standby cluster", K(ret));
   } else if (OB_FAIL(schema_service_->check_tenant_is_restore(NULL, tenant_id, is_restore))) {
     LOG_WARN("fail to check tenant is restore", KR(ret), K(tenant_id));
-  } else if ((is_standby || is_restore) && OB_SYS_TENANT_ID != tenant_id) {
+  } 
+  //前面的感觉不用管，这里应该不会进入，tenant_id外面传入的就是系统租户
+  else if ((is_standby || is_restore) && OB_SYS_TENANT_ID != tenant_id) {
     ObSchemaStatusProxy *schema_status_proxy = GCTX.schema_status_proxy_;
     if (OB_ISNULL(schema_status_proxy)) {
       ret = OB_ERR_UNEXPECTED;
@@ -285,27 +293,36 @@ int ObDDLService::get_tenant_schema_guard_with_version_in_inner_table(const uint
     if (OB_FAIL(schema_service_->get_tenant_schema_guard(tenant_id, schema_guard))) {
       LOG_WARN("fail to get schema guard", K(ret), K(tenant_id));
     } else {
+      //并没有打印
       LOG_INFO("use local tenant schema guard", K(ret), K(tenant_id));
     }
   } else {
+    //说明应该是走的这里面
     // 1. the normal tenants do DDL in primary cluster.
     // 2. restore tenant is in modify_schema stage in primary cluster.
     schema_status.tenant_id_ = tenant_id;
     // Ensure that the user tenant schema is updated to the latest
+    //获取schema的版本（在内部表中）
     if (OB_FAIL(schema_service_->get_schema_version_in_inner_table(*sql_proxy_, schema_status, version_in_inner_table))) {
       LOG_WARN("fail to get latest schema version in inner table", K(ret));
-    } else if (OB_FAIL(schema_service_->get_tenant_schema_guard(tenant_id, schema_guard, version_in_inner_table))) {
+    } 
+    //获取租户schema的guard。
+    else if (OB_FAIL(schema_service_->get_tenant_schema_guard(tenant_id, schema_guard, version_in_inner_table))) {
       if (OB_SCHEMA_EAGAIN == ret) {
         int t_ret = OB_SUCCESS;
         ObArray<uint64_t> tenant_ids;
         if (OB_SUCCESS != (t_ret = tenant_ids.push_back(tenant_id))) {
+          //没打印
           LOG_WARN("fail to push back tenant_id", K(t_ret), K(tenant_id));
         } else if (OB_SUCCESS != (t_ret = schema_service_->refresh_and_add_schema(tenant_ids))) {
+          //没打印
           LOG_WARN("fail to refresh and add schema", K(t_ret), K(tenant_id));
         } else if (OB_FAIL(schema_service_->get_tenant_schema_guard(tenant_id, schema_guard, version_in_inner_table))) {
+          //没打印
           LOG_WARN("fail to retry get schema guard", K(ret), K(tenant_id), K(version_in_inner_table));
         }
       } else {
+        //没打印
         LOG_WARN("get schema manager failed!", K(ret));
       }
     }
@@ -21748,18 +21765,24 @@ int ObDDLService::create_tenant(
   } else if (OB_ISNULL(sql_proxy_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy));
-  } else if (OB_FAIL(get_tenant_schema_guard_with_version_in_inner_table(OB_SYS_TENANT_ID, schema_guard))) {
+  } 
+  //从这里开始吧，传入了系统租户ID，以及一个外面的对象，要在里面完成对这个对象的改造。
+  else if (OB_FAIL(get_tenant_schema_guard_with_version_in_inner_table(OB_SYS_TENANT_ID, schema_guard))) {
     LOG_WARN("fail to get schema guard", KR(ret));
   } else {
+    
     // check tenant exist
     bool tenant_exist = false;
     if (OB_NOT_NULL(schema_guard.get_tenant_info(tenant_name))) {
       tenant_exist = true;
-    } else if (!arg.is_restore_) {
+    } 
+    //应该不会进去
+    else if (!arg.is_restore_) {
       if (OB_FAIL(ObRestoreUtil::check_has_physical_restore_job(*sql_proxy_, tenant_name, tenant_exist))) {
         LOG_WARN("failed to check has physical restore job", KR(ret), K(tenant_name));
       }
     }
+    //不会进去
     if (OB_FAIL(ret)) {
     } else if (tenant_exist) {
       if (arg.if_not_exist_) {
@@ -21771,7 +21794,9 @@ int ObDDLService::create_tenant(
         LOG_USER_ERROR(OB_TENANT_EXIST, to_cstring(tenant_name));
         LOG_WARN("tenant already exists", KR(ret), K(tenant_name));
       }
-    } else if (OB_FAIL(create_tenant(arg, schema_guard, tenant_id))) {
+    }
+    //追到这里来，继续看
+     else if (OB_FAIL(create_tenant(arg, schema_guard, tenant_id))) {
       LOG_WARN("fail to create tenant", KR(ret), K(arg));
     }
   }
@@ -21812,6 +21837,7 @@ int ObDDLService::generate_tenant_schema(
           arg.pool_list_, user_tenant_schema, schema_guard))) {
     LOG_WARN("check tenant schema failed", KR(ret), K(user_tenant_schema), K(arg));
   } else {
+    //应该会进入这里
     // user tenant
     if (OB_SUCC(ret)) {
       user_tenant_schema.set_tenant_id(user_tenant_id);
@@ -21846,6 +21872,7 @@ int ObDDLService::generate_tenant_schema(
         }
       }
     }
+    //初始化租户配置
     // init tenant configs
     if (OB_SUCC(ret)) {
       init_configs.reset();
@@ -21945,46 +21972,65 @@ int ObDDLService::init_schema_status(
   return ret;
 }
 
+//应该是进入的这里面，从这里面稍微开始细看
 int ObDDLService::create_tenant(
     const ObCreateTenantArg &arg,
     share::schema::ObSchemaGetterGuard &schema_guard,
     UInt64 &tenant_id)
 {
   int ret = OB_SUCCESS;
+  //租户的作用
   share::ObTenantRole tenant_role = share::PRIMARY_TENANT_ROLE;
   SCN recovery_until_scn = SCN::max_scn();
+  //用户租户的id
   uint64_t user_tenant_id = OB_INVALID_TENANT_ID;
+  //出现了元数据租户的id
   uint64_t meta_tenant_id = OB_INVALID_TENANT_ID;
+  //palf是什么意思，应该是paxos相关的
   palf::PalfBaseInfo user_palf_base_info;
   palf::PalfBaseInfo meta_palf_base_info;
+  //用palf创建日志流
   bool create_ls_with_palf = false;
+  //副本数量？
   int64_t paxos_replica_number = 0;
+  //初始化配置
   ObSEArray<ObConfigPairs, 2> init_configs;
-
+  //TODO不知道这个user_tenant_schema和meta_tenant_schema是怎么冒出来的。可能是new出这几个类对应的对象？
   HEAP_VARS_4((ObTenantSchema, user_tenant_schema),
               (ObTenantSchema, meta_tenant_schema),
               (ObSysVariableSchema, user_sys_variable),
               (ObSysVariableSchema, meta_sys_variable)) {
     if (OB_FAIL(check_inner_stat())) {
       LOG_WARN("fail to check inner stat", KR(ret));
-    } else if (arg.is_restore_) {
+    } 
+    //是恢复的话
+    else if (arg.is_restore_) {
       tenant_role = share::RESTORE_TENANT_ROLE;
       recovery_until_scn = arg.recovery_until_scn_;
       user_palf_base_info = arg.palf_base_info_;
       create_ls_with_palf = true;
-    } else if (arg.is_creating_standby_) {
+    } 
+    //是创建后备的话
+    else if (arg.is_creating_standby_) {
       tenant_role = share::STANDBY_TENANT_ROLE;
     } else {
+      //我们应该是这个吧
       tenant_role = share::PRIMARY_TENANT_ROLE;
     }
     if (OB_FAIL(ret)) {
-    } else if (OB_FAIL(generate_tenant_schema(
+    } 
+    //生成租户schema，可以细看一下，感觉没大必要，日志没怎么打印的
+    //参数全部都是引用，应该是这里生成的user_tenant_schema，meta_tenant_schema，meta_sys_variable应该也是这里弄得
+    else if (OB_FAIL(generate_tenant_schema(
                arg, tenant_role, schema_guard,
                user_tenant_schema, user_sys_variable,
                meta_tenant_schema, meta_sys_variable,
                init_configs))) {
       LOG_WARN("fail to generate tenant schema", KR(ret), K(arg), K(tenant_role));
-    } else if (user_tenant_schema.get_arbitration_service_status().is_enable_like()
+    } 
+    //感觉也不用细看了
+    //arbitration仲裁
+    else if (user_tenant_schema.get_arbitration_service_status().is_enable_like()
                && OB_FAIL(user_tenant_schema.get_paxos_replica_num(schema_guard, paxos_replica_number))) {
       LOG_WARN("fail to get paxos replica number", KR(ret), K(user_tenant_schema));
     } else if (user_tenant_schema.get_arbitration_service_status().is_enable_like()
@@ -21992,12 +22038,23 @@ int ObDDLService::create_tenant(
       ret = OB_OP_NOT_ALLOW;
       LOG_USER_ERROR(OB_OP_NOT_ALLOW, "The number of paxos replicas in locality is neither 2 nor 4, create tenant with arbitration service");
       LOG_WARN("can not create tenant, because tenant with arb service, locality must be 2F or 4F", KR(ret), K(user_tenant_schema), K(paxos_replica_number));
-    } else if (FALSE_IT(user_tenant_id = user_tenant_schema.get_tenant_id())) {
-    } else if (FALSE_IT(meta_tenant_id = meta_tenant_schema.get_tenant_id())) {
-    } else if (OB_FAIL(init_schema_status(
+    } 
+    //这里会更新获取的
+    else if (FALSE_IT(user_tenant_id = user_tenant_schema.get_tenant_id())) {
+    } 
+    //这里也会更新获取的
+    else if (FALSE_IT(meta_tenant_id = meta_tenant_schema.get_tenant_id())) {
+    } 
+    //重点吧，初始化schema状态。不对应该是init_tenant_schema这个耗时
+    //也不细看了吧，因为日志也没怎么打印
+    else if (OB_FAIL(init_schema_status(
             user_tenant_schema.get_tenant_id(), tenant_role))) {
       LOG_WARN("fail to init schema status", KR(ret), K(user_tenant_id));
-    } else if (OB_FAIL(create_tenant_schema(
+    } 
+    //创建租户schema，耗时0.4秒
+    //要从这里开始细看嘛，日志从12-1955行
+    //感觉也没必要细看，
+    else if (OB_FAIL(create_tenant_schema(
                arg, schema_guard, user_tenant_schema,
                meta_tenant_schema, init_configs))) {
       LOG_WARN("fail to create tenant schema", KR(ret), K(arg));
@@ -22005,9 +22062,13 @@ int ObDDLService::create_tenant(
       DEBUG_SYNC(BEFORE_CREATE_META_TENANT);
       // create ls/tablet/schema in tenant space
       ObArray<ObResourcePoolName> pools;
+      //从参数中获取pool
       if (OB_FAIL(get_pools(arg.pool_list_, pools))) {
         LOG_WARN("get_pools failed", KR(ret), K(arg));
-      } else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
+      } 
+      //重点，创建普通租户，但是传入的是meta_tenant_id
+      //TODO，从这里开始细看，注意传入的参数。11个参数，注意哪些参数是引用
+      else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
         recovery_until_scn, meta_sys_variable, false/*create_ls_with_palf*/, meta_palf_base_info, init_configs,
         arg.is_creating_standby_, arg.log_restore_source_))) {
         LOG_WARN("fail to create meta tenant", KR(ret), K(meta_tenant_id), K(pools), K(meta_sys_variable),
@@ -22015,6 +22076,8 @@ int ObDDLService::create_tenant(
       } else {
         ObString empty_str;
         DEBUG_SYNC(BEFORE_CREATE_USER_TENANT);
+        //TODO重点，创建普通租户，但是传入的是user_tenant_id
+        //第2,3,4,5,6,8，9,11是引用。
         if (OB_FAIL(create_normal_tenant(user_tenant_id, pools, user_tenant_schema, tenant_role,
               recovery_until_scn, user_sys_variable, create_ls_with_palf, user_palf_base_info, init_configs,
               false /* is_creating_standby */, empty_str))) {
@@ -22038,7 +22101,9 @@ int ObDDLService::create_tenant(
   } else if (!tenant_role.is_primary()) {
     LOG_INFO("restore or standby user tenant cannot create end", K(tenant_role),
         K(user_tenant_id), K(arg));
-  } else if (OB_FAIL(create_tenant_end(user_tenant_id))) {
+  } 
+  //第二个才结束用户
+  else if (OB_FAIL(create_tenant_end(user_tenant_id))) {
     LOG_WARN("failed to create tenant end", KR(ret), K(user_tenant_id));
   }
 
@@ -22073,6 +22138,8 @@ int ObDDLService::try_force_drop_tenant(const ObTenantSchema &tenant_schema)
 
 // 1. create new tenant schema
 // 2. grant resource pool to new tenant
+//创建新的租户schema
+//授权资源池给新租户
 int ObDDLService::create_tenant_schema(
     const ObCreateTenantArg &arg,
     share::schema::ObSchemaGetterGuard &schema_guard,
@@ -22577,10 +22644,10 @@ int ObDDLService::notify_root_key(
 }
 #endif
 
-// 1. create tenant's sys ls
-// 2. broadcast sys table schemas
-// 3. create tenant's sys tablets
-// 4. init tenant's schema(sys table schemas, database schemas, ...)
+// 1. create tenant's sys ls 创建租户的系统日志流
+// 2. broadcast sys table schemas 广播系统表的schemas，schema能否直观的看到长什么样子？
+// 3. create tenant's sys tablets 创建租户的系统表
+// 4. init tenant's schema(sys table schemas, database schemas, ...) 初始化租户的schema（系统表schemas，数据库schemas）
 int ObDDLService::create_normal_tenant(
     const uint64_t tenant_id,
     const ObIArray<share::ObResourcePoolName> &pool_list,
@@ -22606,25 +22673,42 @@ int ObDDLService::create_normal_tenant(
   } else if (is_sys_tenant(tenant_id)) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("tenant_id is invalid", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(insert_restore_tenant_job(tenant_id, tenant_schema.get_tenant_name(), tenant_role))) {
+  } 
+  //从这里开始吧，插入恢复的租户工作，感觉跟恢复没关系吧
+  else if (OB_FAIL(insert_restore_tenant_job(tenant_id, tenant_schema.get_tenant_name(), tenant_role))) {
     LOG_WARN("failed to insert restore tenant job", KR(ret), K(tenant_id), K(tenant_role), K(tenant_schema));
-  } else if (OB_FAIL(create_tenant_sys_ls(tenant_schema, pool_list, create_ls_with_palf, palf_base_info))) {
+  } 
+  //创建租户系统日志流，也就是创建1号日志流吧？create_ls_with_palf这个应该传入的false。
+  //第一个参数是schema
+  else if (OB_FAIL(create_tenant_sys_ls(tenant_schema, pool_list, create_ls_with_palf, palf_base_info))) {
     LOG_WARN("fail to create tenant sys log stream", KR(ret), K(tenant_schema), K(pool_list), K(palf_base_info));
-  } else if (is_user_tenant(tenant_id) && !tenant_role.is_primary()) {
+  } 
+  
+  else if (is_user_tenant(tenant_id) && !tenant_role.is_primary()) {
     //standby cluster no need create sys tablet and init tenant schema
-  } else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
+  } 
+  //这是第一次用到tables，里面会赋值
+  else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
     LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {
+  } 
+  //这里也打印了的，广播系统表的schema，应该是变更了吧？
+  else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {
     LOG_WARN("fail to broadcast sys table schemas", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {
+  } 
+  //创建租户系统表
+  else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {
     LOG_WARN("fail to create tenant partitions", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(init_tenant_schema(tenant_id, tenant_schema,
+  } 
+  //初始化租户schema，这个耗时
+  else if (OB_FAIL(init_tenant_schema(tenant_id, tenant_schema,
              tenant_role, recovery_until_scn, tables, sys_variable, init_configs,
              is_creating_standby, log_restore_source))) {
     LOG_WARN("fail to init tenant schema", KR(ret), K(tenant_role), K(recovery_until_scn),
              K(tenant_id), K(tenant_schema), K(sys_variable), K(init_configs),
              K(is_creating_standby), K(log_restore_source));
-  } else if (is_user_tenant(tenant_id) && OB_FAIL(create_tenant_user_ls(tenant_id))) {
+  } 
+  //如果是用户租户。创建租户用户日志流
+  else if (is_user_tenant(tenant_id) && OB_FAIL(create_tenant_user_ls(tenant_id))) {
     //create user ls
     LOG_WARN("failed to create tenant user ls", KR(ret), K(tenant_id));
   }
@@ -22679,9 +22763,12 @@ int ObDDLService::create_tenant_user_ls(const uint64_t tenant_id)
     //ignore failed
     while(!ctx.is_timeouted() && OB_SUCC(ret)) {
       const int64_t timeout = ctx.get_timeout();
+      //获取leader，应该就是rootservice
       if (OB_TMP_FAIL(GCTX.location_service_->get_leader(GCONF.cluster_id, tenant_id, SYS_LS, FALSE, leader))) {
         LOG_WARN("failed to get leader", KR(ret), KR(tmp_ret), K(tenant_id));
-      } else if (OB_TMP_FAIL(rpc_proxy_->to(leader).timeout(timeout)
+      } 
+      //通知给rootservice，创建用户租户日志流。没搜到这个函数的定义
+      else if (OB_TMP_FAIL(rpc_proxy_->to(leader).timeout(timeout)
             .notify_create_tenant_user_ls(tenant_id))) {
         LOG_WARN("failed to create tenant user ls", KR(ret), KR(tmp_ret), K(tenant_id), K(leader), K(timeout));
       } else {
@@ -22721,6 +22808,7 @@ int ObDDLService::create_tenant_sys_ls(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("ptr is null", KR(ret), KP_(rpc_proxy), KP_(sql_proxy), KP_(lst_operator));
   } else {
+    //从这里开始吧
     ObArray<share::ObZoneReplicaAttrSet> locality;
     ObArray<ObZone> primary_zone_list;
     ObSqlString zone_priority;
@@ -22739,29 +22827,37 @@ int ObDDLService::create_tenant_sys_ls(
     } else if (OB_FAIL(ObTenantThreadHelper::get_zone_priority(
             primary_zone_list.at(0), tenant_schema, zone_priority))) {
       LOG_WARN("failed to get zone priority", KR(ret), K(primary_zone_list), K(tenant_schema));
-    } else if (OB_FAIL(ls_creator.create_tenant_sys_ls(
+    } 
+    //前面都没答应。
+    else if (OB_FAIL(ls_creator.create_tenant_sys_ls(
                primary_zone_list.at(0), locality, pool_list, paxos_replica_num,
                tenant_schema.get_compatibility_mode(), zone_priority.string(),
                create_ls_with_palf, palf_base_info))) {
       LOG_WARN("fail to create tenant sys ls", KR(ret), K(pool_list), K(palf_base_info),
                K(locality), K(paxos_replica_num), K(tenant_schema), K(zone_priority));
     } else {
+      //这里还会进入等待。跟之前的wait_elect_ls一样的好像。可以直接注释掉吧
       share::ObLSLeaderElectionWaiter ls_leader_waiter(*lst_operator_, stopped_);
       int64_t timeout = GCONF.rpc_timeout;
       if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
         timeout = max(timeout, THIS_WORKER.get_timeout_remain());
       }
       int64_t wait_leader_start = ObTimeUtility::current_time();
+      //注意它没有传入master root_service，其实应该还是一样的，只不过后续不会用到那个root_master了
       if (OB_FAIL(ls_leader_waiter.wait(tenant_id, SYS_LS, timeout))) {
         LOG_WARN("fail to wait election leader", KR(ret), K(tenant_id), K(SYS_LS), K(timeout));
       }
+      //注意它这里好像没有去增加日志的索引了？
       int64_t wait_leader_end = ObTimeUtility::current_time();
       wait_leader = wait_leader_end - wait_leader_end;
     }
   }
   if (is_meta_tenant(tenant_id)) {
+    LOG_WARN("只有debug才会进来吗？11111", KR(ret));
     DEBUG_SYNC(AFTER_CREATE_META_TENANT_SYS_LOGSTREAM);
   } else {
+    LOG_WARN("只有debug才会进来吗？22222", KR(ret));
+    //注意这里有一个什么同步
     DEBUG_SYNC(AFTER_CREATE_USER_TENANT_SYS_LOGSTREAM);
   }
   LOG_INFO("[CREATE_TENANT] STEP 2.1. finish create sys log stream", KR(ret), K(tenant_schema),
@@ -22789,6 +22885,7 @@ int ObDDLService::broadcast_sys_table_schemas(
     ObArray<ObAddr> addrs;
     const ObLSReplica *leader = NULL;
     ObLSReplica::MemberList member_list;
+    //如果发现一个，直接不走了吧？
     if (OB_FAIL(lst_operator_->get(GCONF.cluster_id, tenant_id,
         SYS_LS, share::ObLSTable::DEFAULT_MODE, ls_info))) {
       LOG_WARN("fail to get sys ls info", KR(ret), K(tenant_id));
@@ -22798,6 +22895,7 @@ int ObDDLService::broadcast_sys_table_schemas(
       ret = OB_LEADER_NOT_EXIST;
       LOG_WARN("leader is null", KR(ret), K(tenant_id));
     } else {
+      //这里装入地址
       member_list = leader->get_member_list();
       ARRAY_FOREACH_N(member_list, idx, cnt) {
         const ObAddr &server = member_list.at(idx).get_server();
@@ -22814,8 +22912,11 @@ int ObDDLService::broadcast_sys_table_schemas(
         LOG_WARN("fail to push back rs addr", KR(ret));
       }
     }
+
     if (OB_SUCC(ret)) {
+      //从这里开始
       ObTimeoutCtx ctx;
+      //方法ObSrvRpcProxy::batch_broadcast_schema
       ObBatchBroadcastSchemaProxy proxy(*rpc_proxy_,
                                         &ObSrvRpcProxy::batch_broadcast_schema);
       obrpc::ObBatchBroadcastSchemaArg arg;
@@ -22836,6 +22937,7 @@ int ObDDLService::broadcast_sys_table_schemas(
         }
       } // end for
 
+      //下面只是检查一下是否广播成功了
       ObArray<int> return_code_array;
       int tmp_ret = OB_SUCCESS; // always wait all
       if (OB_SUCCESS != (tmp_ret = proxy.wait_all(return_code_array))) {
@@ -22875,6 +22977,7 @@ int ObDDLService::create_tenant_sys_tablets(
     LOG_WARN("ptr is null", KR(ret), KP_(rpc_proxy), KP_(lst_operator));
   } else {
     // FIXME: (yanmu.ztl) use actual trans later
+    //从这里开始吧
     ObMySQLTransaction trans;
     share::schema::ObSchemaGetterGuard dummy_guard;
     SCN frozen_scn = SCN::base_scn();
@@ -22895,6 +22998,7 @@ int ObDDLService::create_tenant_sys_tablets(
     } else if (OB_FAIL(new_table_tablet_allocator.init())) {
       LOG_WARN("fail to init new table tablet allocator", KR(ret));
     }
+    //开始循环
     for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
       const ObTableSchema &data_table = tables.at(i);
       const uint64_t data_table_id = data_table.get_table_id();
@@ -22902,7 +23006,9 @@ int ObDDLService::create_tenant_sys_tablets(
         table_schemas.reset();
         if (OB_FAIL(table_schemas.push_back(&data_table))) {
           LOG_WARN("fail to push back data table ptr", KR(ret), K(data_table_id));
-        } else if (ObSysTableChecker::is_sys_table_has_index(data_table_id)) {
+        } 
+        //系统表是否这个索引
+        else if (ObSysTableChecker::is_sys_table_has_index(data_table_id)) {
           if (OB_FAIL(ObSysTableChecker::get_sys_table_index_tids(data_table_id, index_tids))) {
             LOG_WARN("fail to get sys index tids", KR(ret), K(data_table_id));
           } else if (i + index_tids.count()  >= tables.count()
@@ -22924,7 +23030,8 @@ int ObDDLService::create_tenant_sys_tablets(
             } // end for
           }
         }
-
+        //上面好像只是重新摆放了一下schema
+        //如果是系统表
         if (OB_SUCC(ret) && is_system_table(data_table_id)) {
           uint64_t lob_meta_table_id = OB_INVALID_ID;
           uint64_t lob_piece_table_id = OB_INVALID_ID;
@@ -22960,6 +23067,7 @@ int ObDDLService::create_tenant_sys_tablets(
             }
           }
         }
+        //前面全部都是处理table_schemas
         if (OB_FAIL(ret)) {
           // failed, bypass
         } else if (OB_FAIL(new_table_tablet_allocator.prepare(trans, data_table))) {
@@ -22973,10 +23081,12 @@ int ObDDLService::create_tenant_sys_tablets(
           LOG_WARN("fail to add create tablets of table", KR(ret), K(data_table), K(table_schemas));
         }
       }
-    } // end for
+    } // end for，for循环的结束
+    //这里应该是执行插入
     if (FAILEDx(table_creator.execute())) {
       LOG_WARN("fail to execute creator", KR(ret), K(tenant_id));
     } else {
+      //注意这里貌似跟paxos还有关，因为前面有更新吗？
       ALLOW_NEXT_LOG();
       LOG_INFO("create tenant sys tables tablet", KR(ret), K(tenant_id));
     }
@@ -23027,18 +23137,23 @@ int ObDDLService::init_tenant_schema(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service), KP(GCTX.lst_operator_));
   } else {
+    //从这里开始
     ObSchemaService *schema_service_impl = schema_service_->get_schema_service();
-    // 1. init tenant global stat
+    // 1. init tenant global stat。初始化租户全局状态
     if (OB_SUCC(ret)) {
+      //版本
       const int64_t core_schema_version = OB_CORE_SCHEMA_VERSION + 1;
       const int64_t baseline_schema_version = OB_INVALID_VERSION;
       const int64_t ddl_epoch = 0;
+      //这里有个什么快照gc了
       const SCN snapshot_gc_scn  = SCN::min_scn();
       // find compatible version
       uint64_t data_version = 0;
+      //这里有一个循环,应该不耗时
       for (int64_t i = 0; OB_SUCC(ret) && i < init_configs.count(); i++) {
         const ObConfigPairs &config = init_configs.at(i);
         if (tenant_id == config.get_tenant_id()) {
+          //又一个循环
           for (int64_t j = 0; data_version == 0 && OB_SUCC(ret) && j < config.get_configs().count(); j++) {
             const ObConfigPairs::ObConfigPair &pair = config.get_configs().at(j);
             if (0 != pair.key_.case_compare("compatible")) {
@@ -23048,6 +23163,8 @@ int ObDDLService::init_tenant_schema(
           }
         }
       }
+      LOG_INFO("init_tenant_schema这个双重循环耗时", KR(ret), K(tenant_id),
+           "cost", ObTimeUtility::fast_current_time() - start_time);
 
       common::ObMySQLTransaction trans;
       if (OB_FAIL(ret)) {
@@ -23058,14 +23175,19 @@ int ObDDLService::init_tenant_schema(
         if (OB_FAIL(ret)) {
         } else if (0 == data_version) {
           ret = OB_ENTRY_NOT_EXIST;
+          //没打印过
           LOG_WARN("compatible version not defined", KR(ret), K(tenant_id), K(init_configs));
-        } else if (OB_FAIL(global_stat_proxy.set_tenant_init_global_stat(
+        } 
+        //我的TODO1
+        else if (OB_FAIL(global_stat_proxy.set_tenant_init_global_stat(
                   core_schema_version, baseline_schema_version,
                   snapshot_gc_scn, ddl_epoch, data_version, data_version))) {
           LOG_WARN("fail to set tenant init global stat", KR(ret), K(tenant_id),
                   K(core_schema_version), K(baseline_schema_version),
                   K(snapshot_gc_scn), K(ddl_epoch), K(data_version));
-        } else if (is_user_tenant(tenant_id) && OB_FAIL(OB_PRIMARY_STANDBY_SERVICE.write_upgrade_barrier_log(
+        } 
+        //跟备份有关，感觉不大用管。
+        else if (is_user_tenant(tenant_id) && OB_FAIL(OB_PRIMARY_STANDBY_SERVICE.write_upgrade_barrier_log(
                                                         trans, tenant_id, data_version))) {
           LOG_WARN("fail to write_upgrade_barrier_log", KR(ret), K(tenant_id), K(data_version));
         }
@@ -23079,29 +23201,44 @@ int ObDDLService::init_tenant_schema(
       }
     }
 
-    // 2. init tenant schema
+    //前面都不用咋管，不耗时
+    // 2. init tenant schema。初始化租户schema
     if (OB_SUCC(ret)) {
       ObDDLSQLTransaction trans(schema_service_, true, true, false, false);
       const int64_t init_schema_version = tenant_schema.get_schema_version();
       int64_t new_schema_version = OB_INVALID_VERSION;
       ObDDLOperator ddl_operator(*schema_service_, *sql_proxy_);
       //FIXME:(yanmu.ztl) lock tenant's __all_core_table
+      //锁住租户 all_core_table
       const int64_t refreshed_schema_version = 0;
       if (OB_FAIL(trans.start(sql_proxy_, tenant_id, refreshed_schema_version))) {
         LOG_WARN("fail to start trans", KR(ret), K(tenant_id));
-      } else if (OB_FAIL(create_sys_table_schemas(ddl_operator, trans, tables))) {
+      } 
+      //这个方法注意一下，这个方法好像是主要耗时，大概2.4，而init总时间3秒，其它所有加起来才0.6
+      //而且为什么这东西会答应很多次？里面应该有循环。细追一下这个
+      else if (OB_FAIL(create_sys_table_schemas(ddl_operator, trans, tables))) {
         LOG_WARN("fail to create sys tables", KR(ret), K(tenant_id));
-      } else if (is_user_tenant(tenant_id) && OB_FAIL(set_sys_ls_status(tenant_id))) {
+      } 
+      //设置系统日志流状态
+      else if (is_user_tenant(tenant_id) && OB_FAIL(set_sys_ls_status(tenant_id))) {
         LOG_WARN("failed to set sys ls status", KR(ret), K(tenant_id));
-      } else if (OB_FAIL(schema_service_impl->gen_new_schema_version(
+      } 
+      //生成schema的版本
+      else if (OB_FAIL(schema_service_impl->gen_new_schema_version(
                  tenant_id, init_schema_version, new_schema_version))) {
-      } else if (OB_FAIL(ddl_operator.replace_sys_variable(
+      } 
+      //取代系统表里
+      else if (OB_FAIL(ddl_operator.replace_sys_variable(
                  sys_variable, new_schema_version, trans, OB_DDL_ALTER_SYS_VAR))) {
         LOG_WARN("fail to replace sys variable", KR(ret), K(sys_variable));
-      } else if (OB_FAIL(ddl_operator.init_tenant_env(tenant_schema, sys_variable, tenant_role,
+      } 
+      //初始化租户环境
+      else if (OB_FAIL(ddl_operator.init_tenant_env(tenant_schema, sys_variable, tenant_role,
                                                       recovery_until_scn, init_configs, trans))) {
         LOG_WARN("init tenant env failed", KR(ret), K(tenant_role), K(recovery_until_scn), K(tenant_schema));
-      } else if (OB_FAIL(ddl_operator.insert_tenant_merge_info(OB_DDL_ADD_TENANT_START, tenant_schema, trans))) {
+      } 
+      //这个方法注意一下
+      else if (OB_FAIL(ddl_operator.insert_tenant_merge_info(OB_DDL_ADD_TENANT_START, tenant_schema, trans))) {
         LOG_WARN("fail to insert tenant merge info", KR(ret), K(tenant_schema));
       } else if (is_meta_tenant(tenant_id) && OB_FAIL(ObServiceEpochProxy::init_service_epoch(
           trans,
@@ -23149,12 +23286,14 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to get sys ls info by operator", KR(ret), K(tenant_id));
       } else if (OB_FAIL(sys_ls_info.get_paxos_member_addrs(addrs))) {
         LOG_WARN("fail to get paxos member addrs", K(ret), K(tenant_id), K(sys_ls_info));
-      } else if (OB_FAIL(publish_schema(tenant_id, addrs))) {
+      } 
+      //注意一下这个方法
+      else if (OB_FAIL(publish_schema(tenant_id, addrs))) {
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
       }
     }
 
-    // 3. set baseline schema version
+    // 3. set baseline schema version，设置基本的schema版本
     if (OB_SUCC(ret)) {
       ObGlobalStatProxy global_stat_proxy(*sql_proxy_, tenant_id);
       ObRefreshSchemaStatus schema_status;
@@ -23201,7 +23340,7 @@ int ObDDLService::set_log_restore_source(
   }
   return ret;
 }
-
+//创建系统表schema
 int ObDDLService::create_sys_table_schemas(
     ObDDLOperator &ddl_operator,
     ObMySQLTransaction &trans,
@@ -23216,18 +23355,24 @@ int ObDDLService::create_sys_table_schemas(
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service));
   } else {
     // persist __all_core_table's schema in inner table, which is only used for sys views.
+    //持久化核心表的schema到内部表中，这个表只被系统视图使用。
+    //就是这里耗时
+    //真有1000多张表
     for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
       ObTableSchema &table = tables.at(i);
       const int64_t table_id = table.get_table_id();
       const ObString &table_name = table.get_table_name();
       const ObString *ddl_stmt = NULL;
+      //是否需要同步schema版本。
       bool need_sync_schema_version = !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
                                         is_sys_lob_table(table_id));
+      
       if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
                                             need_sync_schema_version,
                                             false /*is_truncate_table*/))) {
         LOG_WARN("add table schema failed", KR(ret), K(table_id), K(table_name));
       } else {
+        //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
         LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
       }
     }
@@ -23280,7 +23425,9 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
   } else if (OB_ISNULL(schema_status_proxy)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("get invalid schema status proxy", KR(ret));
-  } else if (OB_FAIL(ObAllTenantInfoProxy::load_tenant_info(
+  } 
+  //加载租户信息
+  else if (OB_FAIL(ObAllTenantInfoProxy::load_tenant_info(
           tenant_id, sql_proxy_, false, tenant_info))) {
     LOG_WARN("failed to load tenant info", KR(ret), K(tenant_id));
   } else if (OB_INVALID_TENANT_ID == tenant_id) {
@@ -23295,7 +23442,9 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
     old cache when creating tenant end, which may cause create tenant end to fail.
     So here, force trigger schema refresh refresh cache
   */
-  } else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status(tenant_id, schema_status))) {
+  } 
+  //rpc加载刷新后的schema状态
+  else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status(tenant_id, schema_status))) {
     LOG_WARN("fail to load refresh schema status", KR(ret), K(tenant_id));
   } else if (OB_FAIL(get_tenant_schema_guard_with_version_in_inner_table(OB_SYS_TENANT_ID, schema_guard))) {
     LOG_WARN("fail to get schema guard with version in inner table", K(ret));
@@ -23319,6 +23468,7 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
   } else if (OB_FAIL(new_tenant_schema.assign(*tenant_schema))) {
     LOG_WARN("fail to assign tenant schema", KR(ret));
   } else {
+    //进入这里吧
     ObDDLSQLTransaction tenant_trans(schema_service_);
     ObDDLOperator ddl_operator(*schema_service_, *sql_proxy_);
     int64_t refreshed_schema_version = OB_INVALID_VERSION;
@@ -23367,7 +23517,9 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
       }
 
       if (OB_FAIL(ret)) {
-      } else if (OB_FAIL(ddl_operator.create_tenant(new_tenant_schema, OB_DDL_ADD_TENANT_END, trans, ddl_stmt_str_ptr))) {
+      } 
+      //还在创建租户？
+      else if (OB_FAIL(ddl_operator.create_tenant(new_tenant_schema, OB_DDL_ADD_TENANT_END, trans, ddl_stmt_str_ptr))) {
         LOG_WARN("create tenant failed", K(new_tenant_schema), K(ret));
       } else {/*do nothing*/}
     }
@@ -23392,6 +23544,7 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
       }
     }
     if (OB_SUCC(ret)) {
+      //这里会发布publish_schema吧，也就是后面耗时操作的来源。一个参数
       if (OB_SUCCESS != (temp_ret = publish_schema(OB_SYS_TENANT_ID))) {
         LOG_WARN("publish schema failed", K(temp_ret));
       }
@@ -26255,6 +26408,7 @@ int ObDDLService::alter_tablegroup(const ObAlterTablegroupArg &arg)
   return ret;
 }
 
+//只传入第一个参数，第二个默认为空吗？
 int ObDDLService::refresh_schema(uint64_t tenant_id, int64_t *publish_schema_version /*NULL*/)
 {
   int ret = OB_SUCCESS;
@@ -26272,6 +26426,7 @@ int ObDDLService::refresh_schema(uint64_t tenant_id, int64_t *publish_schema_ver
     } else if (OB_FAIL(tenant_ids.push_back(tenant_id))) {
       LOG_WARN("fail to push back tenant_id", KR(ret), K(tenant_id));
     }
+    //这里有一个循环
     while (!stopped_) {
       common::ObTimeoutCtx ctx;
       if (OB_FAIL(schema_service_->set_timeout_ctx(ctx))) {
@@ -26390,7 +26545,9 @@ int ObDDLService::notify_refresh_schema(const ObAddrIArray &addrs)
   } else if (OB_ISNULL(GCTX.rs_mgr_) || OB_ISNULL(schema_service_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("GCTX.rs_mgr_ or schema_service_ is null", KR(ret), KP(GCTX.rs_mgr_), KP(schema_service_));
-  } else if (OB_FAIL(GCTX.rs_mgr_->get_master_root_server(rs_addr))) {
+  } 
+  //获取root_service_master
+  else if (OB_FAIL(GCTX.rs_mgr_->get_master_root_server(rs_addr))) {
     LOG_WARN("fail to get master root servcer", KR(ret));
   } else if (OB_UNLIKELY(!rs_addr.is_valid())) {
     ret = OB_INVALID_ARGUMENT;
@@ -26420,7 +26577,7 @@ int ObDDLService::notify_refresh_schema(const ObAddrIArray &addrs)
         is_async = (0 == tenant_config->_publish_schema_mode.case_compare(PUBLISH_SCHEMA_MODE_ASYNC));
       }
     }
-
+    //这里打印了
     LOG_INFO("try to notify refresh schema", K(is_async), K(schema_version), K(local_schema_info), K(schema_info));
     const int64_t rpc_timeout = GCONF.rpc_timeout;
     int64_t timeout = 0;
@@ -26462,6 +26619,7 @@ int ObDDLService::notify_refresh_schema(const ObAddrIArray &addrs)
     }
     ObArray<int> return_code_array;
     int tmp_ret = OB_SUCCESS; // always wait all
+    //这里有等待吗，只是等待回应吧？
     if (OB_SUCCESS != (tmp_ret = proxy.wait_all(return_code_array))) {
       LOG_WARN("wait result failed", KR(tmp_ret), KR(ret));
       ret = OB_SUCC(ret) ? tmp_ret : ret;
@@ -26486,6 +26644,7 @@ int ObDDLService::notify_refresh_schema(const ObAddrIArray &addrs)
 // the result of publish_schema in whole procedure of DDL process.
 int ObDDLService::publish_schema(uint64_t tenant_id /*=OB_INVALID_TENANT_ID*/)
 {
+  //会进入这里
   int ret = OB_SUCCESS;
   ObAddrArray addrs;
   if (OB_FAIL(check_inner_stat())) {
@@ -26503,9 +26662,13 @@ int ObDDLService::publish_schema(uint64_t tenant_id,
   int ret = OB_SUCCESS;
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("variable is not init");
-  } else if (OB_FAIL(refresh_schema(tenant_id))) {
+  } 
+  //刷新
+  else if (OB_FAIL(refresh_schema(tenant_id))) {
     LOG_WARN("refresh schema failed", K(ret));
-  } else if (OB_FAIL(notify_refresh_schema(addrs))) {
+  } 
+  //通知刷新，应该是通知其他人吧？上面只是本地刷新？
+  else if (OB_FAIL(notify_refresh_schema(addrs))) {
     LOG_WARN("notify refresh schema failed", K(ret));
   }
 

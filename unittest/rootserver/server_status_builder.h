@@ -52,6 +52,7 @@ void ObServerStatusBuilder::set_resource_info(const double cpu,
   resource_.disk_total_ = disk;
 }
 
+//这里的add方法会修改
 ObServerStatusBuilder &ObServerStatusBuilder::add(share::ObServerStatus::DisplayStatus status,
                                                   const int64_t now,
                                                   const ObAddr &server,

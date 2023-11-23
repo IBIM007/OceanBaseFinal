@@ -468,20 +468,26 @@ int ObPrimaryLSService::process_all_ls_status_to_steady_(const share::schema::Ob
 }
 
 //the interface may reentry
+//进入这里处理
 int ObPrimaryLSService::create_ls_for_create_tenant()
 {
   int ret = OB_SUCCESS;
+  //LOG_WARN("进入了ObPrimaryLSService::create_ls_for_create_tenant", K(ret));
   share::schema::ObTenantSchema tenant_schema;
   ObArray<ObZone> primary_zone;
   ObArray<share::ObSimpleUnitGroup> unit_group_array;
+  //这里构建了
   share::ObLSAttrOperator ls_operator(tenant_id_, GCTX.sql_proxy_);
   if (OB_FAIL(get_tenant_schema(tenant_id_, tenant_schema))) {
+    //没打印
     LOG_WARN("failed to get tenant schema", KR(ret), K(tenant_id_));
   } else if (!tenant_schema.is_creating()) {
+    //没打印
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("only creating tenant can create user ls", KR(ret), K(tenant_schema));
   } else if (OB_FAIL(ObLSServiceHelper::get_primary_zone_unit_array(&tenant_schema,
           primary_zone, unit_group_array))) {
+            //没打印
     LOG_WARN("failed to get primary zone unit array", KR(ret), K(tenant_schema));
   } else {
     // ensure __all_ls is emptry
@@ -489,8 +495,10 @@ int ObPrimaryLSService::create_ls_for_create_tenant()
     ObArray<share::ObLSAttr> ls_array;
     share::ObLSAttr sys_ls;
     if (FAILEDx(ls_operator.get_ls_attr(SYS_LS, true, trans, sys_ls))) {
+      //没打印
       LOG_WARN("failed to get SYS_LS attr", KR(ret));
     } else if (OB_FAIL(ls_operator.get_all_ls_by_order(ls_array))) {
+      //没打印
       LOG_WARN("failed to get all_ls by order", KR(ret));
     } else if (ls_array.count() > 1) {
       //nothing
@@ -502,8 +510,10 @@ int ObPrimaryLSService::create_ls_for_create_tenant()
       SCN create_scn;
       for (int64_t i = 0; OB_SUCC(ret) && i < unit_group_array.count(); ++i) {
         if (unit_group_array.at(i).is_active()) {
-          //create ls
+          //LOG_WARN("进入了ObPrimaryLSService::create_ls_for_create_tenant里面的unit_group_array.at(i).is_active()", K(ret));
+          //create ls，这个应该是进去了的fetch_new_max_id
           if (OB_FAIL(ObLSServiceHelper::fetch_new_ls_group_id(GCTX.sql_proxy_, tenant_id_, ls_group_id))) {
+            //没打印
             LOG_WARN("failed to fetch new LS group id", KR(ret), K(tenant_id_));
           }
           for (int64_t j = 0; OB_SUCC(ret) && j < primary_zone.count(); j++) {
@@ -511,11 +521,15 @@ int ObPrimaryLSService::create_ls_for_create_tenant()
               LOG_WARN("failed to fetch new LS id", KR(ret), K(tenant_id_));
             } else if (OB_FAIL(ObLSAttrOperator::get_tenant_gts(tenant_id_, create_scn))) {
               LOG_WARN("failed to get tenant gts", KR(ret), K(tenant_id_));
-            } else if (OB_FAIL(new_ls.init(ls_id, ls_group_id, flag, share::OB_LS_CREATING,
+            } 
+            //初始化
+            else if (OB_FAIL(new_ls.init(ls_id, ls_group_id, flag, share::OB_LS_CREATING,
                            share::OB_LS_OP_CREATE_PRE, create_scn))) {
               LOG_WARN("failed to init new operation", KR(ret), K(create_scn),
                        K(ls_id), K(ls_group_id));
-            } else if (OB_FAIL(ls_operator.insert_ls(
+            } 
+            //前面应该都没事吧
+            else if (OB_FAIL(ls_operator.insert_ls(
                            new_ls, share::NORMAL_SWITCHOVER_STATUS, &trans))) {
               LOG_WARN("failed to insert new operation", KR(ret), K(new_ls));
             }

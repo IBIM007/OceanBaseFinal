@@ -1865,6 +1865,7 @@ int ObTableSqlService::add_single_column(ObISQLClient &sql_client,
   return ret;
 }
 
+//走到这里来吧
 int ObTableSqlService::add_table(
     ObISQLClient &sql_client,
     const ObTableSchema &table,
@@ -2346,6 +2347,7 @@ int ObTableSqlService::delete_single_column(
   return ret;
 }
 
+//最后应该还是到这里
 int ObTableSqlService::create_table(ObTableSchema &table,
                                     ObISQLClient &sql_client,
                                     const ObString *ddl_stmt_str/*=NULL*/,
@@ -2394,12 +2396,15 @@ int ObTableSqlService::create_table(ObTableSchema &table,
   } else if (table.is_view_table() && data_version >= DATA_VERSION_4_1_0_0
              && table.get_column_count() > 0
              && FALSE_IT(table.set_view_column_filled_flag(ObViewColumnFilledFlag::FILLED))) {
-  } else if (OB_FAIL(add_table(sql_client, table, update_object_status_ignore_version, only_history))) {
+  } 
+  //这个方法注意一下。真不知道怎么调用的这个，它自己和父类都没有这个方法。
+  else if (OB_FAIL(add_table(sql_client, table, update_object_status_ignore_version, only_history))) {
     LOG_WARN("insert table schema failed, ", K(ret), "table", to_cstring(table));
   } else if (!table.is_view_table()) {
     end_usec = ObTimeUtility::current_time();
     cost_usec = end_usec - start_usec;
     start_usec = end_usec;
+    //这里打印了的
     LOG_INFO("add_table cost: ", K(cost_usec));
     if (OB_FAIL(add_columns(sql_client, table))) {
       LOG_WARN("insert column schema failed, ", K(ret), "table", to_cstring(table));
@@ -2409,6 +2414,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
     end_usec = ObTimeUtility::current_time();
     cost_usec = end_usec - start_usec;
     start_usec = end_usec;
+    //打印了的
     LOG_INFO("add_column cost: ", K(cost_usec));
     if (OB_SUCC(ret)) {
       if (OB_FAIL(add_table_part_info(sql_client, table))) {
@@ -2417,6 +2423,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
       end_usec = ObTimeUtility::current_time();
       cost_usec = end_usec - start_usec;
       start_usec = end_usec;
+      //打印了的
       LOG_INFO("add part info cost: ", K(cost_usec));
     }
     // insert into all_foreign_key.
@@ -2456,6 +2463,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
       end_usec = ObTimeUtility::current_time();
       cost_usec = end_usec - start_usec;
       start_usec = end_usec;
+      //打印了的
       LOG_INFO("log_operation cost: ", K(cost_usec));
     }
 
@@ -2469,6 +2477,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
         end_usec = ObTimeUtility::current_time();
         cost_usec = end_usec - start_usec;
         start_usec = end_usec;
+        //打印了的
         LOG_INFO("update_data_table_schema_version cost: ", K(cost_usec));
       }
     }

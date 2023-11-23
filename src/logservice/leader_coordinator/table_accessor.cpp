@@ -601,6 +601,7 @@ int TableAccessor::get_all_ls_election_reference_info(common::ObIArray<LsElectio
         } else if (CLICK_FAIL(GCTX.self_addr().ip_port_to_string(ip_port_string, 32))) {
           COORDINATOR_LOG_(WARN, "ip port to string failed");
         } else {
+          //这里可能也需要注意一下，因为好像需要搭配使用？
           back.element<2>() = (lines[idx].element<2>().get_ob_string().case_compare(ip_port_string) == 0);// is_manual_leader
           if (CLICK_FAIL(get_removed_status_and_reason(lines[idx].element<3>(), back.element<3>().element<0>(), back.element<3>().element<1>()))) {
             COORDINATOR_LOG_(WARN, "get removed status failed");

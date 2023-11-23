@@ -101,6 +101,7 @@ public:
               const ObString &zone_priority,
               const bool create_with_palf,
               const palf::PalfBaseInfo &palf_base_info);
+  //感觉最后应该走到这里来的吧
   int create_user_ls(const share::ObLSStatusInfo &status_info,
                      const int64_t paxos_replica_num,
                      const share::schema::ZoneLocalityIArray &zone_locality,
