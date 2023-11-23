@@ -71,15 +71,80 @@ using namespace storage;
 namespace rootserver
 {
 
-int CreateSchemaTask::start() {
-  int ret = OB_SUCCESS;
-  if(OB_FAIL(TG_SET_RUNNABLE_AND_START(tg_id_, *this))) {
-    LOG_WARN("fail to set runnable and start", K(ret));
-  }
-  return ret;
-}
+// 创建一个create schema的线程类
+class CreateSchemaTask : public lib::TGRunnable 
+{
+  public:
+  CreateSchemaTask(ObDDLService& ddl_service,ObIArray<ObTableSchema>& table_schemas,int64_t begin,int64_t i )
+      : ddl_service_(ddl_service),
+        table_schemas_(table_schemas), begin_(begin),i_(i) {}
+  virtual ~CreateSchemaTask() {}
 
-void CreateSchemaTask::wait() { TG_WAIT(tg_id_); }
+  virtual void run1() override {
+    auto start = ObTimeUtility::current_time();
+    lib::set_thread_name("CreateSchemaTask");
+    LOG_INFO("进入线程", K(begin_), K(i_));
+      int ret = OB_SUCCESS;
+      // ObCurTraceId::set(*cur_trace_id_);  // 这里段错误；
+      int64_t retry_times = 1;
+      while (OB_SUCC(ret)) {
+        if (OB_FAIL(ObBootstrap::batch_create_schema(ddl_service_, table_schemas_, begin_, i_))) {
+          LOG_WARN("batch create schema failed", K(ret), "table count", i_ + 1 - begin_);
+          // bugfix: 
+          if (retry_times <= 10) {
+            retry_times++;
+            ret = OB_SUCCESS;
+            LOG_INFO("schema error while create table, need retry", KR(ret), K(retry_times));
+            usleep(1 * 1000 * 1000L); // 1s
+          }
+        } else {
+          // ATOMIC_AAF(&finish_cnt, i_ + 1 - begin_);
+          break;
+        }
+      }
+      auto end = ObTimeUtility::current_time();
+      LOG_INFO("batch create schema worker job", K(begin_), K(i_), K(i_-begin_), K(ret), K(end-start));
+  }
+
+  int init() {
+    int ret = OB_SUCCESS;
+    if(IS_INIT) {
+      ret = OB_INIT_TWICE;
+      LOG_WARN("init twice", K(ret));
+    } else if(OB_FAIL(TG_CREATE_TENANT(lib::TGDefIDs::CREATE_SCHEMA_TASK, tg_id_))) {
+      LOG_WARN("fail to create tenant for create schema task", K(ret));
+    } else {
+      is_inited_ = true;
+    }
+    return ret;
+  }
+  int start() {
+    int ret = OB_SUCCESS;
+    if(IS_NOT_INIT) {
+      ret = OB_NOT_INIT;
+      LOG_WARN("not init", K(ret));
+    } else if(OB_FAIL(TG_SET_RUNNABLE_AND_START(tg_id_, *this))) {
+      LOG_WARN("fail to set runnable and start", K(ret));
+    }
+    return ret;
+  }
+  void set_begin(int64_t begin) { begin_ = begin; }
+  void set_i(int64_t i) { i_ = i; }
+  void set_cur_trace_id(const ObCurTraceId::TraceId* cur_trace_id) { cur_trace_id_ = cur_trace_id; }
+  void wait() { TG_WAIT(tg_id_); }
+  void stop() { TG_STOP(tg_id_); }
+  void destroy() { TG_DESTROY(tg_id_); }
+
+private:
+  int tg_id_;
+  bool is_inited_ = false;
+  ObDDLService& ddl_service_;
+  ObIArray<ObTableSchema>& table_schemas_;
+  int64_t finish_cnt_;
+  int64_t begin_;
+  int64_t i_;
+  const ObCurTraceId::TraceId* cur_trace_id_;
+};
 
 
 ObBaseBootstrap::ObBaseBootstrap(ObSrvRpcProxy &rpc_proxy,
@@ -947,7 +1012,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
   ObTableSchema table_schema;
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", KR(ret));
-  } else if (OB_FAIL(table_schemas.reserve(OB_SYS_TABLE_COUNT))) { // 系统表数量 ：257
+  } else if (OB_FAIL(table_schemas.reserve(1132))) { // 系统表数量 ：257
     LOG_WARN("reserve failed", "capacity", OB_SYS_TABLE_COUNT, KR(ret));
   } else {
     HEAP_VAR(ObTableSchema, data_schema) {
@@ -965,7 +1030,8 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
                      KR(ret), K(table_schema));
           } else if (!exist) {
             // skip 如果表不存在，就跳过
-          } else if (ObSysTableChecker::is_sys_table_has_index(table_schema.get_table_id())) { 
+          } 
+          else if (ObSysTableChecker::is_sys_table_has_index(table_schema.get_table_id())) { 
             const int64_t data_table_id = table_schema.get_table_id(); // 处理表的索引
             if (OB_FAIL(ObSysTableChecker::fill_sys_index_infos(table_schema))) {
               LOG_WARN("fail to fill sys index infos", KR(ret), K(data_table_id));
@@ -1048,8 +1114,7 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
 {
   int ret = OB_SUCCESS;
   const int64_t begin_time = ObTimeUtility::current_time();
-  //1652个table_schemas
-  LOG_INFO("start create all schemas", "table count", table_schemas.count()); // 1652张表
+  LOG_INFO("start create all schemas", "table count", table_schemas.count()); // 1132张表
   // 检查传入的table_schemas是否为空
   if (table_schemas.count() <= 0) {
     ret = OB_INVALID_ARGUMENT;
@@ -1069,40 +1134,40 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
         LOG_WARN("fail to create __all_core_table's schema", KR(ret), K(core_table));
       }
     }
-    // if (OB_FAIL(parallel_create_table_schema(OB_SYS_TENANT_ID,ddl_service, table_schemas))) {
-    //   LOG_WARN("create_all_schema", K(ret));
-    // }
-    int64_t begin = 0; //记录批处理的开始位置
-    int64_t batch_count = BATCH_INSERT_SCHEMA_CNT;  // 128;
-    const int64_t MAX_RETRY_TIMES = 3;
-    for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) { // 逐个处理用户表格的 schema：
-      /*检查是否需要进行批量处理，条件包括两部分：
-            当前处理的是最后一个表格 (table_schemas.count() == (i + 1))。
-            已处理的表格数量达到了批量处理的阈值 ((i + 1 - begin) >= batch_count)。
-      */
-      if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-        int64_t retry_times = 1;
-        while (OB_SUCC(ret)) {
-          if (OB_UNLIKELY(OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin, i + 1)))) {
-            LOG_WARN("batch create schema failed", K(ret), "table count", i + 1 - begin);
-            // bugfix:
-            if ((OB_SCHEMA_EAGAIN == ret
-                 || OB_ERR_WAIT_REMOTE_SCHEMA_REFRESH == ret)
-                && retry_times <= MAX_RETRY_TIMES) {
-              retry_times++;
-              ret = OB_SUCCESS;
-              LOG_INFO("schema error while create table, need retry", KR(ret), K(retry_times));
-              ob_usleep(1 * 1000 * 1000L); // 1s,为什么要等待1s呢？
-            }
-          } else {
-            break;
-          }
-        }
-        if (OB_SUCC(ret)) {
-          begin = i + 1;
-        }
-      }
+    if (OB_FAIL(parallel_create_table_schema(OB_SYS_TENANT_ID,ddl_service, table_schemas))) {
+      LOG_WARN("create_all_schema", K(ret));
     }
+    // int64_t begin = 0; //记录批处理的开始位置
+    // int64_t batch_count = BATCH_INSERT_SCHEMA_CNT;  // 128;
+    // const int64_t MAX_RETRY_TIMES = 3;
+    // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) { // 逐个处理用户表格的 schema：
+    //   /*检查是否需要进行批量处理，条件包括两部分：
+    //         当前处理的是最后一个表格 (table_schemas.count() == (i + 1))。
+    //         已处理的表格数量达到了批量处理的阈值 ((i + 1 - begin) >= batch_count)。
+    //   */
+    //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+    //     int64_t retry_times = 1;
+    //     while (OB_SUCC(ret)) {
+    //       if (OB_UNLIKELY(OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin, i + 1)))) {
+    //         LOG_WARN("batch create schema failed", K(ret), "table count", i + 1 - begin);
+    //         // bugfix:
+    //         if ((OB_SCHEMA_EAGAIN == ret
+    //              || OB_ERR_WAIT_REMOTE_SCHEMA_REFRESH == ret)
+    //             && retry_times <= MAX_RETRY_TIMES) {
+    //           retry_times++;
+    //           ret = OB_SUCCESS;
+    //           LOG_INFO("schema error while create table, need retry", KR(ret), K(retry_times));
+    //           ob_usleep(1 * 1000 * 1000L); // 1s,为什么要等待1s呢？
+    //         }
+    //       } else {
+    //         break;
+    //       }
+    //     }
+    //     if (OB_SUCC(ret)) {
+    //       begin = i + 1;
+    //     }
+    //   }
+    // }
   }
   LOG_INFO("end create all schemas", K(ret), "table count", table_schemas.count(),
            "time_used", ObTimeUtility::current_time() - begin_time);
@@ -1111,52 +1176,35 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
 
 int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas)
 {
-  LOG_INFO("开始并行处理");
   int ret = OB_SUCCESS;
   int64_t begin = 0;
   int64_t batch_count = table_schemas.count() / 16;
   const int64_t MAX_RETRY_TIMES = 10;
   int64_t finish_cnt = 0;
-  std::vector<std::thread> ths;
+  std::vector<CreateSchemaTask> ths;
   ObCurTraceId::TraceId *cur_trace_id = ObCurTraceId::get_trace_id();
+  // batch_create_schema(ddl_service,table_schemas,0,20);
+  batch_create_schema(ddl_service,table_schemas,756,770);
   for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-    LOG_INFO("进入循环", K(i));
     if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-      LOG_INFO("进入if", K(i));
-      ths.emplace_back([&, begin, i, cur_trace_id] () {
-        LOG_INFO("进入线程", K(begin), K(i));
-        int ret = OB_SUCCESS;
-        ObCurTraceId::set(*cur_trace_id);
-        int64_t retry_times = 1;
-        while (OB_SUCC(ret)) {
-          if (OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin, i + 1))) {
-            LOG_WARN("batch create schema failed", K(ret), "table count", i + 1 - begin);
-            // bugfix: 
-            if (retry_times <= MAX_RETRY_TIMES) {
-              retry_times++;
-              ret = OB_SUCCESS;
-              LOG_INFO("schema error while create table, need retry", KR(ret), K(retry_times));
-              usleep(1 * 1000 * 1000L); // 1s
-            }
-          } else {
-            ATOMIC_AAF(&finish_cnt, i + 1 - begin);
-            break;
-          }
-        }
-        LOG_INFO("worker job", K(begin), K(i), K(i-begin), K(ret));
-      });
-      if (OB_SUCC(ret)) {
-        begin = i + 1;
+      if(begin == 700) {
+        ths.emplace_back(ddl_service,table_schemas,begin,756);
+      } else {
+        ths.emplace_back(ddl_service,table_schemas,begin,i+1);
       }
+      ths.back().init();
+      ths.back().start();
+      begin = i + 1;
     }
   }
-  for (auto &th : ths) {
-    th.join();
+  
+  for(int i = 0; i < ths.size(); i++) {
+    ths.at(i).wait();
   }
-  if (finish_cnt != table_schemas.count()) {
-    ret = OB_ERR_UNEXPECTED;
-    LOG_WARN("parallel_create_table_schema fail", K(finish_cnt), K(table_schemas.count()), K(ret));
-  }
+  // if (finish_cnt != table_schemas.count()) {
+  //   ret = OB_ERR_UNEXPECTED;
+  //   LOG_WARN("parallel_create_table_schema fail", K(finish_cnt), K(table_schemas.count()), K(ret));
+  // }
   return ret;
 }
 
@@ -1250,18 +1298,18 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
               "table_id", table.get_table_id(),
               "table_name", table.get_table_name());
         } else {
-          // int64_t end_time = ObTimeUtility::current_time();
-          // LOG_INFO("add table schema succeed", K(i),
-          //     "table_id", table.get_table_id(),
-          //     "table_name", table.get_table_name(), 
-          //     "system_table", is_system_table(table.get_table_id()),
-          //     "virtual_table", is_virtual_table(table.get_table_id()),
-          //     "sys_view", is_sys_view(table.get_table_id()),
-          //     "core_lob_table", is_core_lob_table(table.get_table_id()),
-          //     "sys_lob_table", is_sys_lob_table(table.get_table_id()),
-          //     "sys_table_index", is_sys_index_table(table.get_table_id()),
-          //     "sys_table", is_sys_table(table.get_table_id()),
-          //     "core_table", is_core_table(table.get_table_id()), "cost", end_time-start_time);
+          int64_t end_time = ObTimeUtility::current_time();
+          LOG_INFO("add table schema succeed", K(i),
+              "table_id", table.get_table_id(),
+              "table_name", table.get_table_name(), 
+              "system_table", is_system_table(table.get_table_id()),
+              "virtual_table", is_virtual_table(table.get_table_id()),
+              "sys_view", is_sys_view(table.get_table_id()),
+              "core_lob_table", is_core_lob_table(table.get_table_id()),
+              "sys_lob_table", is_sys_lob_table(table.get_table_id()),
+              "sys_table_index", is_sys_index_table(table.get_table_id()),
+              "sys_table", is_sys_table(table.get_table_id()),
+              "core_table", is_core_table(table.get_table_id()), "cost", end_time-start_time);
         }
       }
     }
