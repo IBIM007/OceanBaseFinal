@@ -1866,7 +1866,7 @@ int ObRootService::after_restart()
   //while(bootstrapget==false);
   // avoid concurrent with bootstrap
   //可能后面改成2S
-  sleep(3);
+  sleep(2);
   FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in after_restart");
   ObLatchRGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
 
