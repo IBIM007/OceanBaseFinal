@@ -54,68 +54,8 @@ class ObRsGtsManager;
 struct ObSysStat;
 class ObTableCreator;
 class ObServerZoneOpService;
+class CreateSchemaTask;
 
-// 创建一个create schema的线程类
-class CreateSchemaTask : public lib::TGRunnable 
-{
-  public:
-  CreateSchemaTask(int thread_num, ObDDLService& ddl_service,
-                   ObIArray<ObTableSchema>& table_schemas, int64_t& finish_cnt)
-      :  ddl_service_(ddl_service),
-        table_schemas_(table_schemas), finish_cnt_(finish_cnt) {}
-  virtual ~CreateSchemaTask() {}
-
-  void run1() override;
-  // {
-  //   LOG_INFO("Worker thread started");
-  //   int ret = OB_SUCCESS;
-  //   const int64_t MAX_RETRY_TIMES = 3;
-
-  //   int64_t begin = 0;
-  //   int64_t end = 0;
-
-  //   if (OB_FAIL(get_range(begin, end))) {
-  //     LOG_WARN("Failed to get range", KR(ret));
-  //   } else {
-  //     while (begin < end && OB_SUCC(ret)) {
-  //       if (OB_FAIL(batch_create_schema(begin, end))) {
-  //         LOG_WARN("batch create schema failed", K(ret), "table count", end - begin);
-  //         int64_t retry_times = 1;
-  //         // Retry logic
-  //         while (retry_times <= MAX_RETRY_TIMES) {
-  //           ret = OB_SUCCESS;
-  //           LOG_INFO("schema error while create table, need retry", KR(ret), K(retry_times));
-  //           usleep(1 * 1000 * 1000L);  // 1s
-  //           if (OB_FAIL(batch_create_schema(begin, end))) {
-  //             retry_times++;
-  //           } else {
-  //             ATOMIC_AAF(&finish_cnt_, end - begin);
-  //             break;
-  //           }
-  //         }
-  //       } else {
-  //         ATOMIC_AAF(&finish_cnt_, end - begin);
-  //         break;
-  //       }
-  //     }
-  //   }
-  //   LOG_INFO("Worker thread finished", K(ret));
-  // }
-  int init();
-  int start();
-  void wait();
-
-private:
-  int tg_id_;
-  bool is_inited_;
-  bool task_registed_;
-  ObDDLService& ddl_service_;
-  ObIArray<ObTableSchema>& table_schemas_;
-  int64_t& finish_cnt_;
-  int64_t begin_;
-  const int64_t batch_count_ = 5;  // Adjust this value based on your requirements
-  ObMutex lock_;
-};
 
 class ObBaseBootstrap
 {
@@ -182,6 +122,7 @@ private:
 
 class ObBootstrap : public ObBaseBootstrap
 {
+  friend class CreateSchemaTask;
 public:
   class TableIdCompare
   {
