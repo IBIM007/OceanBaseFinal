@@ -2471,6 +2471,7 @@ int ObMultiVersionSchemaService::refresh_and_add_schema(const ObIArray<uint64_t>
     ret = OB_INNER_STAT_ERROR;
     LOG_WARN("inner stat error", K(ret));
   } else {
+    //可能会有锁抢占。
     lib::ObMutexGuard guard(schema_refresh_mutex_);
     auto func = [&]() {
       ObSchemaStatusProxy *schema_status_proxy = GCTX.schema_status_proxy_;
@@ -2495,8 +2496,8 @@ int ObMultiVersionSchemaService::refresh_and_add_schema(const ObIArray<uint64_t>
 
       if (OB_FAIL(ret)) {
       } else if (check_bootstrap) {
-        // The schema refresh triggered by the heartbeat is forbidden in the bootstrap phase,
-        // and it needs to be judged in the schema_refresh_mutex_lock
+        // The schema refresh triggered by the heartbeat is forbidden in the bootstrap phase, 由心跳触发的模式刷新在引导阶段被禁止，
+        // and it needs to be judged in the schema_refresh_mutex_lock 需要在schema_rexpresh_mutex_lock中进行判断
         //
         int64_t baseline_schema_version = OB_INVALID_VERSION;
         if (OB_FAIL(get_baseline_schema_version(OB_SYS_TENANT_ID, true/*auto_update*/, baseline_schema_version))) {
@@ -2508,33 +2509,43 @@ int ObMultiVersionSchemaService::refresh_and_add_schema(const ObIArray<uint64_t>
         }
       }
 
-      // Ensure that the memory on the stack requested during the refresh schema process also uses the default 500 tenant
+      // Ensure that the memory on the stack requested during the refresh schema process also uses the default 500 tenant 确保刷新架构过程中请求的堆栈上的内存也使用默认的500租户
       ObArenaAllocator allocator(ObModIds::OB_MODULE_PAGE_ALLOCATOR, OB_MALLOC_BIG_BLOCK_SIZE, OB_SERVER_TENANT_ID);
       ObSchemaStackAllocatorGuard guard(&allocator);
 
+      //这里才声明
       ObArray<uint64_t> all_tenant_ids;
       if (OB_FAIL(ret)) {
-      } else if (0 == tenant_ids.count()) {
+      } 
+      //如果没有才进去
+      else if (0 == tenant_ids.count()) {
         // refresh all tenant schema
         ObSchemaMgr *schema_mgr = NULL;
+        //刷新系统租户
         if (OB_FAIL(refresh_tenant_schema(OB_SYS_TENANT_ID))) {
           LOG_WARN("fail to refresh sys schema", K(ret), K(all_tenant_ids));
-        } else if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(OB_SYS_TENANT_ID, schema_mgr))) {
+        } 
+        //放进去吗是
+        else if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(OB_SYS_TENANT_ID, schema_mgr))) {
           LOG_WARN("fail to get sys schema mgr for cache", K(ret));
         } else if (OB_ISNULL(schema_mgr)) {
           ret = OB_ERR_UNEXPECTED;
           LOG_WARN("schema_mgr is null", K(ret));
-        } else if (OB_FAIL(schema_mgr->get_tenant_ids(all_tenant_ids))) {
+        } 
+        //获取传入的那个租户id集合？
+        else if (OB_FAIL(schema_mgr->get_tenant_ids(all_tenant_ids))) {
           LOG_WARN("fail to get all tenant_ids", K(ret));
         } else {
-          // Ignore that some tenants fail to refresh the schema,
-          // and need to report an error to the upper layer to avoid pushing up last_refresh_schema_info
+          // Ignore that some tenants fail to refresh the schema,  忽略某些租户无法刷新架构，
+          // and need to report an error to the upper layer to avoid pushing up last_refresh_schema_info 并且需要向上层报告错误以避免推高last_refresh_schema_ifo
           int tmp_ret = OB_SUCCESS;
           for (int64_t i = 0; i < all_tenant_ids.count(); i++) {
             const uint64_t tenant_id = all_tenant_ids.at(i);
             if (OB_SYS_TENANT_ID == tenant_id) {
               // skip
-            } else if (OB_SUCCESS != (tmp_ret = refresh_tenant_schema(tenant_id))) {
+            } 
+            //这里才是真的刷新这个id的吧
+            else if (OB_SUCCESS != (tmp_ret = refresh_tenant_schema(tenant_id))) {
               LOG_WARN("fail to refresh tenant schema", K(tmp_ret), K(tenant_id));
             }
             if (OB_SUCCESS != tmp_ret && OB_SUCCESS == ret) {
@@ -2542,7 +2553,9 @@ int ObMultiVersionSchemaService::refresh_and_add_schema(const ObIArray<uint64_t>
             }
           }
         }
-      } else {
+      } 
+      //只刷新固定的
+      else {
         // Ignore that some tenants fail to refresh the schema,
         // and need to report an error to the upper layer to avoid pushing up last_refresh_schema_info
         int tmp_ret = OB_SUCCESS;
@@ -2871,7 +2884,7 @@ int ObMultiVersionSchemaService::refresh_tenant_schema(
           }
         }
       }
-
+      //最后应该是调用的这里吧
       if (OB_SUCC(ret) && need_refresh) {
         if (OB_FAIL(refresh_schema(refresh_schema_status))) {
           LOG_WARN("fail to refresh schema by tenant", KR(ret), K(refresh_schema_status));

@@ -144,6 +144,7 @@ int ObSchemaStatusProxy::load_refresh_schema_status(
   } else if (OB_FAIL(trans.start(&sql_proxy_, OB_SYS_TENANT_ID))) {
     LOG_WARN("fail to start trans", KR(ret));
   } else {
+    //核心表，以及__all_schema_status这个表
     ObCoreTableProxy core_table(OB_ALL_SCHEMA_STATUS_TNAME, trans, OB_SYS_TENANT_ID);
     if (OB_FAIL(core_table.load())) {
       LOG_WARN("fail to load core table", KR(ret));
@@ -160,7 +161,9 @@ int ObSchemaStatusProxy::load_refresh_schema_status(
           } else {
             LOG_WARN("fail to next", KR(ret));
           }
-        } else if (OB_FAIL(core_table.get_uint(TENANT_ID_CNAME, tenant_id))) {
+        } 
+        //拿到这几个东西
+        else if (OB_FAIL(core_table.get_uint(TENANT_ID_CNAME, tenant_id))) {
           LOG_WARN("fail to get int", KR(ret));
         } else if (OB_FAIL(core_table.get_int(SNAPSHOT_TIMESTAMP_CNAME, snapshot_timestamp))) {
           LOG_WARN("fail to get int", KR(ret));
@@ -182,6 +185,7 @@ int ObSchemaStatusProxy::load_refresh_schema_status(
           LOG_WARN("tenant refresh schema status not exist", KR(ret), K(refresh_tenant_id));
         } else {
           ObSchemaStatusUpdater updater(refresh_schema_status);
+          //设置cache
           if (OB_FAIL(schema_status_cache_.atomic_refactored(refresh_tenant_id, updater))) {
             if (OB_HASH_NOT_EXIST != ret) {
               LOG_WARN("fail to update schema_status", KR(ret), K(refresh_tenant_id), K(refresh_schema_status));

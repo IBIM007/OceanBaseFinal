@@ -635,7 +635,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     LOG_WARN("failed to init_global_stat", K(ret));
   } 
   //构造所有schema，可能耗时，目前也没发现有啥问题，不耗时
-  //构建（除__all_core_table）系统表的ObTableSchema
+  //构建（除__all_core_table）系统表的ObTableSchema，反正就是弄出这个数组
   else if (OB_FAIL(construct_all_schema(table_schemas))) {
     LOG_WARN("construct all schema fail", K(ret));
   } 
@@ -665,7 +665,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
       LOG_WARN("failed to init system data", KR(ret));
     } 
     //刷新所有schema，耗时cost0.3秒多，但是应该还好吧，感觉就看cost
-    //将持久化的系统表schema添加到内存Schema Cache
+    //将持久化的系统表schema添加到内存Schema Cache。刷新系统租户schema
     else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }

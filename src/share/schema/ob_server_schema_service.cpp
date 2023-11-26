@@ -5282,17 +5282,22 @@ int ObServerSchemaService::refresh_schema(
   } else if (OB_INVALID_TENANT_ID == tenant_id) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid schema status", K(ret), K(schema_status));
-  } else if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
+  } 
+  //赋值
+  else if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
     LOG_WARN("fail to get schema mgr for cache", K(ret), K(tenant_id));
   } else if (OB_ISNULL(schema_mgr_for_cache)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("schema mgr for cache is null", K(ret), K(tenant_id));
-  } else if (OB_FAIL(refresh_full_schema_map_.get_refactored(tenant_id, is_full_schema))) {
+  } 
+  //拿到是不是full_schema应该不是吧
+  else if (OB_FAIL(refresh_full_schema_map_.get_refactored(tenant_id, is_full_schema))) {
     LOG_WARN("refresh full schema", K(ret), K(tenant_id));
   } else if (is_full_schema) {
+    //打印过两次
     FLOG_INFO("[REFRESH_SCHEMA] start to refresh full schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
-
+    //0.3秒
     if (OB_FAIL(refresh_full_schema(schema_status))) {
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
@@ -5309,9 +5314,10 @@ int ObServerSchemaService::refresh_schema(
       }
     }
   } else {
+    //也打印过的3次
     FLOG_INFO("[REFRESH_SCHEMA] start to refresh increment schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
-
+    //重点就是这个方法吧
     if (OB_FAIL(refresh_increment_schema(schema_status))) {
       LOG_WARN("tenant refresh increment schema failed", K(ret), K(schema_status));
     }
@@ -5323,6 +5329,7 @@ int ObServerSchemaService::refresh_schema(
 
   if (OB_SUCC(ret)) {
     const int64_t now = ObTimeUtility::current_time();
+    //最后还有个什么东西
     EVENT_INC(REFRESH_SCHEMA_COUNT);
     EVENT_ADD(REFRESH_SCHEMA_TIME, now - start);
   }
@@ -5363,8 +5370,9 @@ int ObServerSchemaService::refresh_full_schema(
         } else if (retry_count > 0) {
           LOG_WARN("refresh_full_schema failed, retry", K(schema_status), K(retry_count));
         }
+        //这里开始构造语句了
         ObISQLClient &sql_client = *sql_proxy_;
-        // refresh core table schemas
+        // refresh core table schemas 刷新核心表的schema
         if (OB_SUCC(ret) && core_schema_change) {
           if (OB_FAIL(schema_service_->get_core_version(
                       sql_client, schema_status, core_schema_version))) {
@@ -5378,7 +5386,9 @@ int ObServerSchemaService::refresh_full_schema(
             int64_t publish_version = 0;
             if (OB_FAIL(ObSchemaService::gen_core_temp_version(core_schema_version, publish_version))) {
               LOG_WARN("gen_core_temp_version failed", KR(ret), K(schema_status), K(core_schema_version));
-            } else if (OB_FAIL(try_fetch_publish_core_schemas(schema_status, core_schema_version,
+            } 
+            //应该是这个方法里面
+            else if (OB_FAIL(try_fetch_publish_core_schemas(schema_status, core_schema_version,
                 publish_version, sql_client, core_schema_change))) {
               LOG_WARN("try_fetch_publish_core_schemas failed", KR(ret),
                        K(schema_status), K(core_schema_version), K(publish_version));
@@ -5388,7 +5398,7 @@ int ObServerSchemaService::refresh_full_schema(
           }
         }
 
-        // refresh sys table schemas
+        // refresh sys table schemas 刷新系统表的schema
         if (OB_SUCC(ret) && !core_schema_change && sys_schema_change) {
           if (OB_FAIL(get_schema_version_in_inner_table(sql_client, schema_status, schema_version))) {
             LOG_WARN("fail to get schema version in inner table", KR(ret), K(schema_status));
@@ -5416,7 +5426,9 @@ int ObServerSchemaService::refresh_full_schema(
             int64_t publish_version = 0;
             if (OB_FAIL(ObSchemaService::gen_sys_temp_version(sys_formal_version, publish_version))) {
               LOG_WARN("gen_sys_temp_version failed", KR(ret), K(schema_status), K(sys_formal_version));
-            } else if (OB_FAIL(try_fetch_publish_sys_schemas(schema_status,
+            } 
+            //应该是在这个方法里面
+            else if (OB_FAIL(try_fetch_publish_sys_schemas(schema_status,
                                                              schema_version,
                                                              publish_version,
                                                              sql_client,

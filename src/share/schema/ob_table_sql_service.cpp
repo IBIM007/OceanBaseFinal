@@ -2469,6 +2469,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
 
     if (OB_SUCC(ret)) {
       LOG_DEBUG("add table", "table type", table.get_table_type(), "index type", table.get_index_type());
+      //需要满足下面的条件才会调用这个
       if ((table.is_index_table() || table.is_materialized_view() || table.is_aux_vp_table() || table.is_aux_lob_table()) && need_sync_schema_version) {
         if (OB_FAIL(update_data_table_schema_version(sql_client, tenant_id,
             table.get_data_table_id(), table.get_in_offline_ddl_white_list()))) {
