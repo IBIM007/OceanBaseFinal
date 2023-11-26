@@ -26688,9 +26688,9 @@ int ObDDLService::publish_schema_and_get_schema_version(uint64_t tenant_id,
     LOG_WARN("refresh schema failed", KR(ret));
   } else if (OB_FAIL(ObShareUtil::set_default_timeout_ctx(ctx, TIMEOUT))) {// 10s for notify_refresh_schema
     LOG_WARN("fail to set default timeout ctx", KR(ret));
-  } else if (OB_FAIL(notify_refresh_schema(addrs))) {
+  } /*else if (OB_FAIL(notify_refresh_schema(addrs))) {
     LOG_WARN("notify refresh schema failed", KR(ret));
-  }
+  }*/
 
   return ret;
 }
