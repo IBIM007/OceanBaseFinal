@@ -26668,9 +26668,9 @@ int ObDDLService::publish_schema(uint64_t tenant_id,
     LOG_WARN("refresh schema failed", K(ret));
   } 
   //通知刷新，应该是通知其他人吧？上面只是本地刷新？
-  else if (OB_FAIL(notify_refresh_schema(addrs))) {
+  /*else if (OB_FAIL(notify_refresh_schema(addrs))) {
     LOG_WARN("notify refresh schema failed", K(ret));
-  }
+  }*/
 
   return ret;
 }
