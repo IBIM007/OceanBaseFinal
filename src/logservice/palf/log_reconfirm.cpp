@@ -461,6 +461,8 @@ bool LogReconfirm::is_majority_catch_up_()
 int LogReconfirm::reconfirm()
 {
   int ret = OB_SUCCESS;
+  return ret;
+
   ObLockGuard<ObSpinLock> guard(lock_);
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;

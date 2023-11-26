@@ -114,6 +114,13 @@ int LogStateMgr::init(const int64_t palf_id,
     is_inited_ = true;
     PALF_LOG(INFO, "LogStateMgr init success", K(ret), K_(palf_id), K_(self));
   }
+
+  // 为了跳过选举填充proposal_id等相关信息
+  common::ObAddr &server = GCONF.self_addr_;
+  int64_t proposal_id = 1;
+  write_prepare_meta_(proposal_id, server);
+  PALF_LOG(INFO, "mock handle prepare commplete!");
+
   if (OB_SUCCESS != ret && OB_INIT_TWICE != ret) {
     destroy();
   }

@@ -122,6 +122,7 @@ int ElectionProposer::set_member_list(const MemberList &new_member_list)
       LOG_SET_MEMBER(WARN, "set new member list failed");
     } else {
       if (old_list.get_addr_list().empty() && new_member_list.get_addr_list().count() == 1) {// 单副本第一次设置成员列表
+        // 单机模式避免选举
         prepare(ObRole::FOLLOWER);
       }
       if (old_list.only_membership_version_different(new_member_list)) {
@@ -175,6 +176,24 @@ bool ElectionProposer::leader_revoke_if_lease_expired_(RoleChangeReason reason)
     memberlist_with_states_.clear_prepare_and_accept_states();
     leader_lease_and_epoch_.reset();
     ret_bool = true;
+  }
+  return ret_bool;
+  #undef PRINT_WRAPPER
+}
+
+bool ElectionProposer::be_leader_immediately_in_standalone_mode(RoleChangeReason reason)
+{
+  // ELECT_TIME_GUARD(500_ms);
+  #define PRINT_WRAPPER K(*this)
+  bool ret_bool = false;
+  if (role_ != ObRole::LEADER) {
+    ret_bool = true;
+    int64_t new_lease_end = INT64_MAX;
+    int64_t prepare_success_ballot_ = 1;
+    leader_lease_and_epoch_.set_lease_and_epoch_if_lease_expired_or_just_set_lease(new_lease_end, prepare_success_ballot_);
+    (p_election_->role_change_cb_)(p_election_, ObRole::FOLLOWER, ObRole::LEADER, reason);
+    highest_priority_cache_.reset();
+    role_ = ObRole::LEADER;
   }
   return ret_bool;
   #undef PRINT_WRAPPER
@@ -342,9 +361,19 @@ void ElectionProposer::stop()
 
 void ElectionProposer::prepare(const ObRole role)
 {
+  int ret = OB_SUCCESS;
+  if (!be_leader_immediately_in_standalone_mode(RoleChangeReason::DevoteToBeLeader)) {
+    //LOG_ELECT_LEADER(INFO, "standlone election failed");
+  } else {
+    //LOG_ELECT_LEADER(INFO, "standlone election succeed");
+  }
+
+  return;
+  
+
+
   ELECT_TIME_GUARD(500_ms);
   #define PRINT_WRAPPER KR(ret), K(role), K(*this)
-  int ret = OB_SUCCESS;
   int64_t cur_ts = ObClockGenerator::getCurrentTime();
   LogPhase phase = role == ObRole::LEADER ? LogPhase::RENEW_LEASE : LogPhase::ELECT_LEADER;
   if (memberlist_with_states_.get_member_list().get_addr_list().empty()) {

@@ -110,19 +110,28 @@ int ElectionImpl::init_and_start(const int64_t id,
     msg_handler_ = msg_handler;
     self_addr_ = self_addr;
     inner_priority_seed_ = inner_priority_seed;
-    if (CLICK_FAIL(proposer_.start())) {
-      LOG_INIT(ERROR, "proposer start failed");
-    } else if (CLICK_FAIL(acceptor_.start())) {
-      LOG_INIT(ERROR, "start acceptor failed");
-    } else {
-      if (inner_priority_seed_ & static_cast<uint64_t>(PRIORITY_SEED_BIT::SEED_NOT_NORMOL_REPLICA_BIT)) {
+    // if (CLICK_FAIL(proposer_.start())) {
+    //   LOG_INIT(ERROR, "proposer start failed");
+    // } else if (CLICK_FAIL(acceptor_.start())) {
+    //   LOG_INIT(ERROR, "start acceptor failed");
+    // } else {
+    //   if (inner_priority_seed_ & static_cast<uint64_t>(PRIORITY_SEED_BIT::SEED_NOT_NORMOL_REPLICA_BIT)) {
+    //     event_recorder_.set_need_report(false);
+    //   }
+    //   is_inited_ = true;
+    //   is_running_ = true;
+    //   LOG_INIT(INFO, "election init and start");
+    // }
+
+    if (inner_priority_seed_ & static_cast<uint64_t>(PRIORITY_SEED_BIT::SEED_NOT_NORMOL_REPLICA_BIT)) {
         event_recorder_.set_need_report(false);
-      }
-      is_inited_ = true;
-      is_running_ = true;
-      LOG_INIT(INFO, "election init and start");
     }
+    is_inited_ = true;
+    is_running_ = true;
+    LOG_INIT(INFO, "election init and start");
   }
+
+  
   return ret;
   #undef PRINT_WRAPPER
 }
