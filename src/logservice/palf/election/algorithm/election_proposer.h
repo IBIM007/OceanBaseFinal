@@ -99,6 +99,9 @@ public:
   void inner_change_leader_to(const common::ObAddr &dst);
   void on_change_leader(const ElectionChangeLeaderMsg &change_leader_msg);
   int64_t to_string(char *buf, const int64_t buf_len) const;
+
+  // 单机模式下跳过选举立即变成leader
+  bool be_leader_immediately_in_standalone_mode(RoleChangeReason reason);
 private:
   bool leader_revoke_if_lease_expired_(RoleChangeReason reason);
   bool leader_takeover_if_lease_valid_(RoleChangeReason reason);

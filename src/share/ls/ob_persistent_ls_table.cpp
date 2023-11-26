@@ -147,7 +147,7 @@ int ObPersistentLSTable::fetch_ls_info_(
       if (OB_FAIL(sql.assign_fmt(
           "SELECT * FROM %s"
           " WHERE tenant_id = %lu AND ls_id = %lu"
-          " ORDER BY tenant_id, ls_id, svr_ip, svr_port ASC%s",
+          " ORDER BY tenant_id, ls_id, svr_ip, svr_port ASC%s", 
           table_name_meta, tenant_id, ls_id.id(),
           lock_replica ? " FOR UPDATE" : ""))) {
         LOG_WARN("assign sql string failed", KR(ret), K(tenant_id),

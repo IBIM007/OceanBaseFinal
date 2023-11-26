@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "ob_role.h"
 #define USING_LOG_PREFIX SHARE_PT
 
 #include "share/ls/ob_ls_info.h"      // for decalrations of functions in this cpp
@@ -207,8 +208,11 @@ int ObLSReplica::init(
     server_ = server;
     sql_port_ = sql_port;
     role_ = role;
+    //role_ = common::LEADER;
     replica_type_ = replica_type;
+    //replica_type_ = common::REPLICA_TYPE_FULL;
     proposal_id_ = proposal_id;
+    //proposal_id_ = 100;
     replica_status_ = replica_status;
     restore_status_ = restore_status;
     unit_id_ = unit_id;
@@ -1000,7 +1004,7 @@ int ObLSInfo::update_replica_status()
         if (OB_FAIL(learner_list->get_learner_by_addr(r->get_server(), learner))) {
           LOG_WARN("fail to get learner by addr", KR(ret));
         } else if (in_leader_learner_list) {
-          in_member_time_us = learner.get_timestamp();
+          in_member_time_us = learner.get_timestamp() ;
         }
       } else {
         r->set_replica_type(REPLICA_TYPE_FULL);
