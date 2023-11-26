@@ -127,6 +127,70 @@ using namespace storage;
 using namespace palf;
 namespace rootserver
 {
+
+class CreateSysSchemaTask : public lib::TGRunnable {
+public:
+  CreateSysSchemaTask(ObDDLService &ddl_service,
+                   ObIArray<ObTableSchema> &table_schemas, int64_t begin,
+                   int64_t i)
+      : ddl_service_(ddl_service), table_schemas_(table_schemas), begin_(begin),
+        end_(i) {}
+  virtual ~CreateSysSchemaTask() {}
+
+  virtual void run1() override {
+    auto start = ObTimeUtility::current_time();
+    lib::set_thread_name("CreateSchemaTask");
+    LOG_INFO("进入SYS线程", K(begin_), K(end_));
+    int ret = OB_SUCCESS;
+    }
+    auto end = ObTimeUtility::current_time();
+    LOG_INFO("batch create schema worker job", K(begin_), K(end_), K(end_ - begin_),
+             K(ret), K(end - start));
+  }
+
+  int init() {
+    int ret = OB_SUCCESS;
+    if (IS_INIT) {
+      ret = OB_INIT_TWICE;
+      LOG_WARN("init twice", K(ret));
+    } else if (OB_FAIL(TG_CREATE_TENANT(lib::TGDefIDs::CREATE_SCHEMA_TASK,
+                                        tg_id_))) {
+      LOG_WARN("fail to create tenant for create schema task", K(ret));
+    } else {
+      is_inited_ = true;
+    }
+    return ret;
+  }
+  int start() {
+    int ret = OB_SUCCESS;
+    if (IS_NOT_INIT) {
+      ret = OB_NOT_INIT;
+      LOG_WARN("not init", K(ret));
+    } else if (OB_FAIL(TG_SET_RUNNABLE_AND_START(tg_id_, *this))) {
+      LOG_WARN("fail to set runnable and start", K(ret));
+    }
+    return ret;
+  }
+  void set_begin(int64_t begin) { begin_ = begin; }
+  void set_i(int64_t i) { i_ = i; }
+  void set_cur_trace_id(const ObCurTraceId::TraceId *cur_trace_id) {
+    cur_trace_id_ = cur_trace_id;
+  }
+  void wait() { TG_WAIT(tg_id_); }
+  void stop() { TG_STOP(tg_id_); }
+  void destroy() { TG_DESTROY(tg_id_); }
+
+private:
+  int tg_id_;
+  bool is_inited_ = false;
+  ObDDLService &ddl_service_;
+  ObIArray<ObTableSchema> &table_schemas_;
+  int64_t finish_cnt_;
+  int64_t begin_;
+  int64_t end_;
+  const ObCurTraceId::TraceId *cur_trace_id_;
+};
+
 #define MODIFY_LOCALITY_NOT_ALLOWED() \
         do { \
           ret = OB_OP_NOT_ALLOW; \
