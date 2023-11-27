@@ -1911,7 +1911,9 @@ int ObTableSqlService::add_table(
         LOG_WARN("fail to get all table name", K(ret), K(exec_tenant_id));
       } else if (OB_FAIL(dml.add_column("is_deleted", is_deleted))) {
         LOG_WARN("add column failed", K(ret));
-      } else if (OB_FAIL(exec.exec_insert(table_name, dml, affected_rows))) {
+      } 
+      //这里执行插入了的
+      else if (OB_FAIL(exec.exec_insert(table_name, dml, affected_rows))) {
         LOG_WARN("execute insert failed", K(ret));
       } else if (!is_single_row(affected_rows)) {
         ret = OB_ERR_UNEXPECTED;
@@ -3573,6 +3575,7 @@ int ObTableSqlService::delete_from_all_optstat_user_prefs(ObISQLClient &sql_clie
   return ret;
 }
 
+//传入了有租户id和数据表id，新的schema版本
 int ObTableSqlService::update_data_table_schema_version(
     ObISQLClient &sql_client,
     const uint64_t tenant_id,
@@ -3586,6 +3589,8 @@ int ObTableSqlService::update_data_table_schema_version(
   ObRefreshSchemaStatus schema_status;
   schema_status.tenant_id_ = tenant_id;
   ObTableSchema table_schema;
+  //生成一个新版本schema
+  LOG_WARN("进入update_data_table_schema_version了，表的id是",  K(ret),K(data_table_id));
   if (OB_INVALID_VERSION == new_schema_version
       && OB_FAIL(schema_service_.gen_new_schema_version(
                  tenant_id, OB_INVALID_VERSION, new_schema_version))) {
@@ -3594,7 +3599,10 @@ int ObTableSqlService::update_data_table_schema_version(
   } else if (OB_INVALID_ID == data_table_id) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid data table id", K(data_table_id));
-  } else if (OB_FAIL(schema_service_.get_table_schema_from_inner_table(
+  } 
+  //这里获取表的schema从内部表。这是直接从缓存中获取吗？不是应该就是从磁盘获取的，因为前面都已经插入了吧，所以这里能获取到
+  //这里需要再看一下，这个table是啥呢，这个status只有租户id呢。
+  else if (OB_FAIL(schema_service_.get_table_schema_from_inner_table(
                      schema_status, data_table_id, sql_client, table_schema))) {
     LOG_WARN("get_table_schema failed", K(data_table_id), K(ret));
   }
@@ -3602,7 +3610,9 @@ int ObTableSqlService::update_data_table_schema_version(
     if (FALSE_IT(table_schema.set_in_offline_ddl_white_list(in_offline_ddl_white_list))) {
     } else if (OB_FAIL(check_ddl_allowed(table_schema))) {
       LOG_WARN("check ddl allowd failed", K(ret), K(table_schema));
-    } else if (OB_FAIL(dml.add_pk_column("tenant_id", ObSchemaUtils::get_extract_tenant_id(
+    } 
+    //添加各种字段,感觉只有schema_version更新了·
+    else if (OB_FAIL(dml.add_pk_column("tenant_id", ObSchemaUtils::get_extract_tenant_id(
                                                       exec_tenant_id, tenant_id)))
           || OB_FAIL(dml.add_pk_column("table_id", ObSchemaUtils::get_extract_schema_id(
                                                    exec_tenant_id, data_table_id)))
@@ -3615,9 +3625,14 @@ int ObTableSqlService::update_data_table_schema_version(
     } else {
       int64_t affected_rows = 0;
       const char *table_name = NULL;
+      //获取表名,就是这个__all_table
       if (OB_FAIL(ObSchemaUtils::get_all_table_name(exec_tenant_id, table_name))) {
         LOG_WARN("fail to get all table name", K(ret), K(exec_tenant_id));
-      } else if (OB_FAIL(exec_update(sql_client, tenant_id, data_table_id,
+      } 
+      //执行更新，这是要更新值吧，那说明schema缓存应该不只是schema吧？还是涉及到少部分数据的？
+      //不对，好像数据就是schema，因为有的schema会存放在一个表里面。而schema可能是多个版本，所以就可能插入或者更新schema？对的这里就是更新schema
+      //那么这个__all_table就是存储了数据的
+      else if (OB_FAIL(exec_update(sql_client, tenant_id, data_table_id,
                                      table_name, dml, affected_rows))) {
         LOG_WARN("exec update failed", K(ret));
       } else if (!is_single_row(affected_rows)) {
@@ -3629,11 +3644,13 @@ int ObTableSqlService::update_data_table_schema_version(
                  K(data_table_id));
       }
     }
-    // add new table_schema to __all_table_history
+    // add new table_schema to __all_table_history 添加新的table_shcema到__all_table_history
     if (OB_SUCC(ret)) {
       const bool only_history = true;
       const bool update_object_status_ignore_version = false;
+      //这里设置了版本
       table_schema.set_schema_version(new_schema_version);
+      //添加一条schema进去？对的因为是新的嘛
       if (OB_FAIL(add_table(sql_client, table_schema, update_object_status_ignore_version, only_history))) {
         LOG_WARN("add_table failed", K(table_schema), K(only_history), K(ret));
       }
@@ -3646,11 +3663,12 @@ int ObTableSqlService::update_data_table_schema_version(
       opt.table_id_ = data_table_id;
       opt.op_type_ = OB_DDL_MODIFY_TABLE_SCHEMA_VERSION;
       opt.schema_version_ = new_schema_version;
+      //这里好像是记录日志
       if (OB_FAIL(log_operation_wrapper(opt, sql_client))) {
         LOG_WARN("log operation failed", K(opt), K(ret));
       }
     }
-  } else if (OB_TABLE_NOT_EXIST == ret) { // need to check if mock fk parent table exist
+  } else if (OB_TABLE_NOT_EXIST == ret) { // need to check if mock fk parent table exist 应该不会进入吧
     ObMockFKParentTableSchema mock_fk_parent_table_schema;
     if (OB_FAIL(schema_service_.get_mock_fk_parent_table_schema_from_inner_table(
                 schema_status, data_table_id, sql_client, mock_fk_parent_table_schema))) {
@@ -3659,6 +3677,7 @@ int ObTableSqlService::update_data_table_schema_version(
       LOG_WARN("get_table_schema failed", K(ret), K(mock_fk_parent_table_schema));
     }
   }
+  //vector
   return ret;
 }
 

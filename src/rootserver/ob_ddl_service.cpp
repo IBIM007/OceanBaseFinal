@@ -22054,6 +22054,7 @@ int ObDDLService::create_tenant(
     //创建租户schema，耗时0.4秒
     //要从这里开始细看嘛，日志从12-1955行
     //感觉也没必要细看，
+    //这里面也有refresh
     else if (OB_FAIL(create_tenant_schema(
                arg, schema_guard, user_tenant_schema,
                meta_tenant_schema, init_configs))) {
@@ -22297,7 +22298,9 @@ int ObDDLService::create_tenant_schema(
       ObZone zone; // empty means get all zone's servers
       if (OB_FAIL(unit_mgr_->get_tenant_unit_servers(user_tenant_id, zone, addrs))) {
         LOG_WARN("fail to get tenant's servers", KR(ret), K(user_tenant_id));
-      } else if (OB_FAIL(publish_schema(OB_SYS_TENANT_ID, addrs))) {
+      } 
+      //注意这里面也有refresh
+      else if (OB_FAIL(publish_schema(OB_SYS_TENANT_ID, addrs))) {
         LOG_WARN("publish schema failed", KR(ret), K(addrs));
       }
     }
@@ -22686,7 +22689,7 @@ int ObDDLService::create_normal_tenant(
   else if (is_user_tenant(tenant_id) && !tenant_role.is_primary()) {
     //standby cluster no need create sys tablet and init tenant schema
   } 
-  //这是第一次用到tables，里面会赋值
+  //这是第一次用到tables，里面会赋值，同样基本只关心这个tables数组吧
   else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
     LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
   } 
@@ -22694,7 +22697,7 @@ int ObDDLService::create_normal_tenant(
   else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {
     LOG_WARN("fail to broadcast sys table schemas", KR(ret), K(tenant_id));
   } 
-  //创建租户系统表
+  //创建租户系统表。这里面也很耗时
   else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {
     LOG_WARN("fail to create tenant partitions", KR(ret), K(tenant_id));
   } 
@@ -23121,6 +23124,7 @@ int ObDDLService::init_tenant_schema(
     const common::ObString &log_restore_source)
 {
   const int64_t start_time = ObTimeUtility::fast_current_time();
+  //这个打印了两次，也就是调用了两次
   LOG_INFO("[CREATE_TENANT] STEP 2.4. start init tenant schemas", K(tenant_id));
   int ret = OB_SUCCESS;
   if (OB_FAIL(check_inner_stat())) {
@@ -23286,7 +23290,7 @@ int ObDDLService::init_tenant_schema(
       } else if (OB_FAIL(sys_ls_info.get_paxos_member_addrs(addrs))) {
         LOG_WARN("fail to get paxos member addrs", K(ret), K(tenant_id), K(sys_ls_info));
       } 
-      //注意一下这个方法
+      //注意一下这个方法,init_tenant_schema也调用了的
       else if (OB_FAIL(publish_schema(tenant_id, addrs))) {
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
       }
@@ -23304,7 +23308,7 @@ int ObDDLService::init_tenant_schema(
       } else if (OB_FAIL(global_stat_proxy.set_baseline_schema_version(baseline_schema_version))) {
         LOG_WARN("fail to set baseline schema version",
                  KR(ret), K(tenant_id), K(baseline_schema_version));
-      }
+      }//感觉这个代理还走了refresh_schema的
     }
   }
 
@@ -23442,7 +23446,7 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
     So here, force trigger schema refresh refresh cache
   */
   } 
-  //rpc加载刷新后的schema状态。关键应该是这里
+  //rpc加载刷新后的schema状态。关键应该是这里，就是拿到租户id和快照时间戳，可读的的schema版本
   else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status(tenant_id, schema_status))) {
     LOG_WARN("fail to load refresh schema status", KR(ret), K(tenant_id));
   } else if (OB_FAIL(get_tenant_schema_guard_with_version_in_inner_table(OB_SYS_TENANT_ID, schema_guard))) {
@@ -23454,21 +23458,24 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
   } else if (OB_FAIL(trans.start(sql_proxy_, OB_SYS_TENANT_ID, sys_schema_version))) {
     LOG_WARN("start transaction failed", KR(ret), K(tenant_id), K(sys_schema_version));
   } 
-  //注意这里关键tenant_schema.另外的卡住的地方也是一直卡在这里。
+  //注意这里关键tenant_schema.另外的卡住的地方也是一直卡在这里。说明卡住的是在前面？那么说明是前面，也不对呀，前面一直没卡呀。
   else if (OB_FAIL(schema_guard.get_tenant_info(tenant_id, tenant_schema))) {
     LOG_WARN("fail to get tenant schema", K(ret), K(tenant_id));
   } else if (OB_ISNULL(tenant_schema)) {
     ret = OB_TENANT_NOT_EXIST;
     LOG_WARN("tenant not exist", K(ret), K(tenant_id));
   } else if (tenant_schema->is_normal()) {
+    LOG_WARN("取出来的tenant_schema是normal，tenant_schemaid是", K(tenant_id));
     // skip, Guaranteed reentrant
   } else if (!tenant_schema->is_creating()
              && !tenant_schema->is_restore()) {
     ret = OB_STATE_NOT_MATCH;
+    //没打印，说明一拿到就是normal吧
     LOG_WARN("state not match", K(ret), K(tenant_id));
   } else if (OB_FAIL(new_tenant_schema.assign(*tenant_schema))) {
     LOG_WARN("fail to assign tenant schema", KR(ret));
   } else {
+    LOG_INFO("进入了else，说明前面就是没有进入is_normal", K(tenant_id));
     //进入这里吧
     ObDDLSQLTransaction tenant_trans(schema_service_);
     ObDDLOperator ddl_operator(*schema_service_, *sql_proxy_);
@@ -23545,7 +23552,7 @@ int ObDDLService::create_tenant_end(const uint64_t tenant_id)
       }
     }
     if (OB_SUCC(ret)) {
-      //这里会发布publish_schema吧，也就是后面耗时操作的来源。一个参数
+      //这里会发布publish_schema吧，也就是后面耗时操作的来源。一个参数。
       if (OB_SUCCESS != (temp_ret = publish_schema(OB_SYS_TENANT_ID))) {
         LOG_WARN("publish schema failed", K(temp_ret));
       }
@@ -26427,17 +26434,19 @@ int ObDDLService::refresh_schema(uint64_t tenant_id, int64_t *publish_schema_ver
     } else if (OB_FAIL(tenant_ids.push_back(tenant_id))) {
       LOG_WARN("fail to push back tenant_id", KR(ret), K(tenant_id));
     }
-    //这里有一个循环
+    //这里有一个循环，这是别人来通知是否结束。这是单独开了一个线程吧,应该是，毕竟create_tenant_end很快结束的
     while (!stopped_) {
       common::ObTimeoutCtx ctx;
       if (OB_FAIL(schema_service_->set_timeout_ctx(ctx))) {
         LOG_ERROR("fail to set timeout_ctx, refresh schema failed", KR(ret), K(tenant_id));
         break;
       } else {
+        //看一下这个方法
         ret = schema_service_->refresh_and_add_schema(tenant_ids);
       }
 
       if (OB_SUCC(ret)) {
+        //立刻跳出吧？
         break;
       } else {
         int tmp_ret = OB_SUCCESS;
@@ -26455,10 +26464,12 @@ int ObDDLService::refresh_schema(uint64_t tenant_id, int64_t *publish_schema_ver
           LOG_DBA_ERROR(OB_ERR_REFRESH_SCHEMA_TOO_LONG,
                         "msg", "refresh schema failed", KR(ret), K(refresh_count));
         }
+        //重点关注一下这个参数
         ob_usleep(REFRESH_SCHEMA_INTERVAL_US);
       }
     }
     if (OB_SUCC(ret) && !stopped_) {
+      //可能会进入这里吗？
       int64_t schema_version = OB_INVALID_VERSION;
       if (OB_FAIL(schema_service_->get_tenant_refreshed_schema_version(
                          tenant_id, schema_version))) {
@@ -26664,14 +26675,14 @@ int ObDDLService::publish_schema(uint64_t tenant_id,
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("variable is not init");
   } 
-  //刷新
+  //这里调用了refresh_schema刷新
   else if (OB_FAIL(refresh_schema(tenant_id))) {
     LOG_WARN("refresh schema failed", K(ret));
   } 
   //通知刷新，应该是通知其他人吧？上面只是本地刷新？
-  else if (OB_FAIL(notify_refresh_schema(addrs))) {
+  /*else if (OB_FAIL(notify_refresh_schema(addrs))) {
     LOG_WARN("notify refresh schema failed", K(ret));
-  }
+  }*/
 
   return ret;
 }
@@ -26689,9 +26700,9 @@ int ObDDLService::publish_schema_and_get_schema_version(uint64_t tenant_id,
     LOG_WARN("refresh schema failed", KR(ret));
   } else if (OB_FAIL(ObShareUtil::set_default_timeout_ctx(ctx, TIMEOUT))) {// 10s for notify_refresh_schema
     LOG_WARN("fail to set default timeout ctx", KR(ret));
-  } else if (OB_FAIL(notify_refresh_schema(addrs))) {
+  } /*else if (OB_FAIL(notify_refresh_schema(addrs))) {
     LOG_WARN("notify refresh schema failed", KR(ret));
-  }
+  }*/
 
   return ret;
 }

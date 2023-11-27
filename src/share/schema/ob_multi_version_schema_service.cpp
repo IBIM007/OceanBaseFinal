@@ -226,7 +226,7 @@ int ObMultiVersionSchemaService::init_multi_version_schema_struct(
   }
   return ret;
 }
-
+//应该会进入这里面
 int ObMultiVersionSchemaService::update_schema_cache(
     common::ObIArray<ObTableSchema*> &schema_array)
 {
@@ -239,7 +239,9 @@ int ObMultiVersionSchemaService::update_schema_cache(
       LOG_WARN("schema is null", KR(ret));
     } else if (OB_FAIL(ObSysTableChecker::fill_sys_index_infos(*table))) {
       LOG_WARN("fail to fill sys indexes", KR(ret), "table_id", table->get_table_id());
-    } else if (OB_FAIL(schema_cache_.put_schema(TABLE_SCHEMA,
+    } 
+    //注意看这里吧，这里的缓存是类成员。
+    else if (OB_FAIL(schema_cache_.put_schema(TABLE_SCHEMA,
                                                 table->get_tenant_id(),
                                                 table->get_table_id(),
                                                 table->get_schema_version(),
@@ -2151,7 +2153,7 @@ int ObMultiVersionSchemaService::init_original_schema()
   return ret;
 }
 
-// schema version must incremental
+// schema version must incremental schema版本必须自增
 int ObMultiVersionSchemaService::add_schema(
     const uint64_t tenant_id,
     const bool force_add)
@@ -2186,13 +2188,16 @@ int ObMultiVersionSchemaService::add_schema(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("mem_mgr is null", K(ret), K(tenant_id));
   } else {
+    //这里拿到cache
     schema_mgr_cache = &schema_store->schema_mgr_cache_;
     new_schema_version = schema_mgr_for_cache->get_schema_version();
     refreshed_schema_version = schema_store->get_refreshed_version();
     if (OB_ISNULL(schema_mgr_cache)) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("schema_mgr_cache is null", K(ret), K(tenant_id));
-    } else if (refreshed_schema_version > new_schema_version) {
+    } 
+    //如果版本更大，那么直接刷新
+    else if (refreshed_schema_version > new_schema_version) {
       LOG_WARN("add schema is old",
                K(refreshed_schema_version),
                K(new_schema_version),
@@ -2201,11 +2206,14 @@ int ObMultiVersionSchemaService::add_schema(
     FLOG_INFO("add schema", K(tenant_id), K(refreshed_schema_version), K(new_schema_version));
 
     bool is_exist = false;
+    //注意这里会检查是不是存在，但是传入的是新版本？
     if (FAILEDx(schema_mgr_cache->check_schema_mgr_exist(new_schema_version, is_exist))) {
       LOG_WARN("fail to check schema_mgr exist", K(ret), K(tenant_id), K(new_schema_version));
     } else if (is_exist) {
       LOG_INFO("schema mgr already exist, just skip", K(ret), K(tenant_id), K(new_schema_version));
-    } else if (OB_FAIL(alloc_and_put_schema_mgr_(*mem_mgr, *schema_mgr_for_cache, *schema_mgr_cache))) {
+    } 
+    //这个方法就是真的放进去吧，好像是放入到mem_mgr
+    else if (OB_FAIL(alloc_and_put_schema_mgr_(*mem_mgr, *schema_mgr_for_cache, *schema_mgr_cache))) {
       LOG_WARN("fail to alloc and put schema mgr", KR(ret));
     }
     // try switch allocator
@@ -2240,6 +2248,7 @@ int ObMultiVersionSchemaService::add_schema(
       }
     }
     int64_t end_time = ObTimeUtility::current_time();
+    //打印了的
     LOG_INFO("finish add schema", KR(ret), K(tenant_id), K(new_schema_version), "cost_ts", start_time - end_time);
   }
   return ret;
@@ -2517,7 +2526,7 @@ int ObMultiVersionSchemaService::refresh_and_add_schema(const ObIArray<uint64_t>
       ObArray<uint64_t> all_tenant_ids;
       if (OB_FAIL(ret)) {
       } 
-      //如果没有才进去
+      //如果没有才进去，应该不会进去
       else if (0 == tenant_ids.count()) {
         // refresh all tenant schema
         ObSchemaMgr *schema_mgr = NULL;
@@ -2904,6 +2913,7 @@ int ObMultiVersionSchemaService::refresh_tenant_schema(
   return ret;
 }
 
+//进入这里面，调用了一个add_schema
 int ObMultiVersionSchemaService::publish_schema(const uint64_t tenant_id)
 {
   int ret = OB_SUCCESS;

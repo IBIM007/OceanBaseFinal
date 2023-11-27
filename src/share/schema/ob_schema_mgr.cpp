@@ -2367,7 +2367,9 @@ int ObSchemaMgr::add_tables(
           if (OB_ISNULL(table)) {
             ret = OB_ERR_UNEXPECTED;
             LOG_WARN("table is null", KR(ret), K(i));
-          } else if (OB_FAIL(add_table(*table, &cost_array))) {
+          } 
+          //这是往表里面插入吗？
+          else if (OB_FAIL(add_table(*table, &cost_array))) {
             LOG_WARN("add table failed", KR(ret), KPC(table));
           }
         } // end for
@@ -2762,6 +2764,7 @@ int ObSchemaMgr::add_table(
           }
         }
         if (OB_SUCC(ret) && !new_table_schema->is_user_hidden_table()) {
+          //可能是这里吧
           if (OB_FAIL(add_constraints_in_table(new_table_schema, 1 /*over_write*/))) {
             LOG_WARN("add foreign keys info to a hash map failed", K(ret), K(*new_table_schema));
           } else {

@@ -882,7 +882,7 @@ int ObSchemaServiceSQLImpl::get_baseline_schema_version(
   return ret;
 }
 
-// for ddl, using strong read
+// for ddl, using strong read 会进入这里吧
 int ObSchemaServiceSQLImpl::get_table_schema_from_inner_table(
     const ObRefreshSchemaStatus &schema_status,
     const uint64_t table_id,
@@ -891,16 +891,20 @@ int ObSchemaServiceSQLImpl::get_table_schema_from_inner_table(
 {
   int ret = OB_SUCCESS;
   table_schema.reset();
+  LOG_WARN("进入了get_table_schema_from_inner_table", KR(ret));
   if (!check_inner_stat()) {
     ret = OB_NOT_INIT;
     LOG_WARN("check inner stat fail", KR(ret), K(schema_status));
   } else {
+    //是不是核心表
     if (is_core_table(table_id)) {
+      LOG_WARN("update data table schema version本次就是核心表", KR(ret));
       ObArray<ObTableSchema> core_schemas;
       if (OB_FAIL(get_core_table_schemas(sql_client, schema_status, core_schemas))) {
         LOG_WARN("get core table schemas failed", KR(ret), K(schema_status));
       } else {
         const ObTableSchema *dst_schema = NULL;
+        //注意这里是筛选了的，通过id来查询
         FOREACH_CNT_X(core_schema, core_schemas, OB_SUCCESS == ret) {
           if (table_id == core_schema->get_table_id()) {
             dst_schema = core_schema;
@@ -915,20 +919,27 @@ int ObSchemaServiceSQLImpl::get_table_schema_from_inner_table(
         }
       }
     } else {
+      //全是走的这里面
+      LOG_WARN("update data table schema version本次就不是不是不是核心表", KR(ret));
       // set schema_version to get newest table_schema
       int64_t schema_version = INT64_MAX - 1;
       ObArray<uint64_t> table_ids;
       ObArray<ObTableSchema *> tables;
       ObArenaAllocator allocator(ObModIds::OB_SCHEMA);
+      //只有一个id
       if (OB_FAIL(table_ids.push_back(table_id))) {
         LOG_WARN("push table_id to array failed", KR(ret), K(schema_status));
-      } else if (OB_FAIL(get_batch_table_schema(schema_status, schema_version,
+      } 
+      //通过这个table_id，拿到一堆tableschema
+      else if (OB_FAIL(get_batch_table_schema(schema_status, schema_version,
                                                 table_ids, sql_client, allocator, tables))) {
         LOG_WARN("get table schema failed", KR(ret), K(schema_version), K(table_id), K(schema_status));
       } else if (tables.count() <= 0) {
         ret = OB_TABLE_NOT_EXIST;
         LOG_WARN("table array should not be empty", KR(ret), K(schema_status));
-      } else if (OB_FAIL(table_schema.assign(*tables.at(0)))){
+      } 
+      //第0条
+      else if (OB_FAIL(table_schema.assign(*tables.at(0)))){
         LOG_WARN("fail to assign schema", KR(ret), K(schema_status));
       }
     }
@@ -4511,7 +4522,9 @@ int ObSchemaServiceSQLImpl::fetch_tenants(
       } else if (OB_UNLIKELY(NULL == (result = res.get_result()))) {
         ret = OB_ERR_UNEXPECTED;
         LOG_WARN("fail to get result. ", K(ret));
-      } else if (OB_FAIL(ObSchemaRetrieveUtils::retrieve_tenant_schema(sql_client_retry_weak, *result, schema_array))) {
+      } 
+      //这个方法明显调用过的
+      else if (OB_FAIL(ObSchemaRetrieveUtils::retrieve_tenant_schema(sql_client_retry_weak, *result, schema_array))) {
         LOG_WARN("failed to retrieve tenant schema", K(ret));
       }
     }

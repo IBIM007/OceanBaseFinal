@@ -508,6 +508,66 @@ int ObSchemaUtils::construct_inner_table_schemas(
             if (OB_FAIL(add_sys_table_lob_aux_table(tenant_id, data_table_id, tables))) {
               LOG_WARN("fail to add lob table to sys table", KR(ret), K(data_table_id));
             }
+            if(data_table_id==12302){
+              LOG_WARN("12302这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==12185){
+              LOG_WARN("12185这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11031){
+              LOG_WARN("11031这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11021){
+              LOG_WARN("11021这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11020){
+              LOG_WARN("11020这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11017){
+              LOG_WARN("11017这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11015){
+              LOG_WARN("11015这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11014){
+              LOG_WARN("11014这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11013){
+              LOG_WARN("11013这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11003){
+              LOG_WARN("11003这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==12302){
+              LOG_WARN("12302这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==12185){
+              LOG_WARN("12185这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11031){
+              LOG_WARN("11031这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11021){
+              LOG_WARN("11021这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11020){
+              LOG_WARN("11020这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11017){
+              LOG_WARN("11017这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11015){
+              LOG_WARN("11015这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11014){
+              LOG_WARN("11014这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11013){
+              LOG_WARN("11013这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11003){
+              LOG_WARN("11003这张表schema出现一次了", K(ret));
+            }
           } // end lob aux table
         }
       }

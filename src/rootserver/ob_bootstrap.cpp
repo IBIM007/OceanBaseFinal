@@ -643,7 +643,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   //向rs_list广播schema信息
   else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {
     LOG_WARN("broadcast_sys_schemas failed", K(table_schemas), K(ret));
-  } 
+  }
   //创建所有分区，cost，应该是0.2吧
   //类似create_all_core_table_partition，创建其他系统表的tablet
   else if (OB_FAIL(create_all_partitions())) {
@@ -938,6 +938,8 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
   } else {
     HEAP_VAR(ObTableSchema, data_schema) {
       for (int64_t i = 0; OB_SUCC(ret) && i < ARRAYSIZEOF(creator_ptr_arrays); ++i) {
+        int number=table_schemas.count();
+        LOG_WARN("开始构造前number大小是", K(number));
         for (const schema_create_func *creator_ptr = creator_ptr_arrays[i];
              OB_SUCCESS == ret && NULL != *creator_ptr; ++creator_ptr) {
           table_schema.reset();
@@ -960,7 +962,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
               LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
             }
           }
-
+          
           const int64_t data_table_id = table_schema.get_table_id();
           if (OB_SUCC(ret) && exist) {
             // process lob aux table
@@ -971,8 +973,40 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
             if (OB_SUCC(ret) && OB_FAIL(table_schemas.push_back(table_schema))) {
               LOG_WARN("push_back failed", KR(ret), K(table_schema));
             }
+            if(data_table_id==12302){
+              LOG_WARN("12302这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==12185){
+              LOG_WARN("12185这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11031){
+              LOG_WARN("11031这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11021){
+              LOG_WARN("11021这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11020){
+              LOG_WARN("11020这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11017){
+              LOG_WARN("11017这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11015){
+              LOG_WARN("11015这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11014){
+              LOG_WARN("11014这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11013){
+              LOG_WARN("11013这张表schema出现一次了", K(ret));
+            }
+            if(data_table_id==11003){
+              LOG_WARN("11003这张表schema出现一次了", K(ret));
+            }
           }
         }
+        if(i==0)LOG_WARN("i=0即核心表吧。本次循环后schema新增了这么多个", K(table_schemas.count()-number));
+        else LOG_WARN("本次循环后schema新增了这么多个", K(table_schemas.count()-number));
       }
     }
   }
