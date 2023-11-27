@@ -128,13 +128,13 @@ using namespace palf;
 namespace rootserver
 {
 
-class CreateSysSchemaTask : public lib::TGRunnable {
+class CreateSysSchemaTask : public lib::TGRunnable { // TODO (gushengjie)
 public:
-  CreateSysSchemaTask(ObDDLService &ddl_service,
-                   ObIArray<ObTableSchema> &table_schemas, int64_t begin,
-                   int64_t i)
-      : ddl_service_(ddl_service), table_schemas_(table_schemas), begin_(begin),
-        end_(i) {}
+  CreateSysSchemaTask(ObDDLOperator &ddl_operator, ObMySQLTransaction &trans,
+                      common::ObIArray<ObTableSchema> &tables, int64_t begin,
+                      int64_t end)
+      : ddl_operator_(ddl_operator), trans_(trans), tables_(tables), begin_(begin),
+        end_(end) {}
   virtual ~CreateSysSchemaTask() {}
 
   virtual void run1() override {
@@ -142,6 +142,25 @@ public:
     lib::set_thread_name("CreateSchemaTask");
     LOG_INFO("进入SYS线程", K(begin_), K(end_));
     int ret = OB_SUCCESS;
+    for (int64_t i = begin_; OB_SUCC(ret) && i < end_; i++) {
+      ObTableSchema &table = tables_.at(i);
+      const int64_t table_id = table.get_table_id();
+      const ObString &table_name = table.get_table_name();
+      const ObString *ddl_stmt = NULL;
+      //是否需要同步schema版本。
+      bool need_sync_schema_version =
+          !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
+            is_sys_lob_table(table_id));
+
+      if (OB_FAIL(ddl_operator_.create_table(table, trans_, ddl_stmt,
+                                            need_sync_schema_version,
+                                            false /*is_truncate_table*/))) {
+        LOG_WARN("add table schema failed", KR(ret), K(table_id),
+                 K(table_name));
+      } else {
+        //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
+        LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
+      }
     }
     auto end = ObTimeUtility::current_time();
     LOG_INFO("batch create schema worker job", K(begin_), K(end_), K(end_ - begin_),
@@ -171,11 +190,6 @@ public:
     }
     return ret;
   }
-  void set_begin(int64_t begin) { begin_ = begin; }
-  void set_i(int64_t i) { i_ = i; }
-  void set_cur_trace_id(const ObCurTraceId::TraceId *cur_trace_id) {
-    cur_trace_id_ = cur_trace_id;
-  }
   void wait() { TG_WAIT(tg_id_); }
   void stop() { TG_STOP(tg_id_); }
   void destroy() { TG_DESTROY(tg_id_); }
@@ -183,12 +197,11 @@ public:
 private:
   int tg_id_;
   bool is_inited_ = false;
-  ObDDLService &ddl_service_;
-  ObIArray<ObTableSchema> &table_schemas_;
-  int64_t finish_cnt_;
+  ObDDLOperator &ddl_operator_;
+  ObMySQLTransaction &trans_;
+  common::ObIArray<ObTableSchema> &tables_;
   int64_t begin_;
   int64_t end_;
-  const ObCurTraceId::TraceId *cur_trace_id_;
 };
 
 #define MODIFY_LOCALITY_NOT_ALLOWED() \
@@ -23025,7 +23038,7 @@ int ObDDLService::broadcast_sys_table_schemas(
   return ret;
 }
 
-int ObDDLService::create_tenant_sys_tablets(
+int ObDDLService::create_tenant_sys_tablets(    
     const uint64_t tenant_id,
     common::ObIArray<ObTableSchema> &tables)
 {
@@ -23405,7 +23418,7 @@ int ObDDLService::set_log_restore_source(
   return ret;
 }
 //创建系统表schema
-int ObDDLService::create_sys_table_schemas(
+int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     ObDDLOperator &ddl_operator,
     ObMySQLTransaction &trans,
     common::ObIArray<ObTableSchema> &tables)
@@ -23422,23 +23435,31 @@ int ObDDLService::create_sys_table_schemas(
     //持久化核心表的schema到内部表中，这个表只被系统视图使用。
     //就是这里耗时
     //真有1000多张表
+    CreateSysSchemaTask task(ddl_operator,trans,tables,0,100);
+    task.init();
+    task.start();
+    task.wait();
+    CreateSysSchemaTask task1(ddl_operator,trans,tables,100,tables.count());
+    task1.init();
+    task1.start();
+    task1.wait();
     for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
-      ObTableSchema &table = tables.at(i);
-      const int64_t table_id = table.get_table_id();
-      const ObString &table_name = table.get_table_name();
-      const ObString *ddl_stmt = NULL;
-      //是否需要同步schema版本。
-      bool need_sync_schema_version = !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
-                                        is_sys_lob_table(table_id));
+      // ObTableSchema &table = tables.at(i);
+      // const int64_t table_id = table.get_table_id();
+      // const ObString &table_name = table.get_table_name();
+      // const ObString *ddl_stmt = NULL;
+      // //是否需要同步schema版本。
+      // bool need_sync_schema_version = !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
+      //                                   is_sys_lob_table(table_id));
       
-      if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
-                                            need_sync_schema_version,
-                                            false /*is_truncate_table*/))) {
-        LOG_WARN("add table schema failed", KR(ret), K(table_id), K(table_name));
-      } else {
-        //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
-        LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
-      }
+      // if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
+      //                                       need_sync_schema_version,
+      //                                       false /*is_truncate_table*/))) {
+      //   LOG_WARN("add table schema failed", KR(ret), K(table_id), K(table_name));
+      // } else {
+      //   //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
+      //   LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name)); // 2311
+      // }
     }
   }
   return ret;
