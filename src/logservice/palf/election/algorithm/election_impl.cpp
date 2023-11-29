@@ -129,6 +129,7 @@ int ElectionImpl::init_and_start(const int64_t id,
     is_inited_ = true;
     is_running_ = true;
     LOG_INIT(INFO, "election init and start");
+    proposer_.be_leader_immediately_in_standalone_mode(RoleChangeReason::DevoteToBeLeader);
   }
 
   

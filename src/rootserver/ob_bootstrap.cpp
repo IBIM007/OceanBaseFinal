@@ -368,9 +368,10 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } 
   //我的TODO重点关注。等待选举日志流，这里执行完也就是选举会执行完了
   //等待选举完成
-  else if (OB_FAIL(wait_elect_ls(master_rs))) {
+  /*else if (OB_FAIL(wait_elect_ls(master_rs))) {
     LOG_WARN("failed to wait elect master partition", KR(ret));
-  }
+  }*/
+  master_rs = GCONF.self_addr_;
   //前面都是检查，这里才是真正做事吧。
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
