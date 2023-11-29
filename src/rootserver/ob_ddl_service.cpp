@@ -23510,27 +23510,27 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service));
   } else {
     int ret = OB_SUCCESS;
-    int64_t begin = 16;
-    int64_t batch_count = tables.count() / 64; // 【62，139】
+    int64_t begin = 0;
+    int64_t batch_count = tables.count() / 16; // 【62，139】
     std::vector<CreateSysSchemaTask> ths;
     ths.reserve(16);
-    ths.emplace_back(tenant_id, *this, tables, 0, 16);
-    ths.back().init();
-    ths.back().start();
-    ths.back().wait();
-    for (int64_t i = 16; OB_SUCC(ret) && i < tables.count(); ++i) {
+    // ths.emplace_back(tenant_id, *this, tables, 0, 16);
+    // ths.back().init();
+    // ths.back().start();
+    // ths.back().wait();
+    for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
       if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
         while ((i+1) < tables.count() and (is_sys_index_table(tables.at(i+1).get_table_id()) or is_sys_lob_table(tables.at(i+1).get_table_id()))) {
           ++i;
         }
-        if(tenant_id == 1001 and begin == 1000) {
-          begin = 1019;
-          continue;
-        }
-        if(tenant_id == 1002 and begin == 777) {
-          begin = 793;
-          continue;
-        }
+        // if(tenant_id == 1001 and begin == 1000) {
+        //   begin = 1019;
+        //   continue;
+        // }
+        // if(tenant_id == 1002 and begin == 777) {
+        //   begin = 793;
+        //   continue;
+        // }
         ths.emplace_back(tenant_id, *this, tables,begin,i+1);
         ths.back().init();
         ths.back().start();
@@ -23540,18 +23540,21 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     for (int i = 1; i < ths.size(); i++) {
       ths.at(i).wait();
     }
-    if(tenant_id == 1001) {
-      CreateSysSchemaTask th(tenant_id, *this, tables,1000,1019);
-      th.init();
-      th.start();
-      th.wait();
-    }
-    if(tenant_id == 1002) {
-      CreateSysSchemaTask th(tenant_id, *this, tables,777,793);
-      th.init();
-      th.start();
-      th.wait();
-    }
+    // if(tenant_id == 1001) {
+    //   CreateSysSchemaTask th(tenant_id, *this, tables,1000,1019);
+    //   th.init();
+    //   th.start();
+    //   th.wait();
+    // }
+    // if(tenant_id == 1002) {
+    //   CreateSysSchemaTask th(tenant_id, *this, tables,777,793);
+    //   th.init();
+    //   th.start();
+    //   th.wait();
+    // }
+
+
+
     // persist __all_core_table's schema in inner table, which is only used for sys views.
     //持久化核心表的schema到内部表中，这个表只被系统视图使用。
     //就是这里耗时
