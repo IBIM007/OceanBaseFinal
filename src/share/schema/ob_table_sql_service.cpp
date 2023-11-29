@@ -81,7 +81,7 @@ int ObTableSqlService::exec_insert(
     const char *table_name,
     ObDMLSqlSplicer &dml,
     int64_t &affected_rows)
-{
+{ // TODO () 在这个函数里失败了
   int ret = OB_SUCCESS;
   if (is_core_table(table_id)) {
     ObArray<ObCoreTableProxy::UpdateCell> cells;
@@ -96,7 +96,7 @@ int ObTableSqlService::exec_insert(
   } else {
     const uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
     ObDMLExecHelper exec(sql_client, exec_tenant_id);
-    if (OB_FAIL(exec.exec_insert(table_name, dml, affected_rows))) {
+    if (OB_FAIL(exec.exec_insert(table_name, dml, affected_rows))) { // TODO  () 这里出问题
       LOG_WARN("execute insert failed", K(ret));
     }
   }
@@ -1871,7 +1871,7 @@ int ObTableSqlService::add_table(
     const ObTableSchema &table,
     const bool update_object_status_ignore_version,
     const bool only_history)
-{
+{ // TODO (gushengjie)
   int ret = OB_SUCCESS;
 
   ObDMLSqlSplicer dml;
@@ -2353,7 +2353,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
                                     const ObString *ddl_stmt_str/*=NULL*/,
                                     const bool need_sync_schema_version,
                                     const bool is_truncate_table /*false*/)
-{
+{ // TODO (gushengjie)
   int ret = OB_SUCCESS;
   int64_t start_usec = ObTimeUtility::current_time();
   int64_t end_usec = 0;

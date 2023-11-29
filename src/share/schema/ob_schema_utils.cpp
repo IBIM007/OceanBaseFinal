@@ -489,7 +489,7 @@ int ObSchemaUtils::construct_inner_table_schemas(
             LOG_WARN("fail to check inner table exist",
                      KR(ret), K(tenant_id), K(table_schema));
           } else if (!exist) {
-            // skip
+            LOG_INFO("跳过", K(table_schema), K(tenant_id));
           } 
           //这里推进去
           else if (OB_FAIL(tables.push_back(table_schema))) {

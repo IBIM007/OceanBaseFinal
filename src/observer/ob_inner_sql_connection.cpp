@@ -746,7 +746,7 @@ int ObInnerSQLConnection::query(sqlclient::ObIExecutor &executor,
   } else if (OB_UNLIKELY(retry_info.is_inited())) {
     if (is_inner_session()) {
       ret = OB_ERR_UNEXPECTED;
-      LOG_ERROR("retry info is inited", K(ret), K(retry_info), K(executor));
+      LOG_ERROR("retry info is inited", K(ret), K(retry_info), K(executor));  // TODO () 这里出错
     }
   } else if (OB_FAIL(retry_info.init())) {
     LOG_WARN("fail to init retry info", K(ret), K(retry_info), K(executor));
@@ -1473,7 +1473,7 @@ int ObInnerSQLConnection::execute_write_inner(const uint64_t tenant_id, const Ob
       //LOG_WARN("进入了local_execute", K(ret));
       res.result_set().set_user_sql(is_user_sql);
       if (OB_FAIL(query(executor, res))) {
-        LOG_WARN("execute sql failed", K(ret), K(tenant_id), K(sql));
+        LOG_WARN("execute sql failed", K(ret), K(tenant_id), K(sql));  // 执行失败
       } else if (FALSE_IT(affected_rows = res.result_set().get_affected_rows())) {
       } else if (OB_FAIL(res.close())) {
         //没打印

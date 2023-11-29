@@ -1468,7 +1468,7 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
                                 const ObString *ddl_stmt_str/*=NULL*/,
                                 const bool need_sync_schema_version,
                                 const bool is_truncate_table /*false*/)
-{
+{ // TODO (gushengjie)
   int ret = OB_SUCCESS;
   const uint64_t tenant_id = table_schema.get_tenant_id();
   int64_t new_schema_version = OB_INVALID_VERSION;
@@ -1479,7 +1479,7 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
     RS_LOG(ERROR, "schema_service must not null");
   } else if (OB_FAIL(schema_service_.get_tenant_schema_guard(tenant_id, schema_guard))) {
     LOG_WARN("failed to get schema guard", K(ret));
-  } else if (OB_FAIL(schema_service_.gen_new_schema_version(tenant_id, new_schema_version))) {
+  } else if (OB_FAIL(schema_service_.gen_new_schema_version(tenant_id, new_schema_version))) { // 生成新的schema版本
     LOG_WARN("fail to gen new schema_version", K(ret), K(tenant_id));
   } else {
     table_schema.set_schema_version(new_schema_version);
@@ -1490,7 +1490,7 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
         ddl_stmt_str,
         need_sync_schema_version,
         is_truncate_table))) {
-      RS_LOG(WARN, "failed to create table", K(ret));
+      RS_LOG(WARN, "failed to create table", K(ret)); 
     } else if (OB_FAIL(sync_version_for_cascade_table(tenant_id,
                table_schema.get_depend_table_ids(), trans))) {
       RS_LOG(WARN, "fail to sync cascade depend table", K(ret));
