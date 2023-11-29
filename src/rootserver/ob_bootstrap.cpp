@@ -78,7 +78,7 @@ class CreateSchemaTask : public lib::TGRunnable
   CreateSchemaTask(ObDDLService& ddl_service,ObIArray<ObTableSchema>& table_schemas,int64_t begin,int64_t i )
       : ddl_service_(ddl_service),
         table_schemas_(table_schemas), begin_(begin),i_(i) {}
-  virtual ~CreateSchemaTask() {}
+  virtual ~CreateSchemaTask() { destroy();}
 
   virtual void run1() override {
     auto start = ObTimeUtility::current_time();
@@ -103,7 +103,7 @@ class CreateSchemaTask : public lib::TGRunnable
         }
       }
       auto end = ObTimeUtility::current_time();
-      LOG_INFO("batch create schema worker job", K(begin_), K(i_), K(i_-begin_), K(ret), K(end-start));
+      LOG_INFO("batch create schema worker job", K(begin_), K(i_), K(i_-begin_), K(ret), "cost",end-start);
   }
 
   int init() {
@@ -1177,35 +1177,67 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
 
 int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas)
 {
+  
+  auto start_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
   int64_t begin = 0;
   int64_t batch_count = table_schemas.count() / 16;
   const int64_t MAX_RETRY_TIMES = 10;
   int64_t finish_cnt = 0;
   std::vector<CreateSchemaTask> ths;
-  ObCurTraceId::TraceId *cur_trace_id = ObCurTraceId::get_trace_id();
-  // batch_create_schema(ddl_service,table_schemas,0,20);
-  batch_create_schema(ddl_service,table_schemas,756,770);
-  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-      if(begin == 700) {
-        ths.emplace_back(ddl_service,table_schemas,begin,756);
-      } else {
-        ths.emplace_back(ddl_service,table_schemas,begin,i+1);
-      }
-      ths.back().init();
-      ths.back().start();
-      begin = i + 1;
-    }
-  }
-  
-  for(int i = 0; i < ths.size(); i++) {
+  CreateSchemaTask th(ddl_service, table_schemas, 757, 770);
+  th.init();
+  th.wait();
+  ths.reserve(16);
+  auto create_schema = [&](int64_t begin, int64_t end) {
+    ths.emplace_back(ddl_service, table_schemas, begin, end);
+    ths.back().init();
+    ths.back().start();
+  };
+  create_schema(0,15);
+  create_schema(15,30);
+  create_schema(30,70);
+  create_schema(70, 140);
+  create_schema(140, 210);
+  create_schema(210, 280);
+  create_schema(280, 350);
+  create_schema(350, 380);
+  create_schema(380, 420);
+  create_schema(420, 480);
+  create_schema(480, 540);
+  create_schema(540, 600);
+  create_schema(600, 660);
+  create_schema(660, 720);
+  create_schema(720, 757);
+  create_schema(770, 910);
+  create_schema(910, 1132);
+
+      // batch_create_schema(ddl_service,table_schemas,756,770);
+      // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+      //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >=
+      //   batch_count) {
+      //     if(begin == 700) {
+      //       ths.emplace_back(ddl_service,table_schemas,begin,756);
+      //     } else if(begin == 1050) {
+      //       ths.emplace_back(ddl_service, table_schemas, begin, 1132);
+      //     } else {
+      //       ths.emplace_back(ddl_service,table_schemas,begin,i+1);
+      //     }
+      //     ths.back().init();
+      //     ths.back().start();
+      //     begin = i + 1;
+      //   }
+      // }
+
+  for (int i = 0; i < ths.size(); i++) {
     ths.at(i).wait();
   }
   // if (finish_cnt != table_schemas.count()) {
   //   ret = OB_ERR_UNEXPECTED;
   //   LOG_WARN("parallel_create_table_schema fail", K(finish_cnt), K(table_schemas.count()), K(ret));
   // }
+  auto end_time = ObTimeUtility::current_time();
+  LOG_INFO("parallel_create_table_schema", K(ret), "cost", end_time - start_time);
   return ret;
 }
 
@@ -1295,7 +1327,7 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
         if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
                                               need_sync_schema_version,
                                               is_truncate_table))) {
-          LOG_WARN("add table schema failed", K(ret),
+          LOG_WARN("add table schema failed", K(ret), "id", i,
               "table_id", table.get_table_id(),
               "table_name", table.get_table_name());
         } else {
@@ -1303,13 +1335,6 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
           LOG_INFO("add table schema succeed", K(i),
               "table_id", table.get_table_id(),
               "table_name", table.get_table_name(), 
-              "system_table", is_system_table(table.get_table_id()),
-              "virtual_table", is_virtual_table(table.get_table_id()),
-              "sys_view", is_sys_view(table.get_table_id()),
-              "core_lob_table", is_core_lob_table(table.get_table_id()),
-              "sys_lob_table", is_sys_lob_table(table.get_table_id()),
-              "sys_table_index", is_sys_index_table(table.get_table_id()),
-              "sys_table", is_sys_table(table.get_table_id()),
               "core_table", is_core_table(table.get_table_id()), "cost", end_time-start_time);
         }
       }

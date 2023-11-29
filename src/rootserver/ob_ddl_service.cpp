@@ -23510,13 +23510,13 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service));
   } else {
     int ret = OB_SUCCESS;
-    int64_t begin = 0;
-    int64_t batch_count = tables.count() / 16; // 【62，139】
+    int64_t begin = 16;
+    int64_t batch_count = tables.count() / 15; // 【62，139】
     std::vector<CreateSysSchemaTask> ths;
     ths.reserve(16);
-    // ths.emplace_back(tenant_id, *this, tables, 0, 16);
-    // ths.back().init();
-    // ths.back().start();
+    ths.emplace_back(tenant_id, *this, tables, 0, 16);
+    ths.back().init();
+    ths.back().start();
     // ths.back().wait();
     for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
       if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
@@ -23537,9 +23537,9 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
         begin = i + 1;
       }
     }
-    for (int i = 1; i < ths.size(); i++) {
-      ths.at(i).wait();
-    }
+    // for (int i = 0; i < ths.size(); i++) {
+    //   ths.at(i).wait();
+    // }
     // if(tenant_id == 1001) {
     //   CreateSysSchemaTask th(tenant_id, *this, tables,1000,1019);
     //   th.init();
