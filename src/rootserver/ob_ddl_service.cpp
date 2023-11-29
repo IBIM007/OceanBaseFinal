@@ -150,7 +150,7 @@ public:
         if (retry_times <= 10) {
           retry_times++;
           ret = OB_SUCCESS;
-          LOG_INFO("schema error while create table, need retry", KR(ret),
+          LOG_INFO("schema error while create table, need retry", KR(ret), K(tenant_id_), K(begin_), K(end_),
                    K(retry_times));
           usleep(0.01 * 1000 * 1000L); // 1s
         }
@@ -236,7 +236,7 @@ public:
           int64_t start_time = ObTimeUtility::current_time();
           if (OB_FAIL(ddl_operator.create_table(
                   table, trans, ddl_stmt, need_sync_schema_version, false))) {
-            LOG_WARN("add table schema failed", K(ret), "table_id",
+            LOG_WARN("add table schema failed", K(ret), "id: ", idx, "table_id",
                      table.get_table_id(), "table_name",
                      table.get_table_name());
           } else {
@@ -23511,7 +23511,7 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
   } else {
     int ret = OB_SUCCESS;
     int64_t begin = 16;
-    int64_t batch_count = tables.count() / 32; // 【62，139】
+    int64_t batch_count = tables.count() / 64; // 【62，139】
     std::vector<CreateSysSchemaTask> ths;
     ths.reserve(16);
     ths.emplace_back(tenant_id, *this, tables, 0, 16);
@@ -23523,6 +23523,14 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
         while ((i+1) < tables.count() and (is_sys_index_table(tables.at(i+1).get_table_id()) or is_sys_lob_table(tables.at(i+1).get_table_id()))) {
           ++i;
         }
+        if(tenant_id == 1001 and begin == 1000) {
+          begin = 1019;
+          continue;
+        }
+        if(tenant_id == 1002 and begin == 777) {
+          begin = 793;
+          continue;
+        }
         ths.emplace_back(tenant_id, *this, tables,begin,i+1);
         ths.back().init();
         ths.back().start();
@@ -23531,6 +23539,18 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     }
     for (int i = 1; i < ths.size(); i++) {
       ths.at(i).wait();
+    }
+    if(tenant_id == 1001) {
+      CreateSysSchemaTask th(tenant_id, *this, tables,1000,1019);
+      th.init();
+      th.start();
+      th.wait();
+    }
+    if(tenant_id == 1002) {
+      CreateSysSchemaTask th(tenant_id, *this, tables,777,793);
+      th.init();
+      th.start();
+      th.wait();
     }
     // persist __all_core_table's schema in inner table, which is only used for sys views.
     //持久化核心表的schema到内部表中，这个表只被系统视图使用。
