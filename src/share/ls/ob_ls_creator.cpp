@@ -371,6 +371,7 @@ int ObLSCreator::process_after_has_member_list_(
     //create end
     DEBUG_SYNC(BEFORE_PROCESS_AFTER_HAS_MEMBER_LIST);
     share::ObLSStatusOperator ls_operator;
+    LOG_WARN("马上要更新的日志流的id是，租户id是", K(id_),K(tenant_id_));//这里只是更新为created状态
     if (OB_FAIL(ls_operator.update_ls_status(
             tenant_id_, id_, share::OB_LS_CREATING, share::OB_LS_CREATED,
             share::NORMAL_SWITCHOVER_STATUS, *proxy_))) {

@@ -179,6 +179,8 @@ int ObTenantThreadHelper::wait_tenant_data_version_ready_(
     if (OB_FAIL(GET_MIN_DATA_VERSION(tenant_id, tenant_data_version))) {
       LOG_WARN("failed to get min data version", KR(ret), K(tenant_id));
     } else if (tenant_data_version < data_version) {
+      //没有打印过
+      LOG_WARN("primary_do_work这里等待一次了1111111111，也有可能是commonlsservice", KR(ret));
       ret = OB_NEED_WAIT;
       LOG_WARN("tenant version not target, need wait", KR(ret),
             K(tenant_data_version), K(data_version));
@@ -199,7 +201,7 @@ int ObTenantThreadHelper::wait_tenant_data_version_ready_(
 }
 
 int ObTenantThreadHelper::wait_tenant_schema_and_version_ready_(
-    const uint64_t tenant_id, const uint64_t &data_version)
+    const uint64_t tenant_id, const uint64_t &data_version,int shit)
 {
   int ret = OB_SUCCESS;
   if (OB_ISNULL(GCTX.schema_service_)) {
@@ -215,6 +217,8 @@ int ObTenantThreadHelper::wait_tenant_schema_and_version_ready_(
       if (OB_FAIL(get_tenant_schema(tenant_id, tenant_schema))) {
         LOG_WARN("failed to get tenant schema", KR(ret), K(tenant_id));
       } else if (tenant_schema.is_creating()) {
+        if(shit==0)LOG_WARN("primary_do_work这里等待一次了222222222222", KR(ret),K(tenant_id), K(tenant_schema));
+        else LOG_WARN("commonlsservice这里等待一次了222222222222", KR(ret),K(tenant_id), K(tenant_schema));
         ret = OB_NEED_WAIT;
         LOG_WARN("tenant schema not ready, no need tenant balance", KR(ret), K(tenant_schema));
       } else {
@@ -222,7 +226,7 @@ int ObTenantThreadHelper::wait_tenant_schema_and_version_ready_(
       }
 
       if (!is_ready) {
-        idle(0.25 * 1000 *1000);
+        idle(0.15 * 1000 *1000);
       }
     }
 

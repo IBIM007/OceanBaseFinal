@@ -228,7 +228,7 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
       else if (user_ls_valid) {
       } else {
         //否者睡觉
-        const int64_t INTERVAL = 500 * 1000L; // 500ms
+        const int64_t INTERVAL = 200 * 1000L; // 500ms
         //总共大概4秒钟
         LOG_INFO("wait user ls valid", KR(ret), K(tenant_id));
         ob_usleep(INTERVAL);

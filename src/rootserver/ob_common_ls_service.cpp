@@ -70,10 +70,11 @@ void ObCommonLSService::do_work()
   } else if (is_user_tenant(tenant_id_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("is user tenant", KR(ret), K(tenant_id_));
-  } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
+  } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0,1))) {
     LOG_WARN("failed to wait tenant schema version ready", KR(ret), K(tenant_id_), K(DATA_CURRENT_VERSION));
   } else {
-    int64_t idle_time_us = 1000 * 1000L;//1s
+    LOG_WARN("进入了commonlsservice的do_work的else", KR(ret));
+    int64_t idle_time_us = 100 * 1000L;//1s，这个地方应该减小。
     share::schema::ObTenantSchema user_tenant_schema;
     int tmp_ret = OB_SUCCESS;
     while (!has_set_stop()) {
@@ -92,6 +93,7 @@ void ObCommonLSService::do_work()
         } else if (OB_TMP_FAIL(try_create_ls_(user_tenant_schema))) {
           LOG_WARN("failed to create ls", KR(ret), KR(tmp_ret), K(user_tenant_schema));
         }
+        LOG_WARN("try_create_ls执行完了", KR(ret));
         if (OB_SUCC(ret) && !user_tenant_schema.is_dropping()) {
           if (OB_TMP_FAIL(ObBalanceLSPrimaryZone::try_adjust_user_ls_primary_zone(user_tenant_schema))) {
             LOG_WARN("failed to adjust user tenant primary zone", KR(ret), KR(tmp_ret), K(user_tenant_schema));
@@ -100,12 +102,13 @@ void ObCommonLSService::do_work()
             LOG_WARN("failed to modify ls unit group", KR(ret), KR(tmp_ret), K(user_tenant_schema));
           }
         }
+        LOG_WARN("try_create_ls下面的东西执行完了", KR(ret));
       }
 
       if (OB_TMP_FAIL(ObBalanceLSPrimaryZone::try_update_sys_ls_primary_zone(tenant_id_))) {
         LOG_WARN("failed to update sys ls primary zone", KR(ret), KR(tmp_ret), K(tenant_id_));
       }
-
+      LOG_WARN("这个时候do_create_ls和process_after_has_member_list__应该也执行完了", KR(ret));
       user_tenant_schema.reset();
       LOG_INFO("[COMMON_LS_SERVICE] finish one round", KR(ret), KR(tmp_ret), K(idle_time_us));
       idle(idle_time_us);

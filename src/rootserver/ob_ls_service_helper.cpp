@@ -642,6 +642,8 @@ int ObLSServiceHelper::revision_to_equal_status_(const ObLSStatusMachineParamete
   const share::ObLSStatusInfo &status_info = machine.status_info_;
   const share::ObLSAttr &ls_info = machine.ls_info_;
   const uint64_t tenant_id = tenant_ls_info.get_tenant_id();
+  LOG_WARN("老的status_info的日志流的id是，状态时是", K(status_info.get_ls_id()), K(status_info.get_status()));
+  LOG_WARN("新的ls_info的日志流的id是，状态时是", K(ls_info.get_ls_id().id()), K(ls_info.get_ls_status()));
   ObLSStatusOperator status_op;
   if (OB_UNLIKELY(!machine.is_valid())) {
     ret = OB_INVALID_ARGUMENT;

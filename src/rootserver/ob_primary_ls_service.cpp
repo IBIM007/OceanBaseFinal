@@ -70,7 +70,8 @@ void ObPrimaryLSService::do_work()
   } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
     LOG_WARN("failed to wait tenant schema version ready", KR(ret), K(tenant_id_), K(DATA_CURRENT_VERSION));
   } else {
-    int64_t idle_time_us = 1000 * 1000L;
+    LOG_WARN("进入了ObPrimaryLSService的do_work的else", KR(ret));
+    int64_t idle_time_us = 100 * 1000L;
     int tmp_ret = OB_SUCCESS;
     share::schema::ObTenantSchema tenant_schema;
     while (!has_set_stop()) {
@@ -91,7 +92,7 @@ void ObPrimaryLSService::do_work()
               K(tenant_id_));
         }
       }
-
+      LOG_INFO("primaryd_do_work执行一次了下面会等到但是应该不影响，因为只有用户日志流会进入这里面吧", KR(ret));
       LOG_INFO("[PRIMARY_LS_SERVICE] finish one round", KR(ret), K(tenant_schema));
       tenant_schema.reset();
       idle(idle_time_us);
@@ -131,7 +132,8 @@ int ObPrimaryLSService::process_all_ls(const share::schema::ObTenantSchema &tena
       LOG_WARN("failed to set next ls status", KR(ret), K(machine_array));
     }
   }
-
+  LOG_INFO("try_set_next_ls_status_已经执行完了",
+      KR(ret), K(tenant_id));
   LOG_INFO("[PRIMARY_LS_SERVICE] finish process tenant",
       KR(ret), K(tenant_id), K(task_cnt), K(machine_array), K(tenant_schema));
   return ret;
@@ -463,6 +465,7 @@ int ObPrimaryLSService::process_all_ls_status_to_steady_(const share::schema::Ob
       LOG_WARN("failed to process status to steady", KR(ret));
     }
   }
+  LOG_INFO("revision_to_equal_status_执行完了", KR(ret), K(tenant_id_));
   LOG_INFO("[PRIMARY_LS_SERVICE] finish process all ls status to steady", KR(ret), K(tenant_id_));
   return ret;
 }

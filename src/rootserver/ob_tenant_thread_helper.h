@@ -106,7 +106,7 @@ public:
                                  common::ObSqlString &primary_zone_str);
 protected:
  int wait_tenant_schema_and_version_ready_(
-     const uint64_t tenant_id, const uint64_t &data_version);
+     const uint64_t tenant_id, const uint64_t &data_version,int shit=0);
  int wait_tenant_data_version_ready_(
      const uint64_t tenant_id, const uint64_t &data_version);
  int check_can_do_recovery_(const uint64_t tenant_id);
