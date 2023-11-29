@@ -460,8 +460,8 @@ public:
       return OB_SUCCESS;
     }
   };
-
-  struct udf_key_equal_to {
+  
+    struct udf_key_equal_to {
     bool operator()(const SchemaKey &a, const SchemaKey &b) const {
       return a.udf_name_ == b.udf_name_;
     }
@@ -901,6 +901,8 @@ protected:
   //refresh schema and update schema_manager_for_cache_
   //leave the job of schema object copy to get_schema func
   int refresh_schema(const ObRefreshSchemaStatus &schema_status);
+  int my_refresh_schema(const ObRefreshSchemaStatus &schema_status,common::ObArray<ObTableSchema> &core_table_schemas,
+      common::ObArray<ObTableSchema> &sys_table_schemas);
 
   virtual int publish_schema(const uint64_t tenant_id) = 0;
   virtual int init_multi_version_schema_struct(const uint64_t tenant_id) = 0;
@@ -975,6 +977,8 @@ private:
 
   int refresh_increment_schema(const ObRefreshSchemaStatus &schema_status);
   int refresh_full_schema(const ObRefreshSchemaStatus &schema_status);
+  int my_refresh_full_schema(const ObRefreshSchemaStatus &schema_status,common::ObArray<ObTableSchema> &core_table_schemas,
+      common::ObArray<ObTableSchema> &sys_table_schemas);
   int refresh_tenant_full_normal_schema(
       common::ObISQLClient &sql_client,
       const ObRefreshSchemaStatus &schema_status,
@@ -1103,11 +1107,27 @@ private:
                                      const int64_t publish_version,
                                      common::ObISQLClient &sql_client,
                                      bool &core_schema_change);
+
+  int my_try_fetch_publish_core_schemas(const ObRefreshSchemaStatus &schema_status,
+                                     const int64_t core_schema_version,
+                                     const int64_t publish_version,
+                                     common::ObISQLClient &sql_client,
+                                     bool &core_schema_change,common::ObArray<ObTableSchema> &core_table_schemas
+                                     );
+
   int try_fetch_publish_sys_schemas(const ObRefreshSchemaStatus &schema_status,
                                     const int64_t schema_version,
                                     const int64_t publish_version,
                                     common::ObISQLClient &sql_client,
                                     bool &sys_schema_change);
+  
+  int my_try_fetch_publish_sys_schemas(const ObRefreshSchemaStatus &schema_status,
+                                    const int64_t schema_version,
+                                    const int64_t publish_version,
+                                    common::ObISQLClient &sql_client,
+                                    bool &sys_schema_change,
+      common::ObArray<ObTableSchema> &sys_table_schemas
+                                    );
 
   int check_core_or_sys_schema_change(common::ObISQLClient &sql_client,
                                       const ObRefreshSchemaStatus &schema_status,

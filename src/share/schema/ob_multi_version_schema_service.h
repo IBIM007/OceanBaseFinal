@@ -352,6 +352,11 @@ public:
   // new schema refresh interface
   int refresh_and_add_schema(const common::ObIArray<uint64_t> &tenant_ids,
                              bool check_bootstrap = false);
+
+  int my_refresh_and_add_schema(const common::ObIArray<uint64_t> &tenant_ids,common::ObArray<ObTableSchema> &core_table_schemas,
+      common::ObArray<ObTableSchema> &sys_table_schemas,
+                             bool check_bootstrap = false);                
+  
   // Trigger an asynchronous refresh task and wait for the refresh result
   int async_refresh_schema(const uint64_t tenant_id,
                            const int64_t schema_version);
@@ -402,7 +407,8 @@ private:
   int init_sys_tenant_user_schema();
 
   int refresh_tenant_schema(const uint64_t tenant_id);
-
+  int my_refresh_tenant_schema(const uint64_t tenant_id,common::ObArray<ObTableSchema> &core_table_schemas,
+      common::ObArray<ObTableSchema> &sys_table_schemas);
   virtual int add_schema_mgr_info(
               ObSchemaGetterGuard &schema_guard,
               ObSchemaStore* schema_store,

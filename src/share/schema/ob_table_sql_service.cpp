@@ -2352,7 +2352,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
                                     ObISQLClient &sql_client,
                                     const ObString *ddl_stmt_str/*=NULL*/,
                                     const bool need_sync_schema_version,
-                                    const bool is_truncate_table /*false*/)
+                                    const bool is_truncate_table /*false*/,ObArray<ObTableSchema> *update_table_schemas)
 {
   int ret = OB_SUCCESS;
   int64_t start_usec = ObTimeUtility::current_time();
@@ -2471,7 +2471,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
       LOG_DEBUG("add table", "table type", table.get_table_type(), "index type", table.get_index_type());
       if ((table.is_index_table() || table.is_materialized_view() || table.is_aux_vp_table() || table.is_aux_lob_table()) && need_sync_schema_version) {
         if (OB_FAIL(update_data_table_schema_version(sql_client, tenant_id,
-            table.get_data_table_id(), table.get_in_offline_ddl_white_list()))) {
+            table.get_data_table_id(), table.get_in_offline_ddl_white_list(),update_table_schemas))) {
           LOG_WARN("fail to update schema_version", K(ret));
         }
         end_usec = ObTimeUtility::current_time();
@@ -3577,6 +3577,7 @@ int ObTableSqlService::update_data_table_schema_version(
     const uint64_t tenant_id,
     const uint64_t data_table_id,
     const bool in_offline_ddl_white_list,
+    ObArray<ObTableSchema> *update_table_schemas,
     int64_t new_schema_version)
 {
   int ret = OB_SUCCESS;
@@ -3633,6 +3634,10 @@ int ObTableSqlService::update_data_table_schema_version(
       const bool only_history = true;
       const bool update_object_status_ignore_version = false;
       table_schema.set_schema_version(new_schema_version);
+       //如果推的是引用，可能会出问题
+      if(update_table_schemas!=nullptr)update_table_schemas->push_back(table_schema);
+      else LOG_WARN("传入的update_tableschemas是空的", K(ret));
+      
       if (OB_FAIL(add_table(sql_client, table_schema, update_object_status_ignore_version, only_history))) {
         LOG_WARN("add_table failed", K(table_schema), K(only_history), K(ret));
       }
@@ -3658,6 +3663,7 @@ int ObTableSqlService::update_data_table_schema_version(
       LOG_WARN("get_table_schema failed", K(ret), K(mock_fk_parent_table_schema));
     }
   }
+ 
   return ret;
 }
 

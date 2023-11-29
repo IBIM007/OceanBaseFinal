@@ -42,7 +42,7 @@ public:
                            common::ObISQLClient &sql_client,
                            const common::ObString *ddl_stmt_str = NULL,
                            const bool need_sync_schema_version = true,
-                           const bool is_truncate_table = false);
+                           const bool is_truncate_table = false,ObArray<ObTableSchema> *update_table_schemas=nullptr);
   //update table option
   int update_table_options(common::ObISQLClient &sql_client,
                           const ObTableSchema &table_schema,
@@ -215,6 +215,7 @@ public:
                                        const uint64_t tenant_id,
                                        const uint64_t data_table_id,
                                        const bool in_offline_ddl_white_list,
+                                       ObArray<ObTableSchema> *update_table_schemas=nullptr,
                                        int64_t new_schema_version = common::OB_INVALID_VERSION);
   int insert_ori_schema_version(
       common::ObISQLClient &sql_client,

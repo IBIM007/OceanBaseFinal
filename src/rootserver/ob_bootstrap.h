@@ -151,16 +151,17 @@ public:
   virtual int execute_bootstrap(rootserver::ObServerZoneOpService &server_zone_op_service);
   static int create_all_schema(
       ObDDLService &ddl_service,
-      common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+      common::ObIArray<share::schema::ObTableSchema> &table_schemas,common::ObArray<ObTableSchema> &update_table_schemas);
   int construct_all_schema(
-      common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+      common::ObIArray<share::schema::ObTableSchema> &table_schemas,common::ObArray<ObTableSchema> &core_table_schemas,
+      common::ObArray<ObTableSchema> &sys_table_schemas);
   int sort_schema(const common::ObIArray<share::schema::ObTableSchema> &table_schemas,
                   common::ObIArray<share::schema::ObTableSchema> &sort_table_schemas);
 private:
   static const int64_t HEAT_BEAT_INTERVAL_US = 2 * 1000 * 1000; //2s
   static const int64_t WAIT_RS_IN_SERVICE_TIMEOUT_US = 40 * 1000 * 1000; //40s
   static const int64_t BATCH_INSERT_SCHEMA_CNT = 128;
-  static int parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas);
+  static int parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas,common::ObArray<ObTableSchema> &update_table_schemas);
   static int batch_create_schema_local(uint64_t tenant_id,
                               ObDDLService &ddl_service,
                               ObIArray<ObTableSchema> &table_schemas,
@@ -181,7 +182,7 @@ private:
   static int batch_create_schema(
       ObDDLService &ddl_service,
       common::ObIArray<share::schema::ObTableSchema> &table_schemas,
-      const int64_t begin, const int64_t end);
+      const int64_t begin, const int64_t end,ObArray<ObTableSchema> *update_table_schemas=nullptr);
   virtual int check_is_already_bootstrap(bool &is_bootstrap);
   virtual int init_global_stat();
   virtual int init_sequence_id();
@@ -218,6 +219,8 @@ private:
   const obrpc::ObBootstrapArg &arg_;
   obrpc::ObCommonRpcProxy &common_proxy_;
   int64_t begin_ts_;
+
+  
 private:
   DISALLOW_COPY_AND_ASSIGN(ObBootstrap);
 };
