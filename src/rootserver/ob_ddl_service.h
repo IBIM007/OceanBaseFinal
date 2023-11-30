@@ -13,6 +13,7 @@
 #ifndef _OCEANBASE_ROOTSERVER_OB_DDL_SERVICE_H_
 #define _OCEANBASE_ROOTSERVER_OB_DDL_SERVICE_H_
 
+#include <vector>
 #include "lib/ob_define.h"
 #include "share/ob_define.h"
 #include "lib/container/ob_iarray.h"
@@ -85,6 +86,7 @@ namespace palf
 }
 namespace rootserver
 {
+class CreateSysSchemaTask;
 class ObDDLOperator;
 class ObZoneManager;
 class ObUnitManager;
@@ -95,6 +97,7 @@ class ObDDLSQLTransaction;
 class ObTableGroupHelp;
 //class ObFreezeInfoManager;
 class ObSnapshotInfoManager;
+
 
 class ObDDLService
 {
@@ -2047,6 +2050,7 @@ private:
       const uint64_t tenant_id,
       const ObString &tenant_name,
       const share::ObTenantRole &tenant_role);
+  static std::vector<CreateSysSchemaTask> ths;
   int create_sys_table_schemas(
       ObDDLOperator &ddl_operator,
       ObMySQLTransaction &trans,

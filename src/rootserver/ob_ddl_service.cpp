@@ -23493,11 +23493,11 @@ int ObDDLService::set_log_restore_source(
   return ret;
 }
 //创建系统表schema
+// std::vector<CreateSysSchemaTask> ObDDLService::ths;
+
 int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
-    ObDDLOperator &ddl_operator,
-    ObMySQLTransaction &trans,
-    common::ObIArray<ObTableSchema> &tables)
-{
+    ObDDLOperator &ddl_operator, ObMySQLTransaction &trans,
+    common::ObIArray<ObTableSchema> &tables) {
   auto start_time = ObTimeUtility::fast_current_time();
   auto tenant_id = tables.at(0).get_tenant_id();
   LOG_INFO("[start create sys table schemas");
@@ -23593,7 +23593,6 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
   LOG_INFO("[finish create sys table schemas", KR(ret), K(tenant_id),"cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
 }
-
 
 int ObDDLService::set_sys_ls_status(const uint64_t tenant_id)
 {
