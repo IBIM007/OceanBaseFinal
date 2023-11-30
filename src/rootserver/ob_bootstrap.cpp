@@ -1193,24 +1193,24 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
     ths.emplace_back(ddl_service, table_schemas, begin, end);
     ths.back().init();
     ths.back().start();
+    // 试一试绑核，线程数量不要超过16了，然后，线程的执行不一定就在一个区间，可以改一改
   };
-  create_schema(0,15);
+  create_schema(0,3);
   create_schema(15,30);
   create_schema(30,70);
-  create_schema(70, 140);
+  create_schema(70, 131);
   create_schema(140, 210);
-  create_schema(210, 280);
+  create_schema(210, 253);
   create_schema(280, 350);
   create_schema(350, 380);
   create_schema(380, 420);
   create_schema(420, 480);
   create_schema(480, 540);
   create_schema(540, 600);
-  create_schema(600, 660);
+  create_schema(600, 654);
   create_schema(660, 720);
   create_schema(720, 757);
-  create_schema(770, 910);
-  create_schema(910, 1132);
+  create_schema(770, 1071);
 
       // batch_create_schema(ddl_service,table_schemas,756,770);
       // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
