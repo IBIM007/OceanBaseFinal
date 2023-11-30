@@ -123,7 +123,7 @@ int ElectionProposer::set_member_list(const MemberList &new_member_list)
     } else {
       if (old_list.get_addr_list().empty() && new_member_list.get_addr_list().count() == 1) {// 单副本第一次设置成员列表
         // 单机模式避免选举
-        prepare(ObRole::FOLLOWER);
+        //prepare(ObRole::FOLLOWER);
       }
       if (old_list.only_membership_version_different(new_member_list)) {
         LOG_SET_MEMBER(INFO, "advance membership version");
