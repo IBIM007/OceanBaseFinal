@@ -123,7 +123,7 @@ int ElectionProposer::set_member_list(const MemberList &new_member_list)
     } else {
       if (old_list.get_addr_list().empty() && new_member_list.get_addr_list().count() == 1) {// 单副本第一次设置成员列表
         // 单机模式避免选举
-        prepare(ObRole::FOLLOWER);
+        // prepare(ObRole::FOLLOWER);
       }
       if (old_list.only_membership_version_different(new_member_list)) {
         LOG_SET_MEMBER(INFO, "advance membership version");
@@ -362,13 +362,13 @@ void ElectionProposer::stop()
 void ElectionProposer::prepare(const ObRole role)
 {
   int ret = OB_SUCCESS;
-  if (!be_leader_immediately_in_standalone_mode(RoleChangeReason::DevoteToBeLeader)) {
-    //LOG_ELECT_LEADER(INFO, "standlone election failed");
-  } else {
-    //LOG_ELECT_LEADER(INFO, "standlone election succeed");
-  }
+  // if (!be_leader_immediately_in_standalone_mode(RoleChangeReason::DevoteToBeLeader)) {
+  //   //LOG_ELECT_LEADER(INFO, "standlone election failed");
+  // } else {
+  //   //LOG_ELECT_LEADER(INFO, "standlone election succeed");
+  // }
 
-  return;
+  // return;
   
 
 
