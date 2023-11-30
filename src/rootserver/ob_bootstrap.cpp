@@ -78,7 +78,7 @@ class CreateSchemaTask : public lib::TGRunnable
   CreateSchemaTask(ObDDLService& ddl_service,ObIArray<ObTableSchema>& table_schemas,int64_t begin,int64_t i )
       : ddl_service_(ddl_service),
         table_schemas_(table_schemas), begin_(begin),i_(i) {}
-  virtual ~CreateSchemaTask() { destroy();}
+  virtual ~CreateSchemaTask() {}
 
   virtual void run1() override {
     auto start = ObTimeUtility::current_time();
@@ -145,6 +145,7 @@ private:
   int64_t i_;
   const ObCurTraceId::TraceId* cur_trace_id_;
 };
+
 
 
 ObBaseBootstrap::ObBaseBootstrap(ObSrvRpcProxy &rpc_proxy,
@@ -1175,6 +1176,8 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
   return ret;
 }
 
+std::vector<CreateSchemaTask> ObBootstrap::ths; // 被优化了？
+
 int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas)
 {
   
@@ -1184,54 +1187,51 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
   int64_t batch_count = table_schemas.count() / 16;
   const int64_t MAX_RETRY_TIMES = 10;
   int64_t finish_cnt = 0;
-  std::vector<CreateSchemaTask> ths;
-  CreateSchemaTask th(ddl_service, table_schemas, 757, 770);
-  th.init();
-  th.wait();
-  ths.reserve(16);
-  auto create_schema = [&](int64_t begin, int64_t end) {
-    ths.emplace_back(ddl_service, table_schemas, begin, end);
-    ths.back().init();
-    ths.back().start();
-    // 试一试绑核，线程数量不要超过16了，然后，线程的执行不一定就在一个区间，可以改一改
-  };
-  create_schema(0,3);
-  create_schema(15,30);
-  create_schema(30,70);
-  create_schema(70, 131);
-  create_schema(140, 210);
-  create_schema(210, 253);
-  create_schema(280, 350);
-  create_schema(350, 380);
-  create_schema(380, 420);
-  create_schema(420, 480);
-  create_schema(480, 540);
-  create_schema(540, 600);
-  create_schema(600, 654);
-  create_schema(660, 720);
-  create_schema(720, 757);
-  create_schema(770, 1071);
+  
+  // CreateSchemaTask th(ddl_service, table_schemas, 757, 770);
+  // th.init();
+  // th.wait();
+  ths.reserve(17);
+  // auto create_schema = [&](int64_t begin, int64_t end) {
+  //   ths.emplace_back(ddl_service, table_schemas, begin, end);
+  //   ths.back().init();
+  //   ths.back().start();
+  //   // 试一试绑核，线程数量不要超过16了，然后，线程的执行不一定就在一个区间，可以改一改
+  // };
+  // create_schema(0,6);
+  // create_schema(15,30);
+  // create_schema(30,70);
+  // create_schema(70, 131);
+  // create_schema(140, 210);
+  // create_schema(210, 253);
+  // create_schema(280, 350);
+  // create_schema(350, 380);
+  // create_schema(380, 420);
+  // create_schema(420, 480);
+  // create_schema(480, 540);
+  // create_schema(540, 600);
+  // create_schema(600, 654);
+  // create_schema(660, 720);
+  // create_schema(720, 757);
+  // create_schema(770, 1071);
 
-      // batch_create_schema(ddl_service,table_schemas,756,770);
-      // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-      //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >=
-      //   batch_count) {
-      //     if(begin == 700) {
-      //       ths.emplace_back(ddl_service,table_schemas,begin,756);
-      //     } else if(begin == 1050) {
-      //       ths.emplace_back(ddl_service, table_schemas, begin, 1132);
-      //     } else {
-      //       ths.emplace_back(ddl_service,table_schemas,begin,i+1);
-      //     }
-      //     ths.back().init();
-      //     ths.back().start();
-      //     begin = i + 1;
-      //   }
-      // }
-
-  for (int i = 0; i < ths.size(); i++) {
-    ths.at(i).wait();
+  batch_create_schema(ddl_service, table_schemas, 756, 770);
+  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+      if (begin == 700) {
+        ths.emplace_back(ddl_service, table_schemas, begin, 756);
+      } else {
+        ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
+      }
+      ths.back().init();
+      ths.back().start();
+      begin = i + 1;
+    }
   }
+  
+  // for (int i = 0; i < ths.size(); i++) {
+  //   ths.at(i).wait();
+  // }
   // if (finish_cnt != table_schemas.count()) {
   //   ret = OB_ERR_UNEXPECTED;
   //   LOG_WARN("parallel_create_table_schema fail", K(finish_cnt), K(table_schemas.count()), K(ret));

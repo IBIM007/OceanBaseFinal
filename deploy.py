@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # 试了一下2.5秒和3秒等待，没发现时间更短。
     #感觉可能的原因是如果过早连接，子进程有些东西没准备好，就会造成这边alter system bootstrap阻塞？
     #TODO探活方式
-    time.sleep(0.6)
+    time.sleep(0.1)
     try:
         #尝试连接
         db = __try_to_connect(args.ip, int(args.mysql_port))
