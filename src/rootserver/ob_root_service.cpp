@@ -677,6 +677,7 @@ ObRootService::ObRootService()
 
 ObRootService::~ObRootService()
 {
+  delete bootstrap_;
   if (inited_) {
     destroy();
   }
@@ -2005,10 +2006,13 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     FLOG_INFO("[ROOTSERVICE_NOTICE] success to get lock for bootstrap in execute_bootstrap");
     //从抢到锁到最后执行完成这个方法大概执行了14秒。也需要细致优化
     //这个代理是什么意思
-    ObBootstrap bootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
-                          *config_, arg, common_proxy_);
+    
+    // ObBootstrap bootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
+    //                       *config_, arg, common_proxy_); // TODO (gushengjie)
+    bootstrap_ = new ObBootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
+                                 *config_, arg, common_proxy_); // TODO (gushengjie)
     //这里应该是RPC调用吧
-    if (OB_FAIL(bootstrap.execute_bootstrap(server_zone_op_service_))) {
+    if (OB_FAIL(bootstrap_->execute_bootstrap(server_zone_op_service_))) {
       LOG_ERROR("failed to execute_bootstrap", K(server_list), K(ret));
     }
 

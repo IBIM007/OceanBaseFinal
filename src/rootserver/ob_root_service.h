@@ -48,6 +48,7 @@
 #include "rootserver/ob_update_rs_list_task.h"
 #include "rootserver/ob_schema_history_recycler.h"
 #include "rootserver/ddl_task/ob_ddl_scheduler.h"
+#include "rootserver/ob_bootstrap.h"
 #include "share/ls/ob_ls_info.h"
 #include "share/ls/ob_ls_table_operator.h"
 #include "rootserver/ob_disaster_recovery_task_mgr.h"
@@ -425,7 +426,7 @@ public:
 
   // not implemented rpc, helper function for rs rpc processor define.
   int not_implement();
-
+  ObBootstrap *bootstrap_;
   int execute_bootstrap(const obrpc::ObBootstrapArg &arg);
 #ifdef OB_BUILD_TDE_SECURITY
   int check_sys_tenant_initial_master_key_valid();

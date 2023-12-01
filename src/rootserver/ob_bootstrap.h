@@ -141,12 +141,12 @@ public:
     int ret_;
   };
   explicit ObBootstrap(obrpc::ObSrvRpcProxy &rpc_proxy,
-                       share::ObLSTableOperator &lst_operator,
-                       ObDDLService &ddl_service,
-                       ObUnitManager &unit_mgr,
-                       common::ObServerConfig &config,
-                       const obrpc::ObBootstrapArg &arg,
-                       obrpc::ObCommonRpcProxy &rs_rpc_proxy);
+                                   share::ObLSTableOperator &lst_operator,
+                                   ObDDLService &ddl_service,
+                                   ObUnitManager &unit_mgr,
+                                   common::ObServerConfig &config,
+                                   const obrpc::ObBootstrapArg &arg,
+                                   obrpc::ObCommonRpcProxy &rs_rpc_proxy);
 
   virtual ~ObBootstrap() {}
   virtual int execute_bootstrap(rootserver::ObServerZoneOpService &server_zone_op_service);
