@@ -187,7 +187,7 @@ if __name__ == "__main__":
         bootstrap_end = datetime.datetime.now()
             #60S
         _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
-        cursor.execute(f"ALTER SYSTEM SET syslog_level='error'")
+        #cursor.execute(f"ALTER SYSTEM SET syslog_level='error'")
         # checkout server status
         #TODO检查服务器状态，这里其实也可以注销掉，减少时间
         cursor.execute("select * from oceanbase.__all_server")
