@@ -23493,7 +23493,7 @@ int ObDDLService::set_log_restore_source(
   return ret;
 }
 //创建系统表schema
-// std::vector<CreateSysSchemaTask> ObDDLService::ths;
+std::vector<CreateSysSchemaTask> ObDDLService::ths;
 
 int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     ObDDLOperator &ddl_operator, ObMySQLTransaction &trans,
@@ -23512,11 +23512,13 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     int ret = OB_SUCCESS;
     int64_t begin = 16;
     int64_t batch_count = tables.count() / 15; // 【62，139】
-    std::vector<CreateSysSchemaTask> ths;
+    // std::vector<CreateSysSchemaTask> ths;
     ths.reserve(16);
     ths.emplace_back(tenant_id, *this, tables, 0, 16);
     ths.back().init();
     ths.back().start();
+    // if (tenant_id == 1001)
+      // return ret;
     // ths.back().wait();
     for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
       if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
