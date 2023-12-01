@@ -183,9 +183,11 @@ if __name__ == "__main__":
         #一个zone，一个observer，分区数应该也一定是1.因为有其他分区的概念一定是其它observer的分区副本。
         cursor.execute(f"ALTER SYSTEM BOOTSTRAP ZONE '{args.zone}' SERVER '{rootservice}'")
         #计时结束时间
+        
         bootstrap_end = datetime.datetime.now()
             #60S
         _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
+        cursor.execute(f"ALTER SYSTEM SET syslog_level='error'")
         # checkout server status
         #TODO检查服务器状态，这里其实也可以注销掉，减少时间
         cursor.execute("select * from oceanbase.__all_server")
