@@ -867,6 +867,7 @@ class ObTableSchema : public ObSimpleTableSchemaV2
   OB_UNIS_VERSION(1);
 
 public:
+  int is_sys_table_schema=-1;
   friend struct AlterTableSchema;
   friend class ObPrintableTableSchema;
   enum ObIndexAttributesFlag

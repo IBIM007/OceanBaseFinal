@@ -88,7 +88,7 @@ class CreateSchemaTask : public lib::TGRunnable
       // ObCurTraceId::set(*cur_trace_id_);  // 这里段错误；
       int64_t retry_times = 1;
       while (OB_SUCC(ret)) {
-        if (OB_FAIL(ObBootstrap::batch_create_schema(ddl_service_, table_schemas_, begin_, i_,&update_table_schemas))) {
+        if (OB_FAIL(ObBootstrap::batch_create_schema(ddl_service_, table_schemas_, begin_, i_))) {
           LOG_WARN("batch create schema failed", K(ret), "table count", i_ + 1 - begin_);
           // bugfix: 
           if (retry_times <= 10) {
@@ -134,7 +134,6 @@ class CreateSchemaTask : public lib::TGRunnable
   void wait() { TG_WAIT(tg_id_); }
   void stop() { TG_STOP(tg_id_); }
   void destroy() { TG_DESTROY(tg_id_); }
-  ObArray<ObTableSchema> update_table_schemas;
 
 private:
   int tg_id_;
@@ -369,9 +368,10 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } 
   //我的TODO重点关注。等待选举日志流，这里执行完也就是选举会执行完了
   //等待选举完成
-  else if (OB_FAIL(wait_elect_ls(master_rs))) {
-    LOG_WARN("failed to wait elect master partition", KR(ret));
-  }
+  //else if (OB_FAIL(wait_elect_ls(master_rs))) {
+  //  LOG_WARN("failed to wait elect master partition", KR(ret));
+  //}
+  master_rs = GCONF.self_addr_;
   //前面都是检查，这里才是真正做事吧。
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
@@ -682,9 +682,6 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   begin_ts_ = ObTimeUtility::current_time();
 
   BOOTSTRAP_LOG(INFO, "start do execute_bootstrap");
-  ObArray<ObTableSchema> core_table_schemas;
-  ObArray<ObTableSchema> sys_table_schemas;
-  ObArray<ObTableSchema> update_table_schemas;//汇总的update_table_schemas
 
   //相当于先执行操作，操作失败了就打印。
   if (OB_FAIL(check_inner_stat())) {
@@ -718,7 +715,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   } 
   //构造所有schema，可能耗时，目前也没发现有啥问题，不耗时
   //构建（除__all_core_table）系统表的ObTableSchema
-  else if (OB_FAIL(construct_all_schema(table_schemas,core_table_schemas,sys_table_schemas))) {
+  else if (OB_FAIL(construct_all_schema(table_schemas))) {
     LOG_WARN("construct all schema fail", K(ret));
   } 
   //广播所有系统schema，可能耗时，有wait，
@@ -733,27 +730,13 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   } 
   //创建所有schema，重点TODO可能耗时，确定耗时，大概4S
   //构建系统表元数据，因为核心表元数据记录在核心表，所以本步骤主要是对__all_core_table/__all_table/__all_table_history__all_column/__all_column_history/__all_ddl_operation核心表的插入操作
-  else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas,update_table_schemas))) {
+  else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) {
     LOG_WARN("create_all_schema failed",  K(table_schemas), K(ret));
   }
   //上面检查全部成功，就开始创建什么东西。多版本并发控制？
   BOOTSTRAP_CHECK_SUCCESS_V2("create_all_schema");
   ObMultiVersionSchemaService &schema_service = ddl_service_.get_schema_service();
-  //注意验证这里和日志是否对得上
-  LOG_WARN("现在核心schema和系统schema数组的长度各自是，update的长度是",  K(core_table_schemas.count()), K(sys_table_schemas.count()),K(update_table_schemas.count()));
-  //这里更新sys那个数组。但是感觉这里的循环有点多呢？863*10，这么多次。先不管吧。
 
-  /*for(int i=0;i<sys_table_schemas.count();++i)
-  {
-    for(int j=0;j<update_table_schemas.count();++j)
-    {
-      if(sys_table_schemas.at(i).get_table_id()==update_table_schemas.at(j).get_table_id())
-      {
-        sys_table_schemas.at(i).set_schema_version(update_table_schemas.at(j).get_schema_version());
-        break;
-      }
-    }
-  }*/
   if (OB_SUCC(ret)) {
     //初始化系统数据
     //建立系统租户(向系统表填充数据，比如__all_sys_variable这些)
@@ -762,13 +745,12 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     } 
     //刷新所有schema，耗时cost0.3秒多，但是应该还好吧，感觉就看cost
     //将持久化的系统表schema添加到内存Schema Cache
-    //else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
-    else if (OB_FAIL(ddl_service_.my_refresh_schema(OB_SYS_TENANT_ID,core_table_schemas,sys_table_schemas))) {
+    else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+    //else if (OB_FAIL(ddl_service_.my_refresh_schema(OB_SYS_TENANT_ID,table_schemas))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
   }
   BOOTSTRAP_CHECK_SUCCESS_V2("refresh_schema");
-  LOG_WARN("马上调用add_server_list了", K(ret));
   //添加所有服务器到rs列表
   if (FAILEDx(add_servers_in_rs_list(server_zone_op_service))) {
     LOG_WARN("fail to add servers in rs_list_", KR(ret));
@@ -780,7 +762,6 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   else if (OB_FAIL(wait_all_rs_in_service())) {
     LOG_WARN("failed to wait all rs in service", KR(ret));
   } else {
-    LOG_WARN("马上添加bootstrap执行成功的事件", K(ret));
     ROOTSERVICE_EVENT_ADD("bootstrap", "bootstrap_succeed");
   }
   //这里执行完回退到ob_root_service的execute_bootstrap
@@ -1020,8 +1001,7 @@ int ObBootstrap::add_sys_table_lob_aux_table(
   return ret;
 }
 
-int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas,ObArray<ObTableSchema> &core_table_schemas,
-  ObArray<ObTableSchema> &sys_table_schemas)
+int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
 {
   int ret = OB_SUCCESS;
   const schema_create_func *creator_ptr_arrays[] = { //二维函数指针数组 ，每组creators的最后一个元素是NULL
@@ -1037,13 +1017,15 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas,ObA
   } else if (OB_FAIL(table_schemas.reserve(1132))) { // 系统表数量 ：257
     LOG_WARN("reserve failed", "capacity", OB_SYS_TABLE_COUNT, KR(ret));
   } else {
+    //int times=0;
+    //int fuck=0;
     HEAP_VAR(ObTableSchema, data_schema) {
       for (int64_t i = 0; OB_SUCC(ret) && i < ARRAYSIZEOF(creator_ptr_arrays); ++i) {
-        int number=table_schemas.count();
-        LOG_WARN("开始构造前number大小是", K(number));
+        //LOG_WARN("这一轮循环开始现在i是", KR(ret), K(i));
         for (const schema_create_func *creator_ptr = creator_ptr_arrays[i];
              OB_SUCCESS == ret && NULL != *creator_ptr; ++creator_ptr) {
           table_schema.reset();
+          table_schema.is_sys_table_schema=-1;
           bool exist = false;
           //循环了很多次
           if (OB_FAIL(construct_schema(*creator_ptr, table_schema))) { // 构造表的schema
@@ -1060,15 +1042,29 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas,ObA
             if (OB_FAIL(ObSysTableChecker::fill_sys_index_infos(table_schema))) {
               LOG_WARN("fail to fill sys index infos", KR(ret), K(data_table_id));
             } 
-            //这里是可能添加的
-            else if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+            if(i==1)
+            {
+              if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+                       OB_SYS_TENANT_ID, data_table_id, table_schemas,1))) { // 这里是把系统表的索引加入到table_schemas中
+              LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
+              }
+            }
+            if(i==0)
+            {
+              if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+                       OB_SYS_TENANT_ID, data_table_id, table_schemas,0))) { // 这里是把系统表的索引加入到table_schemas中
+              LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
+              }
+            }
+            //这里面好像只是添加表吧，感觉跟schema关系不大。
+            if(i!=0&&i!=1) {
+              //++times;
+              //LOG_WARN("既不是0也不是1", KR(ret));
+              if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
                        OB_SYS_TENANT_ID, data_table_id, table_schemas))) { // 这里是把系统表的索引加入到table_schemas中
               LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
+              }
             }
-            if(i==0){
-              ObSysTableChecker::append_sys_table_index_schemas(OB_SYS_TENANT_ID, data_table_id, core_table_schemas);
-            }
-            if(i==1)ObSysTableChecker::append_sys_table_index_schemas(OB_SYS_TENANT_ID, data_table_id, sys_table_schemas);
           }
 
           const int64_t data_table_id = table_schema.get_table_id();
@@ -1078,16 +1074,35 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas,ObA
             //   LOG_WARN("fail to add lob table to sys table", KR(ret), K(data_table_id));
             // }
             // push sys table
-            //这里也会添加
-            if(i==0)core_table_schemas.push_back(table_schema);
-            if(i==1)sys_table_schemas.push_back(table_schema);
+            if(i==0)
+            {
+              //LOG_WARN("进入i==0了", KR(ret), K(data_table_id));
+              //++fuck;
+              //难道是copy构造函数之类的没有复制这个玩意儿？
+              table_schema.is_sys_table_schema=i;
+            }
+            if(i==1){
+              //++fuck;
+              table_schema.is_sys_table_schema=i;
+            }
             if (OB_SUCC(ret) && OB_FAIL(table_schemas.push_back(table_schema))) { //如果表存在且处理成功，将构建好的系统表的 schema 信息添加到传入的 table_schemas 数组中
               LOG_WARN("push_back failed", KR(ret), K(table_schema));
             }
           }
         }
-        if(i==0)LOG_WARN("i=0即核心表吧。本次循环后schema新增了这么多个", K(table_schemas.count()-number));
-        else LOG_WARN("本次循环后schema新增了这么多个", K(table_schemas.count()-number));
+        /*LOG_WARN("一轮循环完了现在times是，fuck是", KR(ret), K(times),K(fuck));
+        LOG_WARN("一轮循环完了现在总schema个数是", KR(ret), K(table_schemas.count()));
+        int sys_count=0;
+        int core_count=0;
+        int other_count=0;
+        for(int j=0;j<table_schemas.count();++j)
+        {
+          if(table_schemas.at(j).is_sys_table_schema==1)++sys_count;
+          else if(table_schemas.at(j).is_sys_table_schema==0)++core_count;
+          else ++other_count;
+        }
+        LOG_WARN("系统表和核心表的schema数量各自是，其它数量是，总数量是", KR(ret), K(sys_count), K(core_count), K(other_count),K(table_schemas.count()));
+        */
       }
     }
   }
@@ -1145,7 +1160,7 @@ int ObBootstrap::broadcast_sys_schema(const ObSArray<ObTableSchema> &table_schem
 }
 
 int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
-                                   ObIArray<ObTableSchema> &table_schemas,ObArray<ObTableSchema> &update_table_schemas)
+                                   ObIArray<ObTableSchema> &table_schemas)
 {
   int ret = OB_SUCCESS;
   const int64_t begin_time = ObTimeUtility::current_time();
@@ -1164,14 +1179,12 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
       } else if (OB_FAIL(tmp_tables.push_back(core_table))) { 
         // 将__all_core_table的schema加入到tmp_tables数组中
         LOG_WARN("fail to push back __all_core_table's schema", KR(ret), K(core_table));
-      } 
-      //这里也需要传入update
-      else if (OB_FAIL(batch_create_schema(ddl_service, tmp_tables, 0, 1,&update_table_schemas))) {
+      } else if (OB_FAIL(batch_create_schema(ddl_service, tmp_tables, 0, 1))) {
         //批量创建内置表格的 schema：
         LOG_WARN("fail to create __all_core_table's schema", KR(ret), K(core_table));
       }
     }
-    if (OB_FAIL(parallel_create_table_schema(OB_SYS_TENANT_ID,ddl_service, table_schemas,update_table_schemas))) {
+    if (OB_FAIL(parallel_create_table_schema(OB_SYS_TENANT_ID,ddl_service, table_schemas))) {
       LOG_WARN("create_all_schema", K(ret));
     }
     // int64_t begin = 0; //记录批处理的开始位置
@@ -1211,19 +1224,17 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
   return ret;
 }
 
-int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas,common::ObArray<ObTableSchema> &update_table_schemas)
+int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas)
 {
   int ret = OB_SUCCESS;
   int64_t begin = 0;
   int64_t batch_count = table_schemas.count() / 16;
   const int64_t MAX_RETRY_TIMES = 10;
   int64_t finish_cnt = 0;
-  //有一个线程数组
   std::vector<CreateSchemaTask> ths;
   ObCurTraceId::TraceId *cur_trace_id = ObCurTraceId::get_trace_id();
   // batch_create_schema(ddl_service,table_schemas,0,20);
-  //这里也是需要收集的，就用主线程的成员变量就可以了吧？
-  batch_create_schema(ddl_service,table_schemas,756,770,&update_table_schemas);
+  batch_create_schema(ddl_service,table_schemas,756,770);
   for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
     if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
       if(begin == 700) {
@@ -1240,16 +1251,6 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
   for(int i = 0; i < ths.size(); i++) {
     ths.at(i).wait();
   }
-
-  //可以在这里面最后收集中的update后的table_schema
-  for(int i=0;i<ths.size();++i)
-  {
-    for(int j=0;j<ths.at(i).update_table_schemas.count();++j)
-    {
-      update_table_schemas.push_back(ths.at(i).update_table_schemas.at(j));
-    }
-  }
-  
   // if (finish_cnt != table_schemas.count()) {
   //   ret = OB_ERR_UNEXPECTED;
   //   LOG_WARN("parallel_create_table_schema fail", K(finish_cnt), K(table_schemas.count()), K(ret));
@@ -1313,7 +1314,7 @@ int ObBootstrap::batch_create_schema_local(uint64_t tenant_id,
 
 int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
                                      ObIArray<ObTableSchema> &table_schemas,
-                                     const int64_t begin, const int64_t end,ObArray<ObTableSchema> *update_table_schemas)
+                                     const int64_t begin, const int64_t end)
 {
   LOG_INFO("进入batch_create_schema");
   int ret = OB_SUCCESS;
@@ -1342,7 +1343,7 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
         int64_t start_time = ObTimeUtility::current_time();
         if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
                                               need_sync_schema_version,
-                                              is_truncate_table,update_table_schemas))) {
+                                              is_truncate_table))) {
           LOG_WARN("add table schema failed", K(ret),
               "table_id", table.get_table_id(),
               "table_name", table.get_table_name());
@@ -1440,7 +1441,6 @@ int ObBootstrap::wait_all_rs_in_service()
   int ret = OB_SUCCESS;
   const int64_t check_interval = 500 * 1000;
   int64_t left_time_can_sleep = WAIT_RS_IN_SERVICE_TIMEOUT_US;
-  LOG_WARN("进入了wait_all_rs_in_service马上调用检查内部状态了", K(ret));
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", K(ret));
   }

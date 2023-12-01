@@ -127,6 +127,158 @@ using namespace storage;
 using namespace palf;
 namespace rootserver
 {
+
+class CreateSysSchemaTask : public lib::TGRunnable { // TODO (gushengjie)
+public:
+  CreateSysSchemaTask(uint64_t tenant_id, ObDDLService &ddl_service,
+                      common::ObIArray<ObTableSchema> &tables, int64_t begin,
+                      int64_t end)
+      : tenant_id_(tenant_id), ddl_service_(ddl_service), tables_(tables), begin_(begin),
+        end_(end) {}
+  virtual ~CreateSysSchemaTask() {destroy();}
+
+  virtual void run1() override {
+    auto start = ObTimeUtility::current_time();
+    lib::set_thread_name("CreateSchemaSySTask");
+    LOG_INFO("进入SYS线程", K(begin_), K(end_));
+    int64_t retry_times = 1;
+    int ret = OB_SUCCESS;
+    while (OB_SUCC(ret)) {
+      if (OB_FAIL(batch_create_schema_local(tenant_id_, ddl_service_, tables_,
+                                            begin_, end_))) {
+        LOG_WARN("fail to batch create sys schema", K(ret));
+        if (retry_times <= 10) {
+          retry_times++;
+          ret = OB_SUCCESS;
+          LOG_INFO("schema error while create table, need retry", KR(ret), K(tenant_id_), K(begin_), K(end_),
+                   K(retry_times));
+          usleep(0.01 * 1000 * 1000L); // 1s
+        }
+      } else {
+        break;
+      }
+    }
+    auto end = ObTimeUtility::current_time();
+    LOG_INFO("batch create schema worker job", K(begin_), K(end_),
+             K(end_ - begin_), K(ret), K(end - start));
+  }
+
+  int init() {
+    int ret = OB_SUCCESS;
+    if (IS_INIT) {
+      ret = OB_INIT_TWICE;
+      LOG_WARN("init twice", K(ret));
+    } else if (OB_FAIL(TG_CREATE_TENANT(lib::TGDefIDs::CREATE_SCHEMA_TASK,
+                                        tg_id_))) {
+      LOG_WARN("fail to create tenant for create schema task", K(ret));
+    } else {
+      is_inited_ = true;
+    }
+    return ret;
+  }
+  int start() {
+    int ret = OB_SUCCESS;
+    if (IS_NOT_INIT) {
+      ret = OB_NOT_INIT;
+      LOG_WARN("not init", K(ret));
+    } else if (OB_FAIL(TG_SET_RUNNABLE_AND_START(tg_id_, *this))) {
+      LOG_WARN("fail to set runnable and start", K(ret));
+    }
+    return ret;
+  }
+
+  // int BatchCreateSysSchema() {
+  //   int ret = OB_SUCCESS;
+  //   for (int64_t i = begin_; OB_SUCC(ret) && i < end_; i++) {
+  //     ObTableSchema &table = tables_.at(i);
+  //     const int64_t table_id = table.get_table_id();
+  //     const ObString &table_name = table.get_table_name();
+  //     const ObString *ddl_stmt = NULL;
+  //     //是否需要同步schema版本。
+  //     bool need_sync_schema_version =
+  //         !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
+  //           is_sys_lob_table(table_id));
+
+  //     if (OB_FAIL(ddl_operator_.create_table(table, trans_, ddl_stmt,
+  //                                            need_sync_schema_version,
+  //                                            false /*is_truncate_table*/))) {
+  //       LOG_WARN("add table schema failed", KR(ret), K(table_id),
+  //                K(table_name));
+  //     } else {
+  //       //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
+  //       LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
+  //     }
+  //   }
+  //   return ret;
+  // }
+  int batch_create_schema_local(uint64_t tenant_id, ObDDLService &ddl_service,
+                                ObIArray<ObTableSchema> &table_schemas,
+                                const int64_t begin, const int64_t end) {
+    int ret = OB_SUCCESS;
+    const int64_t begin_time = ObTimeUtility::current_time();
+    if (begin < 0 || begin >= end || end > table_schemas.count()) {
+      ret = OB_INVALID_ARGUMENT;
+      LOG_WARN("invalid argument", K(ret), K(begin), K(end), "table count",
+               table_schemas.count());
+    } else {
+      ObDDLOperator ddl_operator(ddl_service.get_schema_service(),
+                                 ddl_service.get_sql_proxy());
+      ObMySQLTransaction trans(true);
+      if (OB_FAIL(trans.start(&ddl_service.get_sql_proxy(), tenant_id))) {
+        LOG_WARN("start transaction failed", KR(ret));
+      } else {
+        for (int64_t idx = begin; idx < end && OB_SUCC(ret); idx++) {
+          ObTableSchema &table = table_schemas.at(idx);
+          const ObString *ddl_stmt = NULL;
+          bool need_sync_schema_version = !(
+              ObSysTableChecker::is_sys_table_index_tid(table.get_table_id()) ||
+              is_sys_lob_table(table.get_table_id()));
+          int64_t start_time = ObTimeUtility::current_time();
+          if (OB_FAIL(ddl_operator.create_table(
+                  table, trans, ddl_stmt, need_sync_schema_version, false))) {
+            LOG_WARN("add table schema failed", K(ret), "id: ", idx, "table_id",
+                     table.get_table_id(), "table_name",
+                     table.get_table_name());
+          } else {
+            int64_t end_time = ObTimeUtility::current_time();
+            LOG_INFO("add table schema succeed", K(idx), "table_id",
+                     table.get_table_id(), "table_name", table.get_table_name(),
+                     "core_table", is_core_table(table.get_table_id()), "cost",
+                     end_time - start_time,K(tenant_id));
+          }
+        }
+      }
+      if (trans.is_started()) {
+        const bool is_commit = (OB_SUCCESS == ret);
+        int tmp_ret = trans.end(is_commit);
+        if (OB_SUCCESS != tmp_ret) {
+          LOG_WARN("end trans failed", K(tmp_ret), K(is_commit));
+          ret = (OB_SUCCESS == ret) ? tmp_ret : ret;
+        } else {
+        }
+      }
+    }
+
+    const int64_t now = ObTimeUtility::current_time();
+    LOG_INFO("batch create schema finish", K(ret), "table_count", end - begin,
+             "total_time_used", now - begin_time);
+    // BOOTSTRAP_CHECK_SUCCESS();
+    return ret;
+  }
+  void wait() { TG_WAIT(tg_id_); }
+  void stop() { TG_STOP(tg_id_); }
+  void destroy() { TG_DESTROY(tg_id_); }
+
+private:
+  int tg_id_;
+  bool is_inited_ = false;
+  uint64_t tenant_id_;
+  ObDDLService &ddl_service_;
+  common::ObIArray<ObTableSchema> &tables_;
+  int64_t begin_;
+  int64_t end_;
+};
+
 #define MODIFY_LOCALITY_NOT_ALLOWED() \
         do { \
           ret = OB_OP_NOT_ALLOW; \
@@ -14399,10 +14551,7 @@ int ObDDLService::maintain_obj_dependency_info(const obrpc::ObDependencyObjDDLAr
     }
   }
   int tmp_ret = OB_SUCCESS;
-  LOG_WARN("maintain_obj_dependency_info这里要刷新的schema的租户id是", K(tenant_id));
   if (OB_FAIL(ret)) {
-    //这里刷了一下
-    
   } else if (OB_SUCCESS != (tmp_ret = publish_schema(tenant_id))) {
     LOG_WARN("publish_schema failed", K(tmp_ret));
   }
@@ -22964,7 +23113,7 @@ int ObDDLService::broadcast_sys_table_schemas(
   return ret;
 }
 
-int ObDDLService::create_tenant_sys_tablets(
+int ObDDLService::create_tenant_sys_tablets(    
     const uint64_t tenant_id,
     common::ObIArray<ObTableSchema> &tables)
 {
@@ -23344,11 +23493,14 @@ int ObDDLService::set_log_restore_source(
   return ret;
 }
 //创建系统表schema
-int ObDDLService::create_sys_table_schemas(
+int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     ObDDLOperator &ddl_operator,
     ObMySQLTransaction &trans,
     common::ObIArray<ObTableSchema> &tables)
 {
+  auto start_time = ObTimeUtility::fast_current_time();
+  auto tenant_id = tables.at(0).get_tenant_id();
+  LOG_INFO("[start create sys table schemas");
   int ret = OB_SUCCESS;
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("variable is not init", KR(ret));
@@ -23357,29 +23509,88 @@ int ObDDLService::create_sys_table_schemas(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service));
   } else {
+    int ret = OB_SUCCESS;
+    int64_t begin = 0;
+    int64_t batch_count = tables.count() / 16; // 【62，139】
+    std::vector<CreateSysSchemaTask> ths;
+    ths.reserve(16);
+    // ths.emplace_back(tenant_id, *this, tables, 0, 16);
+    // ths.back().init();
+    // ths.back().start();
+    // ths.back().wait();
+    for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
+      if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+        while ((i+1) < tables.count() and (is_sys_index_table(tables.at(i+1).get_table_id()) or is_sys_lob_table(tables.at(i+1).get_table_id()))) {
+          ++i;
+        }
+        // if(tenant_id == 1001 and begin == 1000) {
+        //   begin = 1019;
+        //   continue;
+        // }
+        // if(tenant_id == 1002 and begin == 777) {
+        //   begin = 793;
+        //   continue;
+        // }
+        ths.emplace_back(tenant_id, *this, tables,begin,i+1);
+        ths.back().init();
+        ths.back().start();
+        begin = i + 1;
+      }
+    }
+    for (int i = 1; i < ths.size(); i++) {
+      ths.at(i).wait();
+    }
+    // if(tenant_id == 1001) {
+    //   CreateSysSchemaTask th(tenant_id, *this, tables,1000,1019);
+    //   th.init();
+    //   th.start();
+    //   th.wait();
+    // }
+    // if(tenant_id == 1002) {
+    //   CreateSysSchemaTask th(tenant_id, *this, tables,777,793);
+    //   th.init();
+    //   th.start();
+    //   th.wait();
+    // }
+
+
+
     // persist __all_core_table's schema in inner table, which is only used for sys views.
     //持久化核心表的schema到内部表中，这个表只被系统视图使用。
     //就是这里耗时
     //真有1000多张表
-    for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
-      ObTableSchema &table = tables.at(i);
-      const int64_t table_id = table.get_table_id();
-      const ObString &table_name = table.get_table_name();
-      const ObString *ddl_stmt = NULL;
-      //是否需要同步schema版本。
-      bool need_sync_schema_version = !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
-                                        is_sys_lob_table(table_id));
+    // CreateSysSchemaTask task(ddl_operator,trans,tables,0,16);
+    // task.init();
+    // task.start();
+    // task.wait();
+    // CreateSysSchemaTask task2(ddl_operator,trans,tables,17,tables.count());
+    // task2.init();
+    // task2.start();
+    // CreateSysSchemaTask task1(ddl_operator,trans,tables,16,17);
+    // task1.init();
+    // task1.start();
+    // task1.wait();
+    // task2.wait();
+    // for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
+      // ObTableSchema &table = tables.at(i);
+      // const int64_t table_id = table.get_table_id();
+      // const ObString &table_name = table.get_table_name();
+      // const ObString *ddl_stmt = NULL;
+      // //是否需要同步schema版本。
+      // bool need_sync_schema_version = !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
+      //                                   is_sys_lob_table(table_id));
       
-      if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
-                                            need_sync_schema_version,
-                                            false /*is_truncate_table*/))) {
-        LOG_WARN("add table schema failed", KR(ret), K(table_id), K(table_name));
-      } else {
-        //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
-        LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
-      }
-    }
+      // if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
+      //                                       need_sync_schema_version,
+      //                                       false /*is_truncate_table*/))) {
+      //   LOG_WARN("add table schema failed", KR(ret), K(table_id), K(table_name));
+      // } else {
+      //   //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
+      //   LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name)); // 2311
+      // }
+    // }
   }
+  LOG_INFO("[finish create sys table schemas", KR(ret), K(tenant_id),"cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
 }
 
@@ -26411,9 +26622,7 @@ int ObDDLService::alter_tablegroup(const ObAlterTablegroupArg &arg)
   return ret;
 }
 
-
-int ObDDLService::my_refresh_schema(const uint64_t tenant_id,ObArray<ObTableSchema> &core_table_schemas,
-      ObArray<ObTableSchema> &sys_table_schemas, int64_t *publish_schema_version)
+int ObDDLService::my_refresh_schema(const uint64_t tenant_id,ObIArray<ObTableSchema> &table_schemas,int64_t *publish_schema_version)
 {
   int ret = OB_SUCCESS;
   int64_t refresh_count = 0;
@@ -26437,7 +26646,7 @@ int ObDDLService::my_refresh_schema(const uint64_t tenant_id,ObArray<ObTableSche
         LOG_ERROR("fail to set timeout_ctx, refresh schema failed", KR(ret), K(tenant_id));
         break;
       } else {
-        ret = schema_service_->my_refresh_and_add_schema(tenant_ids,core_table_schemas,sys_table_schemas);
+        ret = schema_service_->my_refresh_and_add_schema(tenant_ids,table_schemas);
       }
 
       if (OB_SUCC(ret)) {
@@ -26489,8 +26698,10 @@ int ObDDLService::my_refresh_schema(const uint64_t tenant_id,ObArray<ObTableSche
     }
     THIS_WORKER.set_timeout_ts(original_timeout_us);
   }
+
   return ret;
 }
+
 //只传入第一个参数，第二个默认为空吗？
 int ObDDLService::refresh_schema(uint64_t tenant_id, int64_t *publish_schema_version /*NULL*/)
 {
