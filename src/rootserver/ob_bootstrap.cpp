@@ -1187,7 +1187,7 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
   auto start_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
   int64_t begin = 0;
-  int64_t batch_count = table_schemas.count() / 10;
+  int64_t batch_count = table_schemas.count() / 16;
   // const int64_t MAX_RETRY_TIMES = 10;
   // int64_t finish_cnt = 0;
   
