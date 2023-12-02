@@ -23511,7 +23511,12 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
   } else {
     int ret = OB_SUCCESS;
     int64_t begin = 16;
-    int64_t batch_count = tables.count() / 15; // 【62，139】
+    int64_t batch_count;// 【62，139】
+
+    batch_count = tables.count() / 15;
+    if(tenant_id == 1002) {
+      batch_count = tables.count()/8;
+    }
     // std::vector<CreateSysSchemaTask> ths;
     ths.reserve(16);
     ths.emplace_back(tenant_id, *this, tables, 0, 16);
@@ -23555,7 +23560,11 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     //   th.wait();
     // }
 
-
+    if (tenant_id == 1001){
+      for(int i = 0; i < ths.size(); i++) {
+        ths.at(i).wait();
+      }
+    }
 
     // persist __all_core_table's schema in inner table, which is only used for sys views.
     //持久化核心表的schema到内部表中，这个表只被系统视图使用。
