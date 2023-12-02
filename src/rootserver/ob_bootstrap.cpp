@@ -682,7 +682,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
 {
   int ret = OB_SUCCESS;
   bool already_bootstrap = true;
-  ObSArray<ObTableSchema> table_schemas;
+  
   begin_ts_ = ObTimeUtility::current_time();
 
   BOOTSTRAP_LOG(INFO, "start do execute_bootstrap");
@@ -1187,18 +1187,18 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
   auto start_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
   int64_t begin = 0;
-  int64_t batch_count = table_schemas.count() / 16;
-  const int64_t MAX_RETRY_TIMES = 10;
-  int64_t finish_cnt = 0;
+  int64_t batch_count = table_schemas.count() / 10;
+  // const int64_t MAX_RETRY_TIMES = 10;
+  // int64_t finish_cnt = 0;
   
-  // CreateSchemaTask th(ddl_service, table_schemas, 757, 770);
-  // th.init();
-  // th.wait();
-  ths.reserve(17);
-  // auto create_schema = [&](int64_t begin, int64_t end) {
-  //   ths.emplace_back(ddl_service, table_schemas, begin, end);
-  //   ths.back().init();
-  //   ths.back().start();
+  // // CreateSchemaTask th(ddl_service, table_schemas, 757, 770);
+  // // th.init();
+  // // th.wait();
+  // ths.reserve(17);
+  // // auto create_schema = [&](int64_t begin, int64_t end) {
+  // ths.emplace_back(ddl_service, table_schemas, 0, table_schemas.count());
+  // ths.back().init();
+  // ths.back().start();
   //   // 试一试绑核，线程数量不要超过16了，然后，线程的执行不一定就在一个区间，可以改一改
   // };
   // create_schema(0,6);
@@ -1218,19 +1218,19 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
   // create_schema(720, 757);
   // create_schema(770, 1071);
 
-  batch_create_schema(ddl_service, table_schemas, 756, 770);
-  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-      if (begin == 700) {
-        ths.emplace_back(ddl_service, table_schemas, begin, 756);
-      } else {
-        ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
-      }
-      ths.back().init();
-      ths.back().start();
-      begin = i + 1;
-    }
-  }
+  // batch_create_schema(ddl_service, table_schemas, 756, 770);
+  // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+  //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+  //     if (begin == 700) {
+  //       ths.emplace_back(ddl_service, table_schemas, begin, 756);
+  //     } else {
+  //       ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
+  //     }
+  //     ths.back().init();
+  //     ths.back().start();
+  //     begin = i + 1;
+  //   }
+  // }
   
   // for (int i = 0; i < ths.size(); i++) {
   //   ths.at(i).wait();
@@ -1239,6 +1239,46 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
   //   ret = OB_ERR_UNEXPECTED;
   //   LOG_WARN("parallel_create_table_schema fail", K(finish_cnt), K(table_schemas.count()), K(ret));
   // }
+  int64_t finish_cnt = 0;
+  std::vector<std::thread> ths;
+  ObCurTraceId::TraceId *cur_trace_id = ObCurTraceId::get_trace_id();
+  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+      std::thread th([&, begin, i, cur_trace_id]() {
+        int ret = OB_SUCCESS;
+        lib::set_thread_name("CreateSchemaTask");
+        ObCurTraceId::set(*cur_trace_id);
+        int64_t retry_times = 1;
+        while (OB_SUCC(ret)) {
+          if (OB_FAIL(batch_create_schema_local(tenant_id, ddl_service,
+                                                table_schemas, begin, i + 1))) {
+            LOG_WARN("batch create schema failed", K(ret), "table count",
+                     i + 1 - begin);
+            // bugfix:
+            if (retry_times <= 10) {
+              retry_times++;
+              ret = OB_SUCCESS;
+              LOG_INFO("schema error while create table, need retry", KR(ret),
+                       K(retry_times));
+              usleep(1 * 1000 * 1000L); // 1s
+            }
+          } else {
+            ATOMIC_AAF(&finish_cnt, i + 1 - begin);
+            break;
+          }
+        }
+        LOG_INFO("worker job", K(begin), K(i), K(i - begin), K(ret));
+      });
+      ths.push_back(std::move(th));
+      if (OB_SUCC(ret)) {
+        begin = i + 1;
+      }
+    }
+  }
+  for (auto &th : ths) {
+    th.detach();
+  }
+
   auto end_time = ObTimeUtility::current_time();
   LOG_INFO("parallel_create_table_schema", K(ret), "cost", end_time - start_time);
   return ret;
