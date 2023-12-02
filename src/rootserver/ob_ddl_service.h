@@ -2050,7 +2050,7 @@ private:
       const uint64_t tenant_id,
       const ObString &tenant_name,
       const share::ObTenantRole &tenant_role);
-  static std::vector<CreateSysSchemaTask> ths;
+//   static std::vector<CreateSysSchemaTask> ths;
   int create_sys_table_schemas(
       ObDDLOperator &ddl_operator,
       ObMySQLTransaction &trans,
