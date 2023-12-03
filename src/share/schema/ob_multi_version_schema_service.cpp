@@ -2447,6 +2447,119 @@ int ObMultiVersionSchemaService::async_refresh_schema(
   return ret;
 }
 
+int ObMultiVersionSchemaService::my_refresh_and_add_schema(const ObIArray<uint64_t> &tenant_ids,ObIArray<ObTableSchema> &table_schemas,
+                                                        bool check_bootstrap/* = false*/)
+{
+  FLOG_INFO("[REFRESH_SCHEMA] start to refresh and add schema", K(tenant_ids));
+  const int64_t start = ObTimeUtility::current_time();
+  int ret = OB_SUCCESS;
+  bool is_standby_cluster = GCTX.is_standby_cluster();
+  if (!check_inner_stat()) {
+    ret = OB_INNER_STAT_ERROR;
+    LOG_WARN("inner stat error", K(ret));
+  } else {
+    lib::ObMutexGuard guard(schema_refresh_mutex_);
+    auto func = [&]() {
+      ObSchemaStatusProxy *schema_status_proxy = GCTX.schema_status_proxy_;
+      // This is just to reduce SQL calls, the error code can be ignored
+      int tmp_ret = OB_SUCCESS;
+      bool restore_tenant_exist = false;
+      if (ObSchemaService::g_liboblog_mode_) {
+        // Avoid using schema_status_proxy for agentserver and liboblog
+        restore_tenant_exist = false;
+      } else if (OB_SUCCESS != (tmp_ret = check_restore_tenant_exist(tenant_ids, restore_tenant_exist))) {
+        LOG_WARN("fail to check restore tenant exist", K(ret), K(tmp_ret), K(tenant_ids));
+        restore_tenant_exist = true;
+      }
+      if (is_standby_cluster || restore_tenant_exist) {
+        if (OB_ISNULL(schema_status_proxy)) {
+          ret = OB_ERR_UNEXPECTED;
+          LOG_WARN("schema_status_proxy is null", K(ret));
+        } else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status())) {
+          LOG_WARN("fail to load refresh schema status", K(ret));
+        }
+      }
+
+      if (OB_FAIL(ret)) {
+      } else if (check_bootstrap) {
+        // The schema refresh triggered by the heartbeat is forbidden in the bootstrap phase,
+        // and it needs to be judged in the schema_refresh_mutex_lock
+        //
+        int64_t baseline_schema_version = OB_INVALID_VERSION;
+        if (OB_FAIL(get_baseline_schema_version(OB_SYS_TENANT_ID, true/*auto_update*/, baseline_schema_version))) {
+          LOG_WARN("fail to get baseline_schema_version", K(ret));
+        } else if (baseline_schema_version < 0) {
+          // still in bootstrap phase, refresh schema is not allowed
+          ret = OB_OP_NOT_ALLOW;
+          LOG_WARN("refresh schema in bootstrap phase is not allowed", K(ret));
+        }
+      }
+
+      // Ensure that the memory on the stack requested during the refresh schema process also uses the default 500 tenant
+      ObArenaAllocator allocator(ObModIds::OB_MODULE_PAGE_ALLOCATOR, OB_MALLOC_BIG_BLOCK_SIZE, OB_SERVER_TENANT_ID);
+      ObSchemaStackAllocatorGuard guard(&allocator);
+
+      ObArray<uint64_t> all_tenant_ids;
+      if (OB_FAIL(ret)) {
+      } else if (0 == tenant_ids.count()) {
+        // refresh all tenant schema
+        ObSchemaMgr *schema_mgr = NULL;
+        if (OB_FAIL(refresh_tenant_schema(OB_SYS_TENANT_ID))) {
+          LOG_WARN("fail to refresh sys schema", K(ret), K(all_tenant_ids));
+        } else if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(OB_SYS_TENANT_ID, schema_mgr))) {
+          LOG_WARN("fail to get sys schema mgr for cache", K(ret));
+        } else if (OB_ISNULL(schema_mgr)) {
+          ret = OB_ERR_UNEXPECTED;
+          LOG_WARN("schema_mgr is null", K(ret));
+        } else if (OB_FAIL(schema_mgr->get_tenant_ids(all_tenant_ids))) {
+          LOG_WARN("fail to get all tenant_ids", K(ret));
+        } else {
+          // Ignore that some tenants fail to refresh the schema,
+          // and need to report an error to the upper layer to avoid pushing up last_refresh_schema_info
+          int tmp_ret = OB_SUCCESS;
+          for (int64_t i = 0; i < all_tenant_ids.count(); i++) {
+            const uint64_t tenant_id = all_tenant_ids.at(i);
+            if (OB_SYS_TENANT_ID == tenant_id) {
+              // skip
+            } else if (OB_SUCCESS != (tmp_ret = refresh_tenant_schema(tenant_id))) {
+              LOG_WARN("fail to refresh tenant schema", K(tmp_ret), K(tenant_id));
+            }
+            if (OB_SUCCESS != tmp_ret && OB_SUCCESS == ret) {
+              ret = tmp_ret;
+            }
+          }
+        }
+      } else {
+        // Ignore that some tenants fail to refresh the schema,
+        // and need to report an error to the upper layer to avoid pushing up last_refresh_schema_info
+        int tmp_ret = OB_SUCCESS;
+        for (int64_t i = 0; i < tenant_ids.count(); i++) {
+          const uint64_t tenant_id = tenant_ids.at(i);
+          if (OB_INVALID_TENANT_ID == tenant_id) {
+            tmp_ret = OB_INVALID_ARGUMENT;
+            LOG_WARN("invalid tenant_id", K(tmp_ret), K(tenant_id));
+          } else if (OB_SUCCESS != (tmp_ret = my_refresh_tenant_schema(tenant_id,table_schemas))) {
+            LOG_WARN("fail to refresh tenant schema", K(tmp_ret), K(tenant_id));
+          }
+          if (OB_SUCCESS != tmp_ret && OB_SUCCESS == ret) {
+            ret = tmp_ret;
+          }
+        }
+      }
+    };
+    CREATE_WITH_TEMP_ENTITY_P(!ObSchemaService::g_liboblog_mode_, RESOURCE_OWNER, common::OB_SERVER_TENANT_ID)
+    {
+      func();
+    } else {
+      // Two aspects are considered, one is that there is no omt module in one side,
+      // and the other is that the tenant has not been loaded during the omt startup phase.
+      func();
+    }
+  }
+  FLOG_INFO("[REFRESH_SCHEMA] end refresh and add schema", KR(ret), K(tenant_ids),
+            "cost", ObTimeUtility::current_time() - start);
+  return ret;
+}
 
 /*
  * 1. If tenant_id is OB_INVALID_TENANT_ID, it means refresh the schema of all tenants,
@@ -2782,6 +2895,107 @@ int ObMultiVersionSchemaService::auto_switch_mode_and_refresh_schema(
     }
   }
   LOG_INFO("[REFRESH_SCHEMA] end refresh and add schema", K(ret), K(tenant_id));
+  return ret;
+}
+
+int ObMultiVersionSchemaService::my_refresh_tenant_schema(
+    const uint64_t tenant_id,ObIArray<ObTableSchema> &table_schemas)
+{
+  FLOG_INFO("[REFRESH_SCHEMA] start to refresh and add schema by tenant", K(tenant_id));
+  const int64_t start = ObTimeUtility::current_time();
+  int ret = OB_SUCCESS;
+  bool refresh_full_schema = false;
+  bool is_standby_cluster = GCTX.is_standby_cluster();
+  bool is_restore = false;
+  if (!check_inner_stat()) {
+    ret = OB_INNER_STAT_ERROR;
+    LOG_WARN("inner stat error", KR(ret));
+  } else if (OB_INVALID_TENANT_ID == tenant_id) {
+    ret = OB_INVALID_ARGUMENT;
+    LOG_WARN("invalid tenant_id", KR(ret), K(tenant_id));
+  } else if (OB_ISNULL(sql_proxy_)) {
+    ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("proxy is null", KR(ret));
+  } else if (!ObSchemaService::g_liboblog_mode_
+             && OB_FAIL(check_tenant_is_restore(NULL, tenant_id, is_restore))) {
+    LOG_WARN("fail to check restore tenant exist", KR(ret), K(tenant_id));
+  } else {
+    int64_t new_received_schema_version = OB_INVALID_VERSION;
+    ObRefreshSchemaStatus refresh_schema_status;
+    ObISQLClient &sql_client = *sql_proxy_;
+
+    // read refresh_schema_status from inner table
+    if ((!is_standby_cluster && !is_restore)
+         || is_sys_tenant(tenant_id)
+         || is_meta_tenant(tenant_id)) {
+      // 1. System tenants strengthen the consistency of reading and refresh schema
+      // 2. user tenants of the primary cluster strengthened to read and refresh schema consistently
+      refresh_schema_status.reset();
+      refresh_schema_status.tenant_id_ = tenant_id;
+      refresh_schema_status.snapshot_timestamp_ = OB_INVALID_TIMESTAMP;
+      refresh_schema_status.readable_schema_version_ = OB_INVALID_VERSION;
+    } else {
+      // 3. user tenants of the standalone cluster weaken the consistent read and refresh schema
+      // 4. primary cluster restore tenants are weak, consistent read and refresh schema
+      ObSchemaStatusProxy *schema_status_proxy = GCTX.schema_status_proxy_;
+      if (OB_ISNULL(schema_status_proxy)) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("schema_status_proxy is null", KR(ret));
+      } else if (OB_FAIL(schema_status_proxy->get_refresh_schema_status(tenant_id, refresh_schema_status))) {
+        LOG_WARN("fail to get refresh schema status", KR(ret), K(tenant_id));
+      } else if (refresh_schema_status.snapshot_timestamp_ == 0) {
+        // The standalone cluster RS has not yet pushed the tenant's schema version (the standalone cluster RS
+        // needs to change the internal table first, and then change the memory value),
+        // and skip the tenant schema refresh at this time
+        ret = OB_SCHEMA_EAGAIN;
+        LOG_INFO("[REFRESH_SCHEMA] tenant schema is not ready, just skip", KR(ret), K(tenant_id), K(refresh_schema_status));
+      }
+    }
+
+    if (OB_SUCC(ret)) {
+      bool need_refresh = true;
+      int64_t baseline_schema_version = OB_INVALID_VERSION;
+      if (OB_FAIL(get_baseline_schema_version(tenant_id, true/*auto_update*/, baseline_schema_version))) {
+        LOG_WARN("fail to get baseline schema version", KR(ret), K(tenant_id));
+      } else if (OB_FAIL(refresh_full_schema_map_.get_refactored(tenant_id, refresh_full_schema))) {
+        LOG_WARN("refresh full schema", KR(ret), K(tenant_id));
+      } else if (!refresh_full_schema) {
+        if (OB_FAIL(get_schema_version_in_inner_table(
+            sql_client, refresh_schema_status, new_received_schema_version))) {
+          LOG_WARN("fail to get tenant schema version", KR(ret), K(refresh_schema_status));
+        } else {
+          ObSchemaStore* schema_store = schema_store_map_.get(tenant_id);
+          if (NULL == schema_store) {
+            ret = OB_ERR_UNEXPECTED;
+            LOG_WARN("fail to get schema store", KR(ret));
+          } else {
+            // schema_store->update_received_version(new_received_schema_version);
+            // if (schema_store->get_refreshed_version() >= schema_store->get_received_version()) {
+            if (schema_store->get_refreshed_version() >= new_received_schema_version) {
+              need_refresh = false;
+              LOG_TRACE("[REFRESH_SCHEMA] local refreshed schema version is greater than received schema version, just skip",
+                        KR(ret), K(tenant_id), K(schema_store->received_version_), K(schema_store->refreshed_version_));
+            }
+          }
+        }
+      }
+
+      if (OB_SUCC(ret) && need_refresh) {
+        if (OB_FAIL(my_refresh_schema(refresh_schema_status,table_schemas))) {
+          LOG_WARN("fail to refresh schema by tenant", KR(ret), K(refresh_schema_status));
+        }
+      }
+      int tmp_ret = OB_SUCCESS;
+      if (OB_INVALID_SCHEMA_VERSION != new_received_schema_version) {
+        if (OB_SUCCESS != (tmp_ret = set_tenant_received_broadcast_version(tenant_id, new_received_schema_version))) {
+          LOG_WARN("fail to set tenant received schema version", KR(tmp_ret), K(tenant_id), K(new_received_schema_version));
+          ret = OB_SUCC(ret) ? tmp_ret : ret;
+        }
+      }
+    }
+  }
+  FLOG_INFO("[REFRESH_SCHEMA] end refresh and add schema by tenant", KR(ret), K(tenant_id),
+            "cost", ObTimeUtility::current_time() - start);
   return ret;
 }
 
