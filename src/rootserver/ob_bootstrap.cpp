@@ -745,8 +745,8 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     } 
     //刷新所有schema，耗时cost0.3秒多，但是应该还好吧，感觉就看cost
     //将持久化的系统表schema添加到内存Schema Cache
-    else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
-    //else if (OB_FAIL(ddl_service_.my_refresh_schema(OB_SYS_TENANT_ID,table_schemas))) {
+    //else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+    else if (OB_FAIL(ddl_service_.my_refresh_schema(OB_SYS_TENANT_ID,table_schemas))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
   }
@@ -1090,7 +1090,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
             }
           }
         }
-        /*LOG_WARN("一轮循环完了现在times是，fuck是", KR(ret), K(times),K(fuck));
+        //LOG_WARN("一轮循环完了现在times是，fuck是", KR(ret), K(times),K(fuck));
         LOG_WARN("一轮循环完了现在总schema个数是", KR(ret), K(table_schemas.count()));
         int sys_count=0;
         int core_count=0;
@@ -1102,7 +1102,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
           else ++other_count;
         }
         LOG_WARN("系统表和核心表的schema数量各自是，其它数量是，总数量是", KR(ret), K(sys_count), K(core_count), K(other_count),K(table_schemas.count()));
-        */
+        
       }
     }
   }

@@ -3580,6 +3580,7 @@ int ObTableSqlService::update_data_table_schema_version(
     int64_t new_schema_version)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("这里真的只是进入update_data_table_schema_version了",  K(ret));
   const uint64_t exec_tenant_id = tenant_id;
   ObDMLSqlSplicer dml;
   ObRefreshSchemaStatus schema_status;
@@ -3633,7 +3634,8 @@ int ObTableSqlService::update_data_table_schema_version(
       const bool only_history = true;
       const bool update_object_status_ignore_version = false;
       table_schema.set_schema_version(new_schema_version);
-      LOG_WARN("这里真的update_data_table_schema_version了", K(table_schema), K(only_history), K(ret));
+      
+      LOG_ERROR("这里真的update_data_table_schema_version了", K(table_schema), K(only_history), K(ret));
       if (OB_FAIL(add_table(sql_client, table_schema, update_object_status_ignore_version, only_history))) {
         LOG_WARN("add_table failed", K(table_schema), K(only_history), K(ret));
       }

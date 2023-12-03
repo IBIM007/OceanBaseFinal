@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "lib/ob_errno.h"
 #define USING_LOG_PREFIX SHARE_SCHEMA
 #include "ob_server_schema_service.h"
 
@@ -5296,7 +5297,7 @@ int ObServerSchemaService::my_refresh_schema(
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
 
-    FLOG_INFO("[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
+    FLOG_INFO("[REFRESH_SCHEMA] finish mymymymymy refresh full schema", K(ret), K(schema_status),
               "current schema_version", schema_mgr_for_cache->get_schema_version(),
               "cost", ObTimeUtility::current_time() - start);
 
@@ -5355,7 +5356,7 @@ int ObServerSchemaService::refresh_schema(
   } else if (is_full_schema) {
     FLOG_INFO("[REFRESH_SCHEMA] start to refresh full schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
-
+    //还有两次是在init_tenant_schema调用的吧
     if (OB_FAIL(refresh_full_schema(schema_status))) {
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
@@ -5506,7 +5507,7 @@ int ObServerSchemaService::my_refresh_full_schema(
 
         // refresh full normal schema by schema_version
         if (OB_SUCC(ret) && !core_schema_change && !sys_schema_change) {
-          LOG_WARN("马上调用refresh_tenant_full_normal_schema了", KR(ret));
+          LOG_ERROR("马上调用my_refresh_tenant_full_normal_schema了", KR(ret));
           const int64_t fetch_version = std::max(core_schema_version, schema_version);
           if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
             LOG_WARN("fail to get schema_mgr_for_cache", KR(ret), K(schema_status));
@@ -5515,7 +5516,7 @@ int ObServerSchemaService::my_refresh_full_schema(
             LOG_WARN("schema mgr for cache is null", KR(ret), K(schema_status));
           } 
           //这里调用的refresh_tenant_full_normal_schema
-          else if (OB_FAIL(refresh_tenant_full_normal_schema(sql_client, schema_status, fetch_version))) {
+          else if (OB_FAIL(my_refresh_tenant_full_normal_schema(sql_client, schema_status, fetch_version,table_schemas))) {
             LOG_WARN("refresh_full_normal_schema failed", KR(ret), K(schema_status), K(fetch_version));
           } else {
             const int64_t publish_version = std::max(core_schema_version, schema_version);
@@ -5681,7 +5682,7 @@ int ObServerSchemaService::refresh_full_schema(
 
         // refresh full normal schema by schema_version
         if (OB_SUCC(ret) && !core_schema_change && !sys_schema_change) {
-          LOG_WARN("马上调用refresh_tenant_full_normal_schema了", KR(ret));
+          //LOG_ERROR("马上调用refresh_tenant_full_normal_schema了", KR(ret));
           const int64_t fetch_version = std::max(core_schema_version, schema_version);
           if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
             LOG_WARN("fail to get schema_mgr_for_cache", KR(ret), K(schema_status));
@@ -6076,7 +6077,7 @@ int ObServerSchemaService::my_try_fetch_publish_core_schemas(
     } else {
       // core schema don't change, publish core schemas
       ObArray<ObTableSchema *> core_tables;
-      LOG_WARN("table_schemas是这么多",KR(ret),K(table_schemas.count()));
+      LOG_ERROR("my_table_schemas是这么多",KR(ret),K(table_schemas.count()));
       for (int64_t i = 0; i < table_schemas.count() && OB_SUCC(ret); ++i) {
         if(table_schemas.at(i).is_sys_table_schema==0)
         {
@@ -6091,7 +6092,7 @@ int ObServerSchemaService::my_try_fetch_publish_core_schemas(
         }
         
       }
-      LOG_WARN("刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
+      LOG_ERROR("刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
       if (OB_SUCC(ret)) {
         ObSchemaMgr *schema_mgr_for_cache = NULL;
         auto attr = SET_USE_500("PubCoreSchema", ObCtxIds::SCHEMA_SERVICE);
@@ -6162,7 +6163,7 @@ int ObServerSchemaService::try_fetch_publish_core_schemas(
           LOG_WARN("add table schema failed", KR(ret), K(schema_status));
         }
       }
-      LOG_WARN("刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
+      //LOG_WARN("刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
       if (OB_SUCC(ret)) {
         ObSchemaMgr *schema_mgr_for_cache = NULL;
         auto attr = SET_USE_500("PubCoreSchema", ObCtxIds::SCHEMA_SERVICE);
@@ -6220,7 +6221,7 @@ int ObServerSchemaService::my_try_fetch_publish_sys_schemas(
     {
       if(table_schemas.at(i).is_sys_table_schema==1)sys_schemas.push_back(&table_schemas.at(i));
     }
-    LOG_WARN("刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
+    LOG_ERROR("刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
     ObArray<uint64_t> sys_table_ids;
     int64_t new_schema_version = 0;
     if (OB_FAIL(get_sys_table_ids(tenant_id, sys_table_ids))) {
@@ -6312,7 +6313,7 @@ int ObServerSchemaService::try_fetch_publish_sys_schemas(
       LOG_WARN("sys schema change during refresh full schema",
                K(schema_status), K(schema_version), K(new_schema_version));
     } else if (!sys_schema_change) {
-      LOG_WARN("刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
+      //LOG_WARN("刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
       ObSchemaMgr *schema_mgr_for_cache = NULL;
       auto attr = SET_USE_500("PubSysSchema", ObCtxIds::SCHEMA_SERVICE);
       ObArenaAllocator allocator(attr);
@@ -6402,6 +6403,424 @@ int ObServerSchemaService::add_sys_variable_schema_to_cache(
   return ret;
 }
 
+int ObServerSchemaService::my_refresh_tenant_full_normal_schema(
+    ObISQLClient &sql_client,
+    const ObRefreshSchemaStatus &schema_status,
+    const int64_t schema_version,common::ObIArray<share::schema::ObTableSchema> &table_schemas)
+{
+  int ret = OB_SUCCESS;
+  uint64_t tenant_id = schema_status.tenant_id_;
+  LOG_ERROR("进入my_refresh_tenant_full_normal_schema", K(tenant_id),K(ret));
+  ObSchemaMgr *schema_mgr_for_cache = NULL;
+
+  if (!check_inner_stat()) {
+    ret = OB_INNER_STAT_ERROR;
+    LOG_WARN("inner stat error", K(ret));
+  } else if (OB_INVALID_TENANT_ID == tenant_id) {
+    ret = OB_INVALID_ARGUMENT;
+    LOG_WARN("invalid tenant_id", K(ret), K(schema_status));
+  } else if (schema_version < 0) {
+    ret = OB_INVALID_ARGUMENT;
+    LOG_WARN("invalid argument", K(ret), K(schema_version));
+  } else if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
+    LOG_WARN("fail to get schema_mgr_for_cache", K(ret), K(schema_status));
+  } else if (OB_ISNULL(schema_mgr_for_cache)) {
+    ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("schema mgr for cache is null", K(ret));
+  } else {
+    // System tenants need to do the following: 系统租户需要执行以下操作：
+    // 1. Add the full tenant schema of the system tenant to schema_cache 1.将系统租户的全租户架构添加到schema_cache
+    // 2. Initialize the schema memory management structure of ordinary tenants 2.初始化普通租户的模式内存管理结构
+    // 3. Add the simple tenant schema of all tenants 3.添加所有租户的简单租户模式
+    //如果是系统租户的话
+    if (is_sys_tenant(tenant_id)) {
+      ObArray<ObSimpleTenantSchema> simple_tenants;
+      ObArray<ObDropTenantInfo> drop_tenant_infos;
+      if (OB_FAIL(schema_service_->get_all_tenants(sql_client,
+                                                   schema_version,
+                                                   simple_tenants))) {
+        LOG_WARN("get all tenant schema failed", K(ret), K(schema_version));
+      } else if (simple_tenants.count() <= 0) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("tenant counts error", K(ret), K(simple_tenants.count()));
+      } else if (OB_FAIL(schema_service_->get_drop_tenant_infos(sql_client, schema_version, drop_tenant_infos))) {
+        LOG_WARN("fail to get drop tenant infos", K(ret), K(schema_version));
+      } else {
+        // bugfix: 52326403
+        // Make sure refresh schema status ready before tenant schema is visible.
+        if (!ObSchemaService::g_liboblog_mode_) {
+          bool need_refresh_schema_status = false;
+          for (int64_t i = 0; !need_refresh_schema_status && OB_SUCC(ret) && i < simple_tenants.count(); i++) {
+            const ObSimpleTenantSchema &simple_tenant = simple_tenants.at(i);
+            if (simple_tenant.is_restore()) {
+              need_refresh_schema_status = true;
+            }
+          } // end for
+          if (OB_SUCC(ret) && need_refresh_schema_status) {
+            ObSchemaStatusProxy *schema_status_proxy = GCTX.schema_status_proxy_;
+            if (OB_ISNULL(schema_status_proxy)) {
+              ret = OB_ERR_UNEXPECTED;
+              LOG_WARN("schema_status_proxy is null", KR(ret));
+            } else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status())) {
+              LOG_WARN("fail to load refresh schema status", KR(ret));
+            }
+          }
+        }
+        FOREACH_CNT_X(simple_tenant, simple_tenants, OB_SUCC(ret)) {
+          const uint64_t tmp_tenant_id = simple_tenant->get_tenant_id();
+          //
+          // note: Adjust the position of this code carefully
+          // add sys tenant schema to cache
+          if (OB_FAIL(schema_mgr_for_cache->add_tenant(*simple_tenant))) {
+            LOG_WARN("add tenant failed", K(ret), K(*simple_tenant));
+          } else if (is_sys_tenant(tmp_tenant_id)) {
+            if (OB_FAIL(add_tenant_schema_to_cache(sql_client, tmp_tenant_id, schema_version))) {
+              LOG_WARN("add tenant schema to cache failed", K(ret), K(tmp_tenant_id), K(schema_version));
+            } else if (OB_FAIL(add_sys_variable_schema_to_cache(sql_client, schema_status, tmp_tenant_id, schema_version))) {
+              LOG_WARN("add sys variable schema to cache failed", K(ret), K(tmp_tenant_id), K(schema_version));
+            } else if (OB_FAIL(schema_mgr_for_cache->add_drop_tenant_infos(drop_tenant_infos))) {
+              LOG_WARN("add drop tenant infos failed", K(ret));
+            }
+          } else {
+            // When the system tenant flashes the DDL of the newly created tenant,
+            // try to initialize the relevant data structure
+            if (OB_FAIL(init_schema_struct(tmp_tenant_id))) {
+              LOG_WARN("fail to init schema struct", K(ret), K(tmp_tenant_id), K(schema_status));
+            } else if (OB_FAIL(init_tenant_basic_schema(tmp_tenant_id))) {
+              LOG_WARN("fail to init basic schema struct", K(ret), K(tmp_tenant_id), K(schema_status));
+            } else if (OB_FAIL(init_multi_version_schema_struct(tmp_tenant_id))) {
+              LOG_WARN("fail to init multi version schema struct", K(ret), K(tmp_tenant_id));
+            } else if (OB_FAIL(publish_schema(tmp_tenant_id))) {
+              LOG_WARN("publish_schema failed", KR(ret), K(tmp_tenant_id));
+            }
+          }
+        }
+      }
+    } else {
+      // Ordinary tenant schema refreshing relies on the system tenant to refresh the tenant and 普通租户模式刷新依赖于系统租户来刷新租户并初始化相关的内存结构
+      // initialize the related memory structure
+    }
+
+    if (OB_SUCC(ret)) {
+      auto attr = SET_USE_500("RefFullSchema", ObCtxIds::SCHEMA_SERVICE);
+      ObArenaAllocator allocator(attr);
+      #define INIT_ARRAY(TYPE, name) \
+        ObArray<TYPE> name(common::OB_MALLOC_NORMAL_BLOCK_SIZE, \
+                           common::ModulePageAllocator(allocator));
+      INIT_ARRAY(ObSimpleUserSchema, simple_users);
+      INIT_ARRAY(ObSimpleDatabaseSchema, simple_databases);
+      INIT_ARRAY(ObSimpleTablegroupSchema, simple_tablegroups);
+      INIT_ARRAY(ObSimpleTableSchemaV2*, simple_tables);
+      INIT_ARRAY(ObSimpleOutlineSchema, simple_outlines);
+      INIT_ARRAY(ObSimpleRoutineSchema, simple_routines);
+      INIT_ARRAY(ObSimpleSynonymSchema, simple_synonyms);
+      INIT_ARRAY(ObSimplePackageSchema, simple_packages);
+      INIT_ARRAY(ObSimpleTriggerSchema, simple_triggers);
+      INIT_ARRAY(ObDBPriv, db_privs);
+      INIT_ARRAY(ObSysPriv, sys_privs);
+      INIT_ARRAY(ObTablePriv, table_privs);
+      INIT_ARRAY(ObObjPriv, obj_privs);
+      INIT_ARRAY(ObSimpleUDFSchema, simple_udfs);
+      INIT_ARRAY(ObSimpleUDTSchema, simple_udts);
+      INIT_ARRAY(ObSequenceSchema, simple_sequences);
+      INIT_ARRAY(ObKeystoreSchema, simple_keystores);
+      INIT_ARRAY(ObProfileSchema, simple_profiles);
+      INIT_ARRAY(ObSAuditSchema, simple_audits);
+      INIT_ARRAY(ObLabelSePolicySchema, simple_label_se_policys);
+      INIT_ARRAY(ObLabelSeComponentSchema, simple_label_se_components);
+      INIT_ARRAY(ObLabelSeLabelSchema, simple_label_se_labels);
+      INIT_ARRAY(ObLabelSeUserLevelSchema, simple_label_se_user_levels);
+      INIT_ARRAY(ObTablespaceSchema, simple_tablespaces);
+      INIT_ARRAY(ObDbLinkSchema, simple_dblinks);
+      INIT_ARRAY(ObDirectorySchema, simple_directories);
+      INIT_ARRAY(ObContextSchema, simple_contexts);
+      INIT_ARRAY(ObSimpleMockFKParentTableSchema, simple_mock_fk_parent_tables);
+      INIT_ARRAY(ObRlsPolicySchema, simple_rls_policys);
+      INIT_ARRAY(ObRlsGroupSchema, simple_rls_groups);
+      INIT_ARRAY(ObRlsContextSchema, simple_rls_contexts);
+      #undef INIT_ARRAY
+      ObSimpleSysVariableSchema simple_sys_variable;
+
+      for(int i=0;i<table_schemas.count();++i)
+      {
+        simple_tables.push_back(&table_schemas.at(i));
+      }
+      LOG_ERROR("my_get_all_tables拿到的schema个数是，总的schema个数是",K(simple_tables.count()),K(table_schemas.count()),K(ret));
+      if (OB_FAIL(schema_service_->get_sys_variable(sql_client, schema_status, tenant_id,
+          schema_version, simple_sys_variable))) {
+        LOG_WARN("get all sys variables failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_users(
+          sql_client, schema_status, schema_version, tenant_id, simple_users))) {
+        LOG_WARN("get all users failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_databases(
+          sql_client, schema_status, schema_version, tenant_id, simple_databases))) {
+        LOG_WARN("get all databases failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_tablegroups(
+          sql_client, schema_status, schema_version, tenant_id, simple_tablegroups))) {
+        LOG_WARN("get all tablegroups failed", K(ret), K(schema_version), K(tenant_id));
+      } 
+      //这个耗时，找不到这个方法
+      /*else if (OB_FAIL(schema_service_->get_all_tables(
+          sql_client, allocator, schema_status, schema_version, tenant_id, simple_tables))) {
+        LOG_WARN("get all table schema failed", KR(ret), K(schema_version), K(tenant_id));
+      } */
+      /*else if (OB_SUCC(schema_service_->get_all_tables(
+          sql_client, allocator, schema_status, schema_version, tenant_id, simple_tables))) {
+        LOG_WARN("get_all_tables拿到的schema个数是",K(simple_tables.count()),K(ret));
+      }*/
+      else if (OB_FAIL(schema_service_->get_all_outlines(
+          sql_client, schema_status, schema_version, tenant_id, simple_outlines))) {
+        LOG_WARN("get all outline schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_routines(
+          sql_client, schema_status, schema_version, tenant_id, simple_routines))) {
+        LOG_WARN("get all procedure schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_packages(
+          sql_client, schema_status, schema_version, tenant_id, simple_packages))) {
+        LOG_WARN("get all package schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_triggers(
+          sql_client, schema_status, schema_version, tenant_id, simple_triggers))) {
+        LOG_WARN("get all trigger schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_db_privs(
+          sql_client, schema_status, schema_version, tenant_id, db_privs))) {
+        LOG_WARN("get all db priv schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_table_privs(
+          sql_client, schema_status, schema_version, tenant_id, table_privs))) {
+        LOG_WARN("get all table priv failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_obj_privs(
+          sql_client, schema_status, schema_version, tenant_id, obj_privs))) {
+        LOG_WARN("get all obj priv failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_synonyms(
+          sql_client, schema_status, schema_version, tenant_id, simple_synonyms))) {
+        LOG_WARN("get all synonym schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_udfs(
+          sql_client, schema_status, schema_version, tenant_id, simple_udfs))) {
+        LOG_WARN("get all udfs schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_udts(
+          sql_client, schema_status, schema_version, tenant_id, simple_udts))) {
+        LOG_WARN("get all udts schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_sequences(
+          sql_client, schema_status, schema_version, tenant_id, simple_sequences))) {
+        LOG_WARN("get all sequences schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_keystores(
+          sql_client, schema_status, schema_version, tenant_id, simple_keystores))) {
+        LOG_WARN("get all keystore schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_label_se_policys(
+          sql_client, schema_status, schema_version, tenant_id, simple_label_se_policys))) {
+        LOG_WARN("get all label security schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_label_se_components(
+          sql_client, schema_status, schema_version, tenant_id, simple_label_se_components))) {
+        LOG_WARN("get all label security schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_label_se_labels(
+          sql_client, schema_status, schema_version, tenant_id, simple_label_se_labels))) {
+        LOG_WARN("get all label security schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_label_se_user_levels(
+          sql_client, schema_status, schema_version, tenant_id, simple_label_se_user_levels))) {
+        LOG_WARN("get all label security schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_tablespaces(
+          sql_client, schema_status, schema_version, tenant_id, simple_tablespaces))) {
+        LOG_WARN("get all tablespace schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_profiles(
+          sql_client, schema_status, schema_version, tenant_id, simple_profiles))) {
+        LOG_WARN("get all profiles schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_audits(
+          sql_client, schema_status, schema_version, tenant_id, simple_audits))) {
+        LOG_WARN("get all audit schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_sys_privs(
+          sql_client, schema_status, schema_version, tenant_id, sys_privs))) {
+        LOG_WARN("get all sys priv schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_dblinks(
+          sql_client, schema_status, schema_version, tenant_id, simple_dblinks))) {
+        LOG_WARN("get all dblink schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_directorys(
+          sql_client, schema_status, schema_version, tenant_id, simple_directories))) {
+        LOG_WARN("get all directory schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_contexts(
+          sql_client, schema_status, schema_version, tenant_id, simple_contexts))) {
+        LOG_WARN("get all contexts schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else if (OB_FAIL(schema_service_->get_all_mock_fk_parent_tables(
+          sql_client, schema_status, schema_version, tenant_id, simple_mock_fk_parent_tables))) {
+        LOG_WARN("get all mock_fk_parent_tables schema failed", K(ret), K(schema_version), K(tenant_id));
+      } else {
+         
+      }
+      
+      if (OB_SUCC(ret)) {
+        const ObSimpleTableSchemaV2 *tmp_table = NULL;
+        if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_POLICY_HISTORY_TID, tmp_table))) {
+          LOG_WARN("fail to get table schema", KR(ret), K(tenant_id));
+        } else if (OB_ISNULL(tmp_table)) {
+          // for compatibility
+        } else if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_SECURITY_COLUMN_HISTORY_TID, tmp_table))) {
+          LOG_WARN("fail to get table schema", KR(ret), K(tenant_id));
+        } else if (OB_ISNULL(tmp_table)) {
+          // for compatibility
+        } else if (OB_FAIL(schema_service_->get_all_rls_policys(
+            sql_client, schema_status, schema_version, tenant_id, simple_rls_policys))) {
+          LOG_WARN("get all rls_policy schema failed", K(ret), K(schema_version), K(tenant_id));
+        }
+      }
+      if (OB_SUCC(ret)) {
+        const ObSimpleTableSchemaV2 *tmp_table = NULL;
+        if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_GROUP_HISTORY_TID, tmp_table))) {
+          LOG_WARN("fail to get table schema", KR(ret), K(tenant_id));
+        } else if (OB_ISNULL(tmp_table)) {
+          // for compatibility
+        } else if (OB_FAIL(schema_service_->get_all_rls_groups(
+            sql_client, schema_status, schema_version, tenant_id, simple_rls_groups))) {
+          LOG_WARN("get all rls_group schema failed", K(ret), K(schema_version), K(tenant_id));
+        }
+      }
+      if (OB_SUCC(ret)) {
+        const ObSimpleTableSchemaV2 *tmp_table = NULL;
+        if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_CONTEXT_HISTORY_TID, tmp_table))) {
+          LOG_WARN("fail to get table schema", KR(ret), K(tenant_id));
+        } else if (OB_ISNULL(tmp_table)) {
+          // for compatibility
+        } else if (OB_FAIL(schema_service_->get_all_rls_contexts(
+            sql_client, schema_status, schema_version, tenant_id, simple_rls_contexts))) {
+          LOG_WARN("get all rls_context schema failed", K(ret), K(schema_version), K(tenant_id));
+        }
+      }
+
+      const bool refresh_full_schema = true;
+      // add simple schema for cache
+      if (OB_FAIL(ret)) {
+      } else if (OB_FAIL(schema_mgr_for_cache->sys_variable_mgr_
+                         .add_sys_variable(simple_sys_variable))) {
+        LOG_WARN("add sys variables failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->add_users(simple_users))) {
+        LOG_WARN("add users failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->add_databases(simple_databases))) {
+        LOG_WARN("add databases failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->add_tablegroups(simple_tablegroups))) {
+        LOG_WARN("add tablegroups failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->add_tables(simple_tables, refresh_full_schema))) {
+        LOG_WARN("add tables failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->outline_mgr_.add_outlines(simple_outlines))) {
+        LOG_WARN("add outlines failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->routine_mgr_.add_routines(simple_routines))) {
+        LOG_WARN("add procedures failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->synonym_mgr_.add_synonyms(simple_synonyms))) {
+        LOG_WARN("add synonyms failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->package_mgr_.add_packages(simple_packages))) {
+        LOG_WARN("add package failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->trigger_mgr_.add_triggers(simple_triggers))) {
+        LOG_WARN("add trigger failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->priv_mgr_.add_db_privs(db_privs))) {
+        LOG_WARN("add db privs failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->priv_mgr_.add_table_privs(table_privs))) {
+        LOG_WARN("add table privs failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->priv_mgr_.add_obj_privs(obj_privs))) {
+        LOG_WARN("add obj privs failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->udf_mgr_.add_udfs(simple_udfs))) {
+        LOG_WARN("add udfs privs failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->udt_mgr_.add_udts(simple_udts))) {
+        LOG_WARN("add udts failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->sequence_mgr_.add_sequences(simple_sequences))) {
+        LOG_WARN("add sequence failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->keystore_mgr_.add_keystores(simple_keystores))) {
+        LOG_WARN("add keystore failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->tablespace_mgr_.add_tablespaces(simple_tablespaces))) {
+        LOG_WARN("add tablespace failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->label_se_policy_mgr_.add_label_se_policys(simple_label_se_policys))) {
+        LOG_WARN("add label security policy failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->label_se_component_mgr_.add_label_se_components(simple_label_se_components))) {
+        LOG_WARN("add label security policy failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->label_se_label_mgr_.add_label_se_labels(simple_label_se_labels))) {
+        LOG_WARN("add label security policy failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->label_se_user_level_mgr_.add_label_se_user_levels(simple_label_se_user_levels))) {
+        LOG_WARN("add label security policy failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->tablespace_mgr_.add_tablespaces(simple_tablespaces))) {
+        LOG_WARN("add tablespace failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->profile_mgr_.add_profiles(simple_profiles))) {
+        LOG_WARN("add profiles failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->audit_mgr_.add_audits(simple_audits))) {
+        LOG_WARN("add sequence failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->priv_mgr_.add_sys_privs(sys_privs))) {
+        LOG_WARN("add sys privs failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->dblink_mgr_.add_dblinks(simple_dblinks))) {
+        LOG_WARN("add dblinks failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->directory_mgr_.add_directorys(simple_directories))) {
+        LOG_WARN("add directories failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->context_mgr_.add_contexts(simple_contexts))) {
+        LOG_WARN("add contexts failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->mock_fk_parent_table_mgr_.add_mock_fk_parent_tables(
+                         simple_mock_fk_parent_tables))) {
+        LOG_WARN("add mock_fk_parent_tables failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->rls_policy_mgr_.add_rls_policys(simple_rls_policys))) {
+        LOG_WARN("add rls_policys failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->rls_group_mgr_.add_rls_groups(simple_rls_groups))) {
+        LOG_WARN("add rls_groups failed", K(ret));
+      } else if (OB_FAIL(schema_mgr_for_cache->rls_context_mgr_.add_rls_contexts(simple_rls_contexts))) {
+        LOG_WARN("add rls_contexts failed", K(ret));
+      }
+
+      LOG_INFO("add schemas for tenant finish",
+               K(tenant_id), K(schema_version), K(schema_status),
+               "users", simple_users.count(),
+               "databases", simple_databases.count(),
+               "tablegroups", simple_tablegroups.count(),
+               "tables", simple_tables.count(),
+               "outlines", simple_outlines.count(),
+               "synonyms", simple_synonyms.count(),
+               "db_privs", db_privs.count(),
+               "table_privs", table_privs.count(),
+               "udfs", simple_udfs.count(),
+               "udt", simple_udts.count(),
+               "sequences", simple_sequences.count(),
+               "keystore", simple_keystores.count(),
+               "label se policy", simple_label_se_policys.count(),
+               "label se component", simple_label_se_components.count(),
+               "label se label", simple_label_se_labels.count(),
+               "label se user level", simple_label_se_user_levels.count(),
+               "tablespaces", simple_tablespaces.count(),
+               "profiles", simple_profiles.count(),
+               "audits", simple_audits.count());
+      // the parameters count of previous LOG_INFO has reached maximum,
+      // so we need a new LOG_INFO.
+      LOG_INFO("add schemas for tenant finish",
+               K(tenant_id), K(schema_version), K(schema_status),
+               "sys_privs", sys_privs.count(),
+               "dblinks", simple_dblinks.count(),
+               "directories", simple_directories.count(),
+               "rls_policys", simple_rls_policys.count(),
+               "rls_groups", simple_rls_groups.count(),
+               "rls_contexts", simple_rls_contexts.count()
+              );
+    }
+
+    if (OB_SUCC(ret)) {
+      ObArenaAllocator allocator;
+      ObArray<uint64_t> non_sys_table_ids;
+      ObArray<ObTableSchema *> non_sys_tables;
+      for(int i=0;i<table_schemas.count();++i)
+      {
+        int index=table_schemas.at(i).is_sys_table_schema;
+        if(index!=0&&index!=1)non_sys_tables.push_back(&table_schemas.at(i));
+      }
+      if (OB_FAIL(schema_mgr_for_cache->get_non_sys_table_ids(tenant_id, non_sys_table_ids))) {
+        LOG_WARN("fail to get non sys table_ids", KR(ret), K(schema_status));
+      } 
+      //这个耗时
+      /*else if (OB_FAIL(schema_service_->get_batch_table_schema(
+                 schema_status, schema_version, non_sys_table_ids, sql_client,
+                 allocator, non_sys_tables))) {
+        LOG_WARN("get non core table schemas failed", KR(ret), K(schema_status), K(schema_version));
+      }*/
+      /*else if (OB_SUCC(schema_service_->get_batch_table_schema(
+                 schema_status, schema_version, non_sys_table_ids, sql_client,
+                 allocator, non_sys_tables))) {
+        LOG_WARN("在normal_full_schema里面拿到的batch_table_schema个数是",K(non_sys_tables.count()),K(ret)); 
+      }*/
+      else if (OB_FAIL(update_non_sys_schemas_in_cache_(*schema_mgr_for_cache, non_sys_tables))) {
+        LOG_WARN("update core and sys schemas in cache faield", KR(ret), K(schema_status));
+      } 
+      LOG_ERROR("my_normal_full_schema拿到的schema个数是，总的schema个数是",K(non_sys_tables.count()),K(table_schemas.count()),K(ret));
+    }
+  }
+  return ret;
+}
+
 // new schema full refresh
 int ObServerSchemaService::refresh_tenant_full_normal_schema(
     ObISQLClient &sql_client,
@@ -6410,7 +6829,7 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
 {
   int ret = OB_SUCCESS;
   uint64_t tenant_id = schema_status.tenant_id_;
-  LOG_WARN("进入refresh_tenant_full_normal_schema", K(tenant_id),K(ret));
+  //LOG_ERROR("进入refresh_tenant_full_normal_schema", K(tenant_id),K(ret));
   ObSchemaMgr *schema_mgr_for_cache = NULL;
 
   if (!check_inner_stat()) {
@@ -6558,7 +6977,12 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
       else if (OB_FAIL(schema_service_->get_all_tables(
           sql_client, allocator, schema_status, schema_version, tenant_id, simple_tables))) {
         LOG_WARN("get all table schema failed", KR(ret), K(schema_version), K(tenant_id));
-      } else if (OB_FAIL(schema_service_->get_all_outlines(
+      } 
+      /*else if (OB_SUCC(schema_service_->get_all_tables(
+          sql_client, allocator, schema_status, schema_version, tenant_id, simple_tables))) {
+        LOG_WARN("get_all_tables拿到的schema个数是",K(simple_tables.count()),K(ret));
+      }*/
+      else if (OB_FAIL(schema_service_->get_all_outlines(
           sql_client, schema_status, schema_version, tenant_id, simple_outlines))) {
         LOG_WARN("get all outline schema failed", K(ret), K(schema_version), K(tenant_id));
       } else if (OB_FAIL(schema_service_->get_all_routines(
@@ -6631,8 +7055,9 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
           sql_client, schema_status, schema_version, tenant_id, simple_mock_fk_parent_tables))) {
         LOG_WARN("get all mock_fk_parent_tables schema failed", K(ret), K(schema_version), K(tenant_id));
       } else {
-         LOG_WARN("get_all_tables拿到的schema个数是",K(simple_tables.count()),K(ret));
+         
       }
+      //ROR("get_all_tables拿到的schema个数是",K(simple_tables.count()),K(ret));
       if (OB_SUCC(ret)) {
         const ObSimpleTableSchemaV2 *tmp_table = NULL;
         if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_POLICY_HISTORY_TID, tmp_table))) {
@@ -6790,10 +7215,16 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
                  schema_status, schema_version, non_sys_table_ids, sql_client,
                  allocator, non_sys_tables))) {
         LOG_WARN("get non core table schemas failed", KR(ret), K(schema_status), K(schema_version));
-      } else if (OB_FAIL(update_non_sys_schemas_in_cache_(*schema_mgr_for_cache, non_sys_tables))) {
-        LOG_WARN("update core and sys schemas in cache faield", KR(ret), K(schema_status));
       }
-      LOG_WARN("在normal_full_schema里面拿到的batch_table_schema个数是",K(non_sys_tables.count()),K(ret));
+      /*else if (OB_SUCC(schema_service_->get_batch_table_schema(
+                 schema_status, schema_version, non_sys_table_ids, sql_client,
+                 allocator, non_sys_tables))) {
+        LOG_WARN("在normal_full_schema里面拿到的batch_table_schema个数是",K(non_sys_tables.count()),K(ret)); 
+      }*/
+      else if (OB_FAIL(update_non_sys_schemas_in_cache_(*schema_mgr_for_cache, non_sys_tables))) {
+        LOG_WARN("update core and sys schemas in cache faield", KR(ret), K(schema_status));
+      } 
+      //LOG_ERROR("在normal_full_schema里面拿到的batch_table_schema个数是",K(non_sys_tables.count()),K(ret)); 
     }
   }
   return ret;

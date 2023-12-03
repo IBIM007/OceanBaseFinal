@@ -980,10 +980,10 @@ private:
       common::ObISQLClient &sql_client,
       const ObRefreshSchemaStatus &schema_status,
       const int64_t schema_version);
-  /*int my_refresh_tenant_full_normal_schema(
+  int my_refresh_tenant_full_normal_schema(
       common::ObISQLClient &sql_client,
       const ObRefreshSchemaStatus &schema_status,
-      const int64_t schema_version,ObIArray<ObTableSchema> &table_schemas);*/
+      const int64_t schema_version,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
 
 #define GET_INCREMENT_SCHEMA_KEY_FUNC_DECLARE(SCHEMA)               \
   int get_increment_##SCHEMA##_keys(const ObSchemaMgr &schema_guard,  \

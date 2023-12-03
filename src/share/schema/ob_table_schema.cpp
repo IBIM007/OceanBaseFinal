@@ -3148,7 +3148,7 @@ int64_t ObTableSchema::get_convert_size() const
 
 void ObTableSchema::reset()
 {
-  is_sys_table_schema=-1;
+  //is_sys_table_schema=-1;
   max_used_column_id_ = 0;
   sess_active_time_ = 0;
   rowkey_column_num_ = 0;
