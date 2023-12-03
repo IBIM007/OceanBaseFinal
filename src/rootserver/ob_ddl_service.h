@@ -962,6 +962,7 @@ int check_table_udt_id_is_exist(share::schema::ObSchemaGetterGuard &schema_guard
   // refresh local schema busy wait
   virtual int refresh_schema(const uint64_t tenant_id, int64_t *schema_version = NULL);
   virtual int my_refresh_schema(const uint64_t tenant_id,common::ObIArray<share::schema::ObTableSchema> &table_schemas,int64_t *schema_version = NULL);
+  virtual int my_refresh_tenant_schema(const uint64_t tenant_id,common::ObIArray<share::schema::ObTableSchema> &table_schemas,int64_t *schema_version = NULL);
   // notify other servers to refresh schema (call switch_schema  rpc)
   virtual int notify_refresh_schema(const common::ObAddrIArray &addrs);
 
@@ -2244,6 +2245,8 @@ private:
 
   virtual int publish_schema(const uint64_t tenant_id,
                              const common::ObAddrIArray &addrs);
+    virtual int my_publish_schema(const uint64_t tenant_id,
+                             const common::ObAddrIArray &addrs,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
 
   int check_tenant_has_been_dropped_(const uint64_t tenant_id, bool &is_dropped);
 

@@ -354,6 +354,8 @@ public:
                              bool check_bootstrap = false);
   int my_refresh_and_add_schema(const common::ObIArray<uint64_t> &tenant_ids,common::ObIArray<share::schema::ObTableSchema> &table_schemas,
                              bool check_bootstrap = false);
+  int my_tenant_refresh_and_add_schema(const common::ObIArray<uint64_t> &tenant_ids,common::ObIArray<share::schema::ObTableSchema> &table_schemas,
+                             bool check_bootstrap = false);
   // Trigger an asynchronous refresh task and wait for the refresh result
   int async_refresh_schema(const uint64_t tenant_id,
                            const int64_t schema_version);
@@ -405,6 +407,7 @@ private:
 
   int refresh_tenant_schema(const uint64_t tenant_id);
   int my_refresh_tenant_schema(const uint64_t tenant_id,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+  int my_tenant_refresh_tenant_schema(const uint64_t tenant_id,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
   virtual int add_schema_mgr_info(
               ObSchemaGetterGuard &schema_guard,
               ObSchemaStore* schema_store,

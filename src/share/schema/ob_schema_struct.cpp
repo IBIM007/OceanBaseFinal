@@ -586,8 +586,8 @@ int ObSysTableChecker::append_sys_table_index_schemas(
   //遍历了整个schema
   if (ObSysTableChecker::is_sys_table_has_index(data_table_id)) {
     HEAP_VAR(ObTableSchema, index_schema) {
-      if(index==0)index_schema.is_sys_table_schema=0;
-      if(index==1)index_schema.is_sys_table_schema=1;
+      if(index!=-1)index_schema.is_sys_table_schema=index;
+      //if(index==1)index_schema.is_sys_table_schema=1;
       //根据表的id做一个判断
       switch (data_table_id) {
 #define SYS_INDEX_DATA_TABLE_ID_TO_INDEX_SCHEMAS_SWITCH

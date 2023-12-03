@@ -902,6 +902,7 @@ protected:
   //leave the job of schema object copy to get_schema func
   int refresh_schema(const ObRefreshSchemaStatus &schema_status);
   int my_refresh_schema(const ObRefreshSchemaStatus &schema_status,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+  int my_tenant_refresh_schema(const ObRefreshSchemaStatus &schema_status,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
   virtual int publish_schema(const uint64_t tenant_id) = 0;
   virtual int init_multi_version_schema_struct(const uint64_t tenant_id) = 0;
 
@@ -976,11 +977,17 @@ private:
   int refresh_increment_schema(const ObRefreshSchemaStatus &schema_status);
   int refresh_full_schema(const ObRefreshSchemaStatus &schema_status);
   int my_refresh_full_schema(const ObRefreshSchemaStatus &schema_status,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+  int my_tenant_refresh_full_schema(const ObRefreshSchemaStatus &schema_status,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
   int refresh_tenant_full_normal_schema(
       common::ObISQLClient &sql_client,
       const ObRefreshSchemaStatus &schema_status,
       const int64_t schema_version);
   int my_refresh_tenant_full_normal_schema(
+      common::ObISQLClient &sql_client,
+      const ObRefreshSchemaStatus &schema_status,
+      const int64_t schema_version,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+  
+  int my_tenant_refresh_tenant_full_normal_schema(
       common::ObISQLClient &sql_client,
       const ObRefreshSchemaStatus &schema_status,
       const int64_t schema_version,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
@@ -1114,6 +1121,12 @@ private:
                                      const int64_t publish_version,
                                      common::ObISQLClient &sql_client,
                                      bool &core_schema_change,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+  
+  int my_tenant_try_fetch_publish_core_schemas(const ObRefreshSchemaStatus &schema_status,
+                                     const int64_t core_schema_version,
+                                     const int64_t publish_version,
+                                     common::ObISQLClient &sql_client,
+                                     bool &core_schema_change,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
 
   int try_fetch_publish_sys_schemas(const ObRefreshSchemaStatus &schema_status,
                                     const int64_t schema_version,
@@ -1122,6 +1135,12 @@ private:
                                     bool &sys_schema_change);
 
   int my_try_fetch_publish_sys_schemas(const ObRefreshSchemaStatus &schema_status,
+                                    const int64_t schema_version,
+                                    const int64_t publish_version,
+                                    common::ObISQLClient &sql_client,
+                                    bool &sys_schema_change,common::ObIArray<share::schema::ObTableSchema> &table_schemas);
+  
+  int my_tenant_try_fetch_publish_sys_schemas(const ObRefreshSchemaStatus &schema_status,
                                     const int64_t schema_version,
                                     const int64_t publish_version,
                                     common::ObISQLClient &sql_client,
