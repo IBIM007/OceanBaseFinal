@@ -39,14 +39,14 @@ def __clear_env(cluster_home_path:str) -> None:
         path_to_clear = os.path.join(cluster_home_path, path)
         shutil.rmtree(path_to_clear, ignore_errors=True)
 
-def __try_to_connect(host, mysql_port:int, *, timeout_seconds=60):
+def __try_to_connect(host, mysql_port:int, *, timeout_seconds=600):
     error_return = None
     for _ in range(0, timeout_seconds):
         try:
             return mysql.connect(host=host, user="root", port=mysql_port, passwd="")
         except mysql.err.Error as error:
             error_return = error
-            time.sleep(0.1)
+            time.sleep(0.01)
 
     _logger.info('failed to connect to observer fater %f seconds', timeout_seconds)
     raise error_return
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         bootstrap_end = datetime.datetime.now()
             #60S
         _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
-        #cursor.execute(f"ALTER SYSTEM SET syslog_level='error'")
+        # cursor.execute(f"ALTER SYSTEM SET syslog_level='error'")
         # checkout server status
         #TODO检查服务器状态，这里其实也可以注销掉，减少时间
         cursor.execute("select * from oceanbase.__all_server")
