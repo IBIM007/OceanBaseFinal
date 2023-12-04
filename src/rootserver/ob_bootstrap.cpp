@@ -1220,19 +1220,19 @@ int ObBootstrap::parallel_create_table_schema(
   // create_schema(720, 757);
   // create_schema(770, 1071);
 
-  // batch_create_schema(ddl_service, table_schemas, 756, 770);
-  // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-  //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-  //     if (begin == 700) {
-  //       ths.emplace_back(ddl_service, table_schemas, begin, 756);
-  //     } else {
-  //       ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
-  //     }
-  //     ths.back().init();
-  //     ths.back().start();
-  //     begin = i + 1;
-  //   }
-  // }
+  batch_create_schema(ddl_service, table_schemas, 756, 758);
+  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+      if (begin == 700) {
+        ths.emplace_back(ddl_service, table_schemas, begin, 756);
+      } else {
+        ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
+      }
+      ths.back().init();
+      ths.back().start();
+      begin = i + 1;
+    }
+  }
 
   // for (int i = 0; i < ths.size(); i++) {
   //   ths.at(i).wait();
@@ -1242,72 +1242,72 @@ int ObBootstrap::parallel_create_table_schema(
   //   LOG_WARN("parallel_create_table_schema fail", K(finish_cnt),
   //   K(table_schemas.count()), K(ret));
   // }
-  int64_t finish_cnt = 0;
-  std::vector<std::thread> ths;
-  batch_create_schema(ddl_service, table_schemas, 756, 760);
-  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-      if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-        if (begin == 700) {
-          std::thread th([&, begin]() {
-            int ret = OB_SUCCESS;
-            lib::set_thread_name("CreateSchemaTask");
-            int64_t retry_times = 1;
-            while (OB_SUCC(ret)) {
-              if (OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin,
-                                              756 + 1))) {
-                LOG_WARN("batch create schema failed", K(ret), "table count",
-                         756 + 1 - begin);
-                // bugfix:
-                if (retry_times <= 10) {
-                  retry_times++;
-                  ret = OB_SUCCESS;
-                  LOG_INFO("schema error while create table, need retry",
-                           KR(ret), K(retry_times));
-                  usleep(1 * 1000 * 1000L); // 1s
-                }
-              } else {
-                ATOMIC_AAF(&finish_cnt, 756 + 1 - begin);
-                break;
-              }
-            }
-            LOG_INFO("worker job", K(begin), K(756), K(i - begin), K(ret));
-          });
-          ths.push_back(std::move(th));
-        } else {
-          std::thread th([&,begin,i]() {
-            int ret = OB_SUCCESS;
-            lib::set_thread_name("CreateSchemaTask");
-            int64_t retry_times = 1;
-            while (OB_SUCC(ret)) {
-              if (OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin,
-                                              i + 1))) {
-                LOG_WARN("batch create schema failed", K(ret), "table count",
-                         i + 1 - begin);
-                // bugfix:
-                if (retry_times <= 10) {
-                  retry_times++;
-                  ret = OB_SUCCESS;
-                  LOG_INFO("schema error while create table, need retry",
-                           KR(ret), K(retry_times));
-                  usleep(1 * 1000 * 1000L); // 1s
-                }
-              } else {
-                ATOMIC_AAF(&finish_cnt, i + 1 - begin);
-                break;
-              }
-            }
-            LOG_INFO("worker job", K(begin), K(i), K(i - begin), K(ret));
-          });
-          ths.emplace_back(std::move(th));
-        }
-        begin = i + 1;
-      }
-    }
-  }
-  for (auto &th : ths) {
-    th.detach();
-  }
+  // int64_t finish_cnt = 0;
+  // std::vector<std::thread> ths;
+  // batch_create_schema(ddl_service, table_schemas, 756, 760);
+  // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+  //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+  //     if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+  //       if (begin == 700) {
+  //         std::thread th([&, begin]() {
+  //           int ret = OB_SUCCESS;
+  //           lib::set_thread_name("CreateSchemaTask");
+  //           int64_t retry_times = 1;
+  //           while (OB_SUCC(ret)) {
+  //             if (OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin,
+  //                                             756 + 1))) {
+  //               LOG_WARN("batch create schema failed", K(ret), "table count",
+  //                        756 + 1 - begin);
+  //               // bugfix:
+  //               if (retry_times <= 10) {
+  //                 retry_times++;
+  //                 ret = OB_SUCCESS;
+  //                 LOG_INFO("schema error while create table, need retry",
+  //                          KR(ret), K(retry_times));
+  //                 usleep(1 * 1000 * 1000L); // 1s
+  //               }
+  //             } else {
+  //               ATOMIC_AAF(&finish_cnt, 756 + 1 - begin);
+  //               break;
+  //             }
+  //           }
+  //           LOG_INFO("worker job", K(begin), K(756), K(i - begin), K(ret));
+  //         });
+  //         ths.push_back(std::move(th));
+  //       } else {
+  //         std::thread th([&,begin,i]() {
+  //           int ret = OB_SUCCESS;
+  //           lib::set_thread_name("CreateSchemaTask");
+  //           int64_t retry_times = 1;
+  //           while (OB_SUCC(ret)) {
+  //             if (OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin,
+  //                                             i + 1))) {
+  //               LOG_WARN("batch create schema failed", K(ret), "table count",
+  //                        i + 1 - begin);
+  //               // bugfix:
+  //               if (retry_times <= 10) {
+  //                 retry_times++;
+  //                 ret = OB_SUCCESS;
+  //                 LOG_INFO("schema error while create table, need retry",
+  //                          KR(ret), K(retry_times));
+  //                 usleep(1 * 1000 * 1000L); // 1s
+  //               }
+  //             } else {
+  //               ATOMIC_AAF(&finish_cnt, i + 1 - begin);
+  //               break;
+  //             }
+  //           }
+  //           LOG_INFO("worker job", K(begin), K(i), K(i - begin), K(ret));
+  //         });
+  //         ths.emplace_back(std::move(th));
+  //       }
+  //       begin = i + 1;
+  //     }
+  //   }
+  // }
+  // for (auto &th : ths) {
+  //   th.detach();
+  // }
 
   auto end_time = ObTimeUtility::current_time();
   LOG_INFO("parallel_create_table_schema", K(ret), "cost",
