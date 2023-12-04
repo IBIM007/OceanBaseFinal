@@ -1965,7 +1965,7 @@ int ObRootService::do_after_full_service() {
   }
   return ret;
 }
-
+ObBootstrap *ObRootService::bootstrap_;
 ////////////////////////////////////////////////////////////////
 //重点方法，分析。
 int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)

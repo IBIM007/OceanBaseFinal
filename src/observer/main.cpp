@@ -505,7 +505,7 @@ int main(int argc, char *argv[])
   setlocale(LC_TIME, "en_US.UTF-8");
   setlocale(LC_NUMERIC, "en_US.UTF-8");
   // memset(&opts, 0, sizeof (opts));
-  //opts.log_level_ = OB_LOG_LEVEL_WARN;
+  // opts.log_level_ = OB_LOG_LEVEL_WARN;
   opts.log_level_ = OB_LOG_LEVEL_NP;
   parse_opts(argc, argv, opts);
 

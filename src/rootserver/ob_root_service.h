@@ -426,7 +426,7 @@ public:
 
   // not implemented rpc, helper function for rs rpc processor define.
   int not_implement();
-  ObBootstrap *bootstrap_;
+  static ObBootstrap *bootstrap_;
   int execute_bootstrap(const obrpc::ObBootstrapArg &arg);
 #ifdef OB_BUILD_TDE_SECURITY
   int check_sys_tenant_initial_master_key_valid();
