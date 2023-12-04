@@ -580,11 +580,12 @@ int ObSysTableChecker::get_sys_table_index_tids(
 int ObSysTableChecker::append_sys_table_index_schemas(
     const uint64_t tenant_id,
     const uint64_t data_table_id,
-    ObIArray<ObTableSchema> &tables)
+    ObIArray<ObTableSchema> &tables,int index)
 {
   int ret = OB_SUCCESS;
   if (ObSysTableChecker::is_sys_table_has_index(data_table_id)) {
     HEAP_VAR(ObTableSchema, index_schema) {
+      if(index!=-1)index_schema.is_sys_table_schema=index;
       switch (data_table_id) {
 #define SYS_INDEX_DATA_TABLE_ID_TO_INDEX_SCHEMAS_SWITCH
 #include "share/inner_table/ob_inner_table_schema_misc.ipp"

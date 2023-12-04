@@ -749,7 +749,8 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     } 
     //刷新所有schema，耗时cost0.3秒多，但是应该还好吧，感觉就看cost
     //将持久化的系统表schema添加到内存Schema Cache
-    else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+    //else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+    else if (OB_FAIL(ddl_service_.my_refresh_schema(OB_SYS_TENANT_ID,table_schemas))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
   }
@@ -1025,6 +1026,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
         for (const schema_create_func *creator_ptr = creator_ptr_arrays[i];
              OB_SUCCESS == ret && NULL != *creator_ptr; ++creator_ptr) {
           table_schema.reset();
+          table_schema.is_sys_table_schema=-1;
           bool exist = false;
           //循环了很多次
           if (OB_FAIL(construct_schema(*creator_ptr, table_schema))) { // 构造表的schema
@@ -1036,15 +1038,37 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
           } else if (!exist) {
             // skip 如果表不存在，就跳过
           } 
-          else if (ObSysTableChecker::is_sys_table_has_index(table_schema.get_table_id())) { 
+           else if (ObSysTableChecker::is_sys_table_has_index(table_schema.get_table_id())) { 
             const int64_t data_table_id = table_schema.get_table_id(); // 处理表的索引
             if (OB_FAIL(ObSysTableChecker::fill_sys_index_infos(table_schema))) {
               LOG_WARN("fail to fill sys index infos", KR(ret), K(data_table_id));
-            } else if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+            } 
+            if(i==1)
+            {
+              if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+                       OB_SYS_TENANT_ID, data_table_id, table_schemas,1))) { // 这里是把系统表的索引加入到table_schemas中
+              LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
+              }
+            }
+            if(i==0)
+            {
+              if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
+                       OB_SYS_TENANT_ID, data_table_id, table_schemas,0))) { // 这里是把系统表的索引加入到table_schemas中
+              LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
+              }
+            }
+            //这里面好像只是添加表吧，感觉跟schema关系不大。
+            if(i!=0&&i!=1) {
+              //++times;
+              //LOG_WARN("既不是0也不是1", KR(ret));
+              if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
                        OB_SYS_TENANT_ID, data_table_id, table_schemas))) { // 这里是把系统表的索引加入到table_schemas中
               LOG_WARN("fail to append sys table index schemas", KR(ret), K(data_table_id));
+              }
             }
           }
+          
+          
 
           const int64_t data_table_id = table_schema.get_table_id();
           if (OB_SUCC(ret) && exist) {
@@ -1053,6 +1077,17 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
             //   LOG_WARN("fail to add lob table to sys table", KR(ret), K(data_table_id));
             // }
             // push sys table
+            if(i==0)
+            {
+              //LOG_WARN("进入i==0了", KR(ret), K(data_table_id));
+              //++fuck;
+              //难道是copy构造函数之类的没有复制这个玩意儿？
+              table_schema.is_sys_table_schema=i;
+            }
+            if(i==1){
+              //++fuck;
+              table_schema.is_sys_table_schema=i;
+            }
             if (OB_SUCC(ret) && OB_FAIL(table_schemas.push_back(table_schema))) { //如果表存在且处理成功，将构建好的系统表的 schema 信息添加到传入的 table_schemas 数组中
               LOG_WARN("push_back failed", KR(ret), K(table_schema));
             }
