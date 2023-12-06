@@ -23530,9 +23530,9 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     if(tenant_id == 1002) {
       create_schema(0, 16);
       create_schema(780,1041);
-      create_schema(276,536);
+      create_schema(276,500);
       create_schema(16,276);
-      create_schema(536,700);
+      create_schema(536,650);
       create_schema(700,770);
     } else {
       create_schema(780, 900);
