@@ -589,6 +589,7 @@ int ObBasicSessionInfo::switch_tenant(uint64_t effective_tenant_id)
       // print out error to easy trouble-shot
       LOG_USER_ERROR(OB_NOT_SUPPORTED,
                   "try to switch to another tenant without commit/rollback in a transaction");
+      //这里打印了的
       LOG_ERROR("try to switch another tenant while session has active txn,"
                 " you must commit/rollback first", K(ret),
                 "current_effective_tenant_id", effective_tenant_id_,

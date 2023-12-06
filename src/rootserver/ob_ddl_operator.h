@@ -505,6 +505,14 @@ public:
                               const share::SCN &recovery_until_scn,
                               const common::ObIArray<common::ObConfigPairs> &init_configs,
                               common::ObMySQLTransaction &trans);
+
+  virtual int my_init_tenant_env(const share::schema::ObTenantSchema &tenant_schema,
+                              const share::schema::ObSysVariableSchema &sys_variable,
+                              const share::ObTenantRole &tenant_role,
+                              const share::SCN &recovery_until_scn,
+                              const common::ObIArray<common::ObConfigPairs> &init_configs,
+                              common::ObMySQLTransaction &trans);
+
   virtual int rename_table(const share::schema::ObTableSchema &table_schema,
                            const common::ObString &new_table_name,
                            const uint64_t new_db_id,
