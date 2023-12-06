@@ -90,7 +90,7 @@ int ObInnerSQLConnectionPool::init(ObMultiVersionSchemaService *schema_service,
   }
   return ret;
 }
-
+//这里会进入
 int ObInnerSQLConnectionPool::acquire(const uint64_t tenant_id, common::sqlclient::ObISQLConnection *&conn, ObISQLClient *client_addr, const int32_t group_id)
 {
   int ret = OB_SUCCESS;

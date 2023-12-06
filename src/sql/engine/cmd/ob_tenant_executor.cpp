@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "lib/oblog/ob_log_module.h"
 #define USING_LOG_PREFIX SQL_ENG
 #include "sql/engine/cmd/ob_tenant_executor.h"
 
@@ -121,6 +122,7 @@ int ObCreateTenantExecutor::wait_schema_refreshed_(const uint64_t tenant_id)
   const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
   int64_t user_schema_version = OB_INVALID_VERSION;
   int64_t meta_schema_version = OB_INVALID_VERSION;
+  LOG_ERROR("进入wait_schema_refreshed_了",K(ret));
   while (OB_SUCC(ret)) {
     if (THIS_WORKER.is_timeout()) {
       ret = OB_TIMEOUT;
@@ -136,6 +138,7 @@ int ObCreateTenantExecutor::wait_schema_refreshed_(const uint64_t tenant_id)
       ret = OB_TENANT_HAS_BEEN_DROPPED;
       LOG_WARN("user tenant has been dropped", KR(ret), K(user_tenant_id));
     } else {
+      LOG_ERROR("进入wait_schema_refreshed_的else了",K(ret));
       int tmp_ret = OB_SUCCESS;
       if (OB_TMP_FAIL(GSCHEMASERVICE.get_tenant_refreshed_schema_version(
           meta_tenant_id, meta_schema_version))) {
@@ -143,7 +146,9 @@ int ObCreateTenantExecutor::wait_schema_refreshed_(const uint64_t tenant_id)
           ret = tmp_ret;
           LOG_WARN("get refreshed schema version failed", KR(ret), K(meta_tenant_id));
         }
-      } else if (OB_TMP_FAIL(GSCHEMASERVICE.get_tenant_refreshed_schema_version(
+      } 
+      LOG_ERROR("第一个get_tenant_refreshed_schema_version已经等待完了",K(ret));
+      if (OB_TMP_FAIL(GSCHEMASERVICE.get_tenant_refreshed_schema_version(
           user_tenant_id, user_schema_version))) {
         if (OB_ENTRY_NOT_EXIST != tmp_ret) {
           ret = tmp_ret;

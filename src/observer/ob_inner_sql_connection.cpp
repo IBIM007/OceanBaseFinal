@@ -400,7 +400,7 @@ int ObInnerSQLConnection::init_session_info(
   }
   return ret;
 }
-
+//这里初始化的
 int ObInnerSQLConnection::init_session(sql::ObSQLSessionInfo* extern_session, const bool is_ddl)
 {
   int ret = OB_SUCCESS;
