@@ -236,12 +236,12 @@ public:
           int64_t start_time = ObTimeUtility::current_time();
           if (OB_FAIL(ddl_operator.create_table(
                   table, trans, ddl_stmt, need_sync_schema_version, false))) {
-            LOG_WARN("add table schema failed", K(ret), "id: ", idx, "table_id",
+            LOG_ERROR("add table schema failed", K(ret), "id: ", idx, "table_id",
                      table.get_table_id(), "table_name",
                      table.get_table_name());
           } else {
             int64_t end_time = ObTimeUtility::current_time();
-            LOG_INFO("add table schema succeed", K(idx), "table_id",
+            LOG_ERROR("add table schema succeed", K(idx), "table_id",
                      table.get_table_id(), "table_name", table.get_table_name(),
                      "core_table", is_core_table(table.get_table_id()), "cost",
                      end_time - start_time,K(tenant_id));
@@ -23511,32 +23511,58 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
   } else {
     int ret = OB_SUCCESS;
     int64_t begin = 16;
-    int64_t batch_count = tables.count() / 15; // 【62，139】
+    int64_t batch_count = tables.count() / 4; // 【62，139】
     std::vector<CreateSysSchemaTask> ths;
+
+    auto create_schema = [&, tenant_id](int64_t begin, int64_t end) {
+      ths.emplace_back(tenant_id, *this, tables, begin, end);
+      ths.back().init();
+      ths.back().start();
+    };
     ths.reserve(16);
-    ths.emplace_back(tenant_id, *this, tables, 0, 16);
-    ths.back().init();
-    ths.back().start();
+    // ths.emplace_back(tenant_id, *this, tables, 0, 5);
+    // ths.back().init();
+    // ths.back().start();
+    // ths.emplace_back(tenant_id, *this, tables, 5, 16);
+    // ths.back().init();
+    // ths.back().start();
     // ths.back().wait();
-    for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
-      if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-        while ((i+1) < tables.count() and (is_sys_index_table(tables.at(i+1).get_table_id()) or is_sys_lob_table(tables.at(i+1).get_table_id()))) {
-          ++i;
-        }
-        // if(tenant_id == 1001 and begin == 1000) {
-        //   begin = 1019;
-        //   continue;
-        // }
-        // if(tenant_id == 1002 and begin == 777) {
-        //   begin = 793;
-        //   continue;
-        // }
-        ths.emplace_back(tenant_id, *this, tables,begin,i+1);
-        ths.back().init();
-        ths.back().start();
-        begin = i + 1;
-      }
+    if(tenant_id == 1002) {
+      create_schema(0, 16);
+      create_schema(780,1041);
+      create_schema(276,536);
+      create_schema(16,276);
+      create_schema(536,700);
+      create_schema(700,770);
+    } else {
+      create_schema(780, 900);
+      create_schema(0, 16);
+      create_schema(276, 500);
+      create_schema(16, 276);
+      create_schema(536, 770);
+      // for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
+      //   if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+      //     // while ((i+1) < tables.count() and
+      //     // (is_sys_index_table(tables.at(i+1).get_table_id()) or
+      //     // is_sys_lob_table(tables.at(i+1).get_table_id()))) {
+      //     //   ++i;
+      //     // }
+      //     // if(tenant_id == 1001 and begin == 1000) {
+      //     //   begin = 1019;
+      //     //   continue;
+      //     // }
+      //     // if(tenant_id == 1002 and begin == 777) {
+      //     //   begin = 793;
+      //     //   continue;
+      //     // }
+      //     ths.emplace_back(tenant_id, *this, tables, begin, i + 1);
+      //     ths.back().init();
+      //     ths.back().start();
+      //     begin = i + 1;
+      //   }
+      // }
     }
+    
     // for (int i = 0; i < ths.size(); i++) {
     //   ths.at(i).wait();
     // }
