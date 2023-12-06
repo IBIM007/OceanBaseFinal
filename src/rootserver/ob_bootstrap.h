@@ -157,12 +157,14 @@ public:
       common::ObIArray<share::schema::ObTableSchema> &table_schemas);
   int sort_schema(const common::ObIArray<share::schema::ObTableSchema> &table_schemas,
                   common::ObIArray<share::schema::ObTableSchema> &sort_table_schemas);
+
+  ObSArray<ObTableSchema> table_schemas;
+  static int parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas);
 private:
   static const int64_t HEAT_BEAT_INTERVAL_US = 2 * 1000 * 1000; //2s
   static const int64_t WAIT_RS_IN_SERVICE_TIMEOUT_US = 40 * 1000 * 1000; //40s
   static const int64_t BATCH_INSERT_SCHEMA_CNT = 128;
   static std::vector<CreateSchemaTask> ths;
-  static int parallel_create_table_schema(uint64_t tenant_id, ObDDLService &ddl_service, ObIArray<ObTableSchema> &table_schemas);
   static int batch_create_schema_local(uint64_t tenant_id,
                               ObDDLService &ddl_service,
                               ObIArray<ObTableSchema> &table_schemas,

@@ -187,7 +187,7 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid_argument", KR(ret), K(ls_info), K(working_sw_status));
   } 
-  //加载租户信息
+  //加载租户信息，就这里现在不能执行了，执行失败了
   else if (OB_FAIL(ObAllTenantInfoProxy::load_tenant_info(
                   ls_info.tenant_id_, &trans, true, tenant_info))) {
     LOG_WARN("failed to load tenant info", KR(ret), K(ls_info));
@@ -231,9 +231,10 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
     } 
     //如果是系统日志流
     else if (ls_info.ls_id_.is_sys_ls()) {
-      //这里打印了的
+      //这里打印了的,正常版打印了的，
       LOG_INFO("sys ls no need update max ls id", KR(ret), K(ls_info));
     } 
+    
     else if (OB_FAIL(ObAllTenantInfoProxy::update_tenant_max_ls_id(
                    ls_info.tenant_id_, ls_info.ls_id_, trans, false))) {
       LOG_WARN("failed to update tenant max ls id", KR(ret), K(ls_info));

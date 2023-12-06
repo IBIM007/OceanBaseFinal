@@ -1669,6 +1669,7 @@ int ObInnerSQLConnection::execute_read_inner(const int64_t cluster_id,
   }
   if (OB_FAIL(ret)) {
   } else if (local_execute && OB_FAIL(switch_tenant(tenant_id))) {
+    //这里失败了
     LOG_WARN("switch tenant_id failed", K(ret), K(tenant_id));
   } else if (OB_FAIL(res.create_handler(read_ctx, *this))) {
     LOG_WARN("create result handler failed", K(ret));
@@ -1868,6 +1869,7 @@ int ObInnerSQLConnection::switch_tenant(const uint64_t tenant_id)
     LOG_WARN("invalid argument", K(ret), K(tenant_id));
   } else if (is_inner_session()) {
     if (OB_FAIL(get_session().switch_tenant(tenant_id))){
+      //这里出问题了
       LOG_WARN("Init sys tenant in session error", K(ret));
     } else if (OB_FAIL(get_session().set_user(OB_SYS_USER_NAME, OB_SYS_HOST_NAME, OB_SYS_USER_ID))) {
       LOG_WARN("Set sys user in session error", K(ret));

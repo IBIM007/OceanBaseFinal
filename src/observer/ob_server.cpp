@@ -1002,6 +1002,7 @@ int ObServer::start()
     if (FAILEDx(config_mgr_.got_version(ObSystemConfig::INIT_VERSION))) {
       FLOG_WARN("fail to refresh server configure", KR(ret));
     } else {
+      //这里bootstrap基本结束了
       FLOG_INFO("success to refresh server configure");
     }
 
