@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include <unistd.h>
 #define USING_LOG_PREFIX BOOTSTRAP
 
 #include "rootserver/ob_bootstrap.h"
@@ -81,6 +82,7 @@ class CreateSchemaTask : public lib::TGRunnable
   virtual ~CreateSchemaTask() {}
 
   virtual void run1() override {
+    // sleep(2);
     auto start = ObTimeUtility::current_time();
     lib::set_thread_name("CreateSchemaTask");
     LOG_INFO("进入线程", K(begin_), K(i_));
@@ -626,7 +628,7 @@ int ObPreBootstrap::check_is_all_server_empty(bool &is_empty)
 bool ObBootstrap::TableIdCompare::operator() (const ObTableSchema* left, const ObTableSchema* right)
 {
   bool bret = false;
-
+  return left->get_table_id() < right->get_table_id();
   if (OB_ISNULL(left) || OB_ISNULL(right)) {
     ret_ = OB_INVALID_ARGUMENT;
     LOG_WARN_RET(ret_, "invalid argument", K_(ret), KP(left), KP(right));
@@ -1139,6 +1141,8 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
         LOG_WARN("fail to create __all_core_table's schema", KR(ret), K(core_table));
       }
     }
+    
+    // sort_schema(table_schemas,sortschema); // 对传入的table_schemas数组进行排序
     if (OB_FAIL(parallel_create_table_schema(OB_SYS_TENANT_ID,ddl_service, table_schemas))) {
       LOG_WARN("create_all_schema", K(ret));
     }
@@ -1203,10 +1207,20 @@ int ObBootstrap::parallel_create_table_schema(
   //   //
   //   试一试绑核，线程数量不要超过16了，然后，线程的执行不一定就在一个区间，可以改一改
   // };
-  // create_schema(0,6);
-  // create_schema(15,30);
-  // create_schema(30,70);
-  // create_schema(70, 131);
+  auto create_schema = [&](int64_t begin, int64_t end) {
+    ths.emplace_back(ddl_service, table_schemas, begin, end);
+    ths.back().init();
+    ths.back().start();
+  };
+  create_schema(0,30);
+  create_schema(30,150);
+  create_schema(150, 300);  // 690607
+  create_schema(350, 500); // 原来耗时1.2
+  create_schema(600, 750); // 692757
+  create_schema(770, 1130);
+  for(auto &th : ths) {
+    th.wait();
+  }
   // create_schema(140, 210);
   // create_schema(210, 253);
   // create_schema(280, 350);
@@ -1217,22 +1231,43 @@ int ObBootstrap::parallel_create_table_schema(
   // create_schema(540, 600);
   // create_schema(600, 654);
   // create_schema(660, 720);
-  // create_schema(720, 757);
-  // create_schema(770, 1071);
+  // create_schema(0,300);
 
-  batch_create_schema(ddl_service, table_schemas, 756, 758);
-  for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
-    if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-      if (begin == 700) {
-        ths.emplace_back(ddl_service, table_schemas, begin, 756);
-      } else {
-        ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
-      }
-      ths.back().init();
-      ths.back().start();
-      begin = i + 1;
-    }
-  }
+  // batch_create_schema(ddl_service, table_schemas, 0, 9);
+  // create_schema(669, table_schemas.count());
+  // for (int64_t i = 0; OB_SUCC(ret) && i < 200; ++i) {
+  //   if (200 == (i + 1) || (i + 1 - begin) >= 30) {
+  //     ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
+  //     ths.back().init();
+  //     ths.back().start();
+  //     begin = i + 1;
+  //   }
+  // }
+  // for(auto &th : ths) {
+  //   th.wait();
+  // }
+  // create_schema(200, 333);
+  // create_schema(360, 476);
+  // create_schema(476,580);
+  // create_schema(770, 1020);
+  // create_schema(580,689);
+  // create_schema(689,756);
+  // create_schema(1021, table_schemas.count()); // 1020 会有问题
+  // // batch_create_schema(ddl_service, table_schemas, 756, 758);
+
+
+  // for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
+  //   if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
+  //     if (begin == 700) {
+  //       ths.emplace_back(ddl_service, table_schemas, begin, 756);
+  //     } else {
+  //       ths.emplace_back(ddl_service, table_schemas, begin, i + 1);
+  //     }
+  //     ths.back().init();
+  //     ths.back().start();
+  //     begin = i + 1;
+  //   }
+  // }
 
   // for (int i = 0; i < ths.size(); i++) {
   //   ths.at(i).wait();
@@ -1401,15 +1436,14 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
         if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
                                               need_sync_schema_version,
                                               is_truncate_table))) {
-          LOG_WARN("add table schema failed", K(ret), "id", i,
-              "table_id", table.get_table_id(),
-              "table_name", table.get_table_name());
+          LOG_ERROR("失败加表", K(ret), "id", i, "table_id",
+                    table.get_table_id(), "table_name", table.get_table_name());
         } else {
           int64_t end_time = ObTimeUtility::current_time();
-          LOG_INFO("add table schema succeed", K(i),
-              "table_id", table.get_table_id(),
-              "table_name", table.get_table_name(), 
-              "core_table", is_core_table(table.get_table_id()), "cost", end_time-start_time);
+          LOG_ERROR("成功加表", K(i), "table_id", table.get_table_id(),
+                    "table_name", table.get_table_name(), "core_table",
+                    is_core_table(table.get_table_id()), "cost",
+                    end_time - start_time);
         }
       }
     }
@@ -1425,7 +1459,7 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
     }
   }
   const int64_t now = ObTimeUtility::current_time();
-  LOG_INFO("batch create schema finish", K(ret), "table count", end - begin,
+  LOG_ERROR("完成创建", K(ret), "table count", end - begin,K(begin),K(end),
       "total_time_used", now - begin_time,
       "end_transaction_time_used", now - begin_commit_time);
   //BOOTSTRAP_CHECK_SUCCESS();
