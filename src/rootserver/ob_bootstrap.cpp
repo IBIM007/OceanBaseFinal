@@ -1214,13 +1214,16 @@ int ObBootstrap::parallel_create_table_schema(
   };
   create_schema(0,30);
   create_schema(30,150);
-  create_schema(150, 300);  // 690607
-  create_schema(350, 500); // 原来耗时1.2
-  create_schema(600, 750); // 692757
+  create_schema(150,230);
+  create_schema(230, 300);  // 690607
+  create_schema(350, 430); 
+  create_schema(430, 500); // 692757
+  create_schema(600, 670); // 692757
+  create_schema(670, 750); // 692757
   create_schema(770, 1130);
-  for(auto &th : ths) {
-    th.wait();
-  }
+  // for(auto &th : ths) {
+  //   th.wait();
+  // }
   // create_schema(140, 210);
   // create_schema(210, 253);
   // create_schema(280, 350);
