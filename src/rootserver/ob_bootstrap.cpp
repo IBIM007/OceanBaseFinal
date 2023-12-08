@@ -1212,8 +1212,8 @@ int ObBootstrap::parallel_create_table_schema(
     ths.back().init();
     ths.back().start();
   };
-  create_schema(0,30);
-  create_schema(30,150);
+  create_schema(0,11);
+  create_schema(11,150);
   create_schema(150,230);
   create_schema(230, 300);  // 690607
   create_schema(350, 430); 

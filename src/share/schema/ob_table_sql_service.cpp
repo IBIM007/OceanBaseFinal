@@ -1082,7 +1082,7 @@ int ObTableSqlService::add_columns(ObISQLClient &sql_client,
   } else if (is_core_table(table.get_table_id())) {
     ret = add_columns_for_core(sql_client, table);
   } else {
-    ret = add_columns_for_not_core(sql_client, table);
+    ret = add_columns_for_not_core(sql_client, table); //  主要耗时的部分
   }
   return ret;
 }
@@ -1170,35 +1170,55 @@ int ObTableSqlService::add_columns_for_core(ObISQLClient &sql_client, const ObTa
   return ret;
 }
 
+/*
+主要功能是为非核心表（不是核心表的表）添加列。函数首先获取表的新结构版本和租户ID，然后检查DDL是否被允许。
+接着构建SQL语句对象，用于生成列的插入和历史表的插入语句。
+在生成列的过程中，函数会遍历表的每一列，为每一列生成相应的数据操作语句。
+如果是第一次添加列，则生成插入语句；如果不是第一次添加列，则追加列信息。
+函数还考虑了是否启用SQL查询暂存的情况。
+如果启用了暂存，会在执行SQL语句之前检查并执行相应的SQL查询暂存操作。
+最后，函数会执行生成的SQL语句或者执行SQL查询暂存，确保添加列的操作成功完成。
+*/
+
 int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
                                                 const ObTableSchema &table)
 {
   int ret = OB_SUCCESS;
+  // 获取新的表结构版本和租户ID
   const int64_t new_schema_version = table.get_schema_version();
   const uint64_t tenant_id = table.get_tenant_id();
   const uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
+
+  // 检查DDL是否被允许
   if (OB_FAIL(check_ddl_allowed(table))) {
     LOG_WARN("check ddl allowd failed", K(ret), K(table));
   }
+
+  // 构建SQL语句对象
   ObSqlString column_sql_obj;
   ObSqlString column_history_sql_obj;
   ObSqlString *column_sql_ptr = &column_sql_obj;
   ObSqlString *column_history_sql_ptr = &column_history_sql_obj;
-  // for batch sql query
+
+
+   // 用于批量SQL查询
   bool enable_stash_query = false;
-  ObSqlTransQueryStashDesc *stash_desc;
+  ObSqlTransQueryStashDesc *stash_desc; // hash表，记录每个表名对应的SQL操作
   ObSqlTransQueryStashDesc *stash_desc2;
   ObMySQLTransaction* trans = dynamic_cast<ObMySQLTransaction*>(&sql_client);
+
+  // 检查是否启用SQL查询暂存，并获取相应的暂存描述对象
   if (OB_SUCC(ret) && trans != nullptr && trans->get_enable_query_stash()) {
     if (OB_FAIL(trans->get_stash_query(tenant_id, OB_ALL_COLUMN_TNAME, stash_desc))) {
       LOG_WARN("get_stash_query fail", K(ret), K(tenant_id));
     } else if (OB_FAIL(trans->get_stash_query(tenant_id, OB_ALL_COLUMN_HISTORY_TNAME, stash_desc2))) {
       LOG_WARN("get_stash_query fail", K(ret), K(tenant_id));
     } else {
+      //! 检查暂存数据是否匹配，不匹配则执行SQL查询暂存
       if ((stash_desc->get_stash_query().empty() && !stash_desc2->get_stash_query().empty()) ||
         (!stash_desc->get_stash_query().empty() && stash_desc2->get_stash_query().empty())) {
         LOG_WARN("table stash scene is not match", K(stash_desc->get_row_cnt()), K(stash_desc2->get_row_cnt()));
-        if (OB_FAIL(trans->do_stash_query())) {
+        if (OB_FAIL(trans->do_stash_query(2000))) { // TODO 重点分析这个函数
            LOG_WARN("do_stash_query fail", K(ret));
         } else if (OB_FAIL(trans->get_stash_query(tenant_id, OB_ALL_COLUMN_TNAME, stash_desc))) {
           LOG_WARN("get_stash_query fail", K(ret), K(tenant_id));
@@ -1206,6 +1226,8 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
           LOG_WARN("get_stash_query fail", K(ret), K(tenant_id));
         }
       }
+
+      // !将暂存的SQL语句对象赋值给实际使用的指针
       if (OB_SUCC(ret)) {
         column_sql_ptr = &stash_desc->get_stash_query();
         column_history_sql_ptr = &stash_desc2->get_stash_query();
@@ -1213,8 +1235,12 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
       }
     }
   }
+
+   //! 获取实际使用的SQL语句对象引用
   ObSqlString &column_sql = *column_sql_ptr;
   ObSqlString &column_history_sql = *column_history_sql_ptr;
+
+   // !遍历表的列，并生成相应的SQL语句
   for (ObTableSchema::const_column_iterator iter = table.column_begin();
       OB_SUCCESS == ret && iter != table.column_end(); ++iter) {
     if (OB_ISNULL(*iter)) {
@@ -2406,7 +2432,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
     start_usec = end_usec;
     //这里打印了的
     LOG_INFO("add_table cost: ", K(cost_usec));
-    if (OB_FAIL(add_columns(sql_client, table))) {
+    if (OB_FAIL(add_columns(sql_client, table))) {  // 主要耗时在这里
       LOG_WARN("insert column schema failed, ", K(ret), "table", to_cstring(table));
     } else if (OB_FAIL(add_constraints(sql_client, table))) {
       LOG_WARN("insert constraint schema failed, ", K(ret), "table", to_cstring(table));

@@ -113,26 +113,37 @@ int ObMySQLTransaction::end_transaction(const bool commit)
   }
   return ret;
 }
-
+// min_batch_cnt
 int ObMySQLTransaction::do_stash_query(int min_batch_cnt)
 {
   int ret = OB_SUCCESS;
   int64_t affected_rows = 0;
+
+  // 遍历查询暂存描述的哈希表
   for (hash::ObHashMap<const char*, ObSqlTransQueryStashDesc*>::iterator it = query_stash_desc_.begin();
       OB_SUCC(ret) && it != query_stash_desc_.end(); it++) {
+
+    // 如果行数不足最小批量数，跳过该表的处理
     if (it->second->get_row_cnt() < min_batch_cnt) {
       continue;
     }
+
+    // 获取当前时间，用于计算执行时间
     const uint64_t start_time = ObTimeUtility::current_time();
+
+    // 检查租户ID是否合法
     if (it->second->get_tenant_id() == OB_INVALID_TENANT_ID) {
       ret = OB_ERR_UNEXPECTED;
       LOG_ERROR("do_stash_query", K(ret));
     } else if (OB_FAIL(write(it->second->get_tenant_id(), it->second->get_stash_query().ptr(), affected_rows))) {
+      // 执行SQL查询写入
       LOG_ERROR("query_write", "tenant_id", it->second->get_tenant_id(), "query", it->second->get_stash_query(), K(ret));
     } else if (affected_rows != it->second->get_row_cnt()) {
+      // 检查影响的行数是否与期望的行数一致
       ret = OB_ERR_UNEXPECTED;
       LOG_ERROR("query_write", K(ret), K(affected_rows), "row_cnt", it->second->get_row_cnt(), "query", it->second->get_stash_query());
     } else {
+      // 执行成功，重置查询暂存描述
       const uint64_t end_time = ObTimeUtility::current_time();
       it->second->reset();
       LOG_INFO("query_write succ", "table", it->first, "rows", affected_rows, "cost", end_time - start_time);
