@@ -362,13 +362,13 @@ void ElectionProposer::stop()
 void ElectionProposer::prepare(const ObRole role)
 {
   int ret = OB_SUCCESS;
-  // if (!be_leader_immediately_in_standalone_mode(RoleChangeReason::DevoteToBeLeader)) {
-  //   //LOG_ELECT_LEADER(INFO, "standlone election failed");
-  // } else {
-  //   //LOG_ELECT_LEADER(INFO, "standlone election succeed");
-  // }
+  if (!be_leader_immediately_in_standalone_mode(RoleChangeReason::DevoteToBeLeader)) {
+    //LOG_ELECT_LEADER(INFO, "standlone election failed");
+  } else {
+    //LOG_ELECT_LEADER(INFO, "standlone election succeed");
+  }
 
-  // return;
+  return;
   
 
 

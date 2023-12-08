@@ -1472,6 +1472,7 @@ int ObTableSchema::assign(const ObTableSchema &src_schema)
       char *buf = NULL;
       int64_t column_cnt = 0;
       int64_t cst_cnt = 0;
+      is_sys_table_schema=src_schema.is_sys_table_schema;
       max_used_column_id_ = src_schema.max_used_column_id_;
       sess_active_time_ = src_schema.sess_active_time_;
       rowkey_column_num_ = src_schema.rowkey_column_num_;
@@ -3147,6 +3148,7 @@ int64_t ObTableSchema::get_convert_size() const
 
 void ObTableSchema::reset()
 {
+  //is_sys_table_schema=-1;
   max_used_column_id_ = 0;
   sess_active_time_ = 0;
   rowkey_column_num_ = 0;

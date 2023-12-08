@@ -235,7 +235,7 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
       }
     }// end while
     //主要是这里耗时，全在这里8秒
-    LOG_INFO("[CREATE TENANT] wait user ls created", KR(ret), K(tenant_id),
+    LOG_ERROR("[CREATE TENANT] wait user ls created", KR(ret), K(tenant_id),
              "cost", ObTimeUtility::current_time() - start_ts);
 
     if (OB_SUCC(ret)) {

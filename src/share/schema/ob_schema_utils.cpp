@@ -414,12 +414,17 @@ int ObSchemaUtils::construct_tenant_space_full_table(
 int ObSchemaUtils::add_sys_table_lob_aux_table(
     uint64_t tenant_id,
     uint64_t data_table_id,
-    ObIArray<ObTableSchema> &table_schemas)
+    ObIArray<ObTableSchema> &table_schemas,int index)
 {
   int ret = OB_SUCCESS;
   //如果是系统表的话
   if (is_system_table(data_table_id)) {
     HEAP_VARS_2((ObTableSchema, lob_meta_schema), (ObTableSchema, lob_piece_schema)) {
+      if(index!=-1)
+      {
+        lob_meta_schema.is_sys_table_schema=index;
+        lob_piece_schema.is_sys_table_schema=index;
+      }
       if (OB_ALL_CORE_TABLE_TID == data_table_id) {
         // do nothing
       } else if (OB_FAIL(get_sys_table_lob_aux_schema(data_table_id, lob_meta_schema, lob_piece_schema))) {
@@ -469,11 +474,12 @@ int ObSchemaUtils::construct_inner_table_schemas(
     };
     HEAP_VARS_2((ObTableSchema, table_schema), (ObTableSchema, data_schema)) {
       //第一个循环应该就是5，外面的5个表
-      for (int64_t i = 0; OB_SUCC(ret) && i < ARRAYSIZEOF(creator_ptr_arrays); ++i) {
+      for (int i = 0; OB_SUCC(ret) && i < ARRAYSIZEOF(creator_ptr_arrays); ++i) {
         //第二个循环，这五个函数数组里面具体的函数
         for (const schema_create_func *creator_ptr = creator_ptr_arrays[i];
              OB_SUCC(ret) && OB_NOT_NULL(*creator_ptr); ++creator_ptr) {
           table_schema.reset();
+          table_schema.is_sys_table_schema=i;
           bool exist = false;
           if (OB_FAIL((*creator_ptr)(table_schema))) {
             LOG_WARN("fail to gen sys table schema", KR(ret));
@@ -491,13 +497,13 @@ int ObSchemaUtils::construct_inner_table_schemas(
           } else if (!exist) {
             LOG_INFO("跳过", K(table_schema), K(tenant_id));
           } 
-          //这里推进去
+          //这里推进去，因为这里是先push的，所以就不行下标。
           else if (OB_FAIL(tables.push_back(table_schema))) {
             LOG_WARN("fail to push back table schema", KR(ret), K(table_schema));
           } 
           //添加系统表索引schema,这里面好像什么都没干呢
           else if (OB_FAIL(ObSysTableChecker::append_sys_table_index_schemas(
-                     tenant_id, table_schema.get_table_id(), tables))) {
+                     tenant_id, table_schema.get_table_id(), tables,i))) {
             LOG_WARN("fail to append sys table index schemas",
                      KR(ret), K(tenant_id), "table_id", table_schema.get_table_id());
           }
@@ -505,11 +511,27 @@ int ObSchemaUtils::construct_inner_table_schemas(
           //表存在并且成功了,这两条东西是否
           if (OB_SUCC(ret) && exist) {
             //添加系统表lob表，添加两条。跟前面的schema也没关系啊。
-            if (OB_FAIL(add_sys_table_lob_aux_table(tenant_id, data_table_id, tables))) {
+            if (OB_FAIL(add_sys_table_lob_aux_table(tenant_id, data_table_id, tables,i))) {
               LOG_WARN("fail to add lob table to sys table", KR(ret), K(data_table_id));
             }
           } // end lob aux table
         }
+        //这个地方统计并且打印好数据
+        LOG_ERROR("一轮循环完了现在总schema个数是", KR(ret), K(tables.count()));
+        int one=0;
+        int two=0;
+        int three=0;
+        int four=0;
+        int five=0;
+        for(int j=0;j<tables.count();++j)
+        {
+          if(tables.at(j).is_sys_table_schema==0)++one;
+          else if(tables.at(j).is_sys_table_schema==1)++two;
+          else if(tables.at(j).is_sys_table_schema==2)++three;
+          else if(tables.at(j).is_sys_table_schema==3)++four;
+          else if(tables.at(j).is_sys_table_schema==4)++five;
+        }
+        LOG_ERROR("系统表和核心表的schema数量各自是，其它数量是，总数量是", KR(ret), K(one), K(two), K(three),K(four),K(five),K(tables.count()));
       }
     }
   }

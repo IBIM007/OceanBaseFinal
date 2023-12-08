@@ -5996,7 +5996,7 @@ public:
   static int append_sys_table_index_schemas(
              const uint64_t tenant_id,
              const uint64_t data_table_id,
-             common::ObIArray<share::schema::ObTableSchema> &tables);
+             common::ObIArray<share::schema::ObTableSchema> &tables,int index=-1);
   static int add_sys_table_index_ids(
              const uint64_t tenant_id,
              common::ObIArray<uint64_t> &table_ids);

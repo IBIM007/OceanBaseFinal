@@ -119,7 +119,7 @@ public:
   static int add_sys_table_lob_aux_table(
              uint64_t tenant_id,
              uint64_t data_table_id,
-             ObIArray<ObTableSchema> &table_schemas);
+             ObIArray<ObTableSchema> &table_schemas,int index=-1);
 
   // Optimized method to batch get latest table schemas from cache or inner_table automatically.
   //
