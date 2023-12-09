@@ -1095,7 +1095,9 @@ class AllocateBlocksTask : public lib::TGRunnable
                      int64_t block_cnt)
       : log_block_mgr_(log_block_mgr), dir_fd_(dir_fd),
         start_block_id_(start_block_id), block_cnt_(block_cnt) {}
-  virtual ~AllocateBlocksTask() {}
+  virtual ~AllocateBlocksTask() {
+    destroy();
+  }
 
   virtual void run1() override {
     auto start = ObTimeUtility::current_time();
@@ -1185,7 +1187,7 @@ int ObServerLogBlockMgr::parallel_allocate_blocks_at_tmp_dir_(const FileDesc &di
     allocate_block_tasks.back().start();
   }
 
-  for (int i = 0; i < thread_num; ++i) {
+  for (int i = 0; i < allocate_block_tasks.size(); ++i) {
     allocate_block_tasks[i].wait();
   }
 
