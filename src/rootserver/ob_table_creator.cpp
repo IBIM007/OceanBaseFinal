@@ -47,7 +47,7 @@ void ObTableCreator::reset()
 int ObTableCreator::execute()
 {
   int ret = OB_SUCCESS;
-  //调用了tablet的创建者，它就是管理数据的
+  //调用了tablet的创建者，它就是管理数据
   if (OB_FAIL(tablet_creator_.execute())) {
     LOG_WARN("fail to execute tablet creator", KR(ret));
   } 
@@ -56,6 +56,7 @@ int ObTableCreator::execute()
              && OB_FAIL(share::ObTabletToLSTableOperator::batch_update(trans_, tenant_id_, tablet_infos_))) {
     LOG_WARN("fail to batch update tablet info", KR(ret));
   }
+  LOG_ERROR("这个方法ObTableCreator::execute的ret11111111111111111111111111是", KR(ret));
   return ret;
 }
 

@@ -218,6 +218,7 @@ int ObDDLOperator::insert_tenant_merge_info(
 {
   int ret = OB_SUCCESS;
   const uint64_t tenant_id = tenant_schema.get_tenant_id();
+  LOG_ERROR("进入了insert_tenant_merge_info", KR(ret),K(tenant_id));
   if (is_sys_tenant(tenant_id) || is_meta_tenant(tenant_id)) {
     // add zone merge info
     if ((OB_DDL_ADD_TENANT_START == op) || (OB_DDL_ADD_TENANT == op)) {
@@ -269,14 +270,16 @@ int ObDDLOperator::insert_tenant_merge_info(
               K(merge_info_array));
           }
         }*/
-        LOG_ERROR("马上进入系统租户insertmergeinfo", KR(ret));
+        
         if (OB_SUCC(ret) && is_sys_tenant(tenant_id)) {
           //这里要模仿
+          
           const uint64_t user_tenant_id = 1002;
           global_info.tenant_id_ = user_tenant_id;
           for (int64_t i = 0; i < merge_info_array.count(); ++i) {
             merge_info_array.at(i).tenant_id_ = user_tenant_id;
           }
+          LOG_ERROR("马上进入系统租户insertmergeinfo", KR(ret),K(global_info));
           if (OB_FAIL(ObGlobalMergeTableOperator::insert_global_merge_info(trans,
               user_tenant_id, global_info))) {
             LOG_WARN("fail to insert global merge info of user tenant", KR(ret), K(global_info));

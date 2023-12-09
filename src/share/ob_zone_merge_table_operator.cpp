@@ -306,7 +306,10 @@ int ObZoneMergeTableOperator::get_zone_list(
     ObZone zone;
     ObMySQLResult *result = nullptr;
     char sql[OB_SHORT_SQL_LENGTH];
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id=gen_meta_tenant_id(tenant_id);;
+    //const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
     int n = snprintf(sql, sizeof(sql), "SELECT zone FROM %s WHERE tenant_id = '%lu'",
                      OB_ALL_ZONE_MERGE_INFO_TNAME, tenant_id);
     if (n < 0 || n >= OB_SHORT_SQL_LENGTH) {

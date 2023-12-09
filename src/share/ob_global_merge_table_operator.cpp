@@ -40,7 +40,11 @@ int ObGlobalMergeTableOperator::load_global_merge_info(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id));
   } else {
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    LOG_ERROR("进入了ObGlobalMergeTableOperator::load_global_merge_info11111", KR(ret), K(tenant_id));
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    LOG_ERROR("进入了ObGlobalMergeTableOperator::load_global_merge_info22222", KR(ret), K(meta_tenant_id));
     ObSqlString sql;
     SMART_VAR(ObMySQLProxy::MySQLResult, res) {
       ObMySQLResult *result = nullptr;
@@ -78,6 +82,7 @@ int ObGlobalMergeTableOperator::load_global_merge_info(
             exist = true;
           }
         }
+        LOG_ERROR("打印一下", KR(ret), K(info));
         if (OB_ITER_END == ret) {
           ret = OB_SUCCESS;
         }
@@ -88,7 +93,7 @@ int ObGlobalMergeTableOperator::load_global_merge_info(
       }
     }
     if (print_sql) {
-      LOG_INFO("finish load_gloal_merge_info", KR(ret), K(tenant_id), K(sql));
+      LOG_ERROR("finish load_gloal_merge_info", KR(ret), K(tenant_id), K(sql));
     }
   }
   return ret;
@@ -110,7 +115,9 @@ int ObGlobalMergeTableOperator::insert_global_merge_info(
       (tenant_id != info.tenant_id_)) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(info));
-  } else if (OB_FAIL(dml.add_pk_column("tenant_id", tenant_id))
+  } 
+  LOG_ERROR("马上打印租户id在insert_global_merge_info", KR(ret), K(tenant_id), K(info));
+  if (OB_FAIL(dml.add_pk_column("tenant_id", tenant_id))
             || OB_FAIL(dml.add_uint64_column("cluster", info.cluster_.value_))
             || OB_FAIL(dml.add_uint64_column("frozen_scn", info.frozen_scn_.get_scn_val()))
             || OB_FAIL(dml.add_uint64_column("global_broadcast_scn", info.global_broadcast_scn_.get_scn_val()))
@@ -143,7 +150,10 @@ int ObGlobalMergeTableOperator::update_partial_global_merge_info(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(info));
   } else {
+
+    LOG_ERROR("进入了ObGlobalMergeTableOperator::update_partial_global_merge_info111111", KR(ret), K(tenant_id));
     const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    LOG_ERROR("进入了ObGlobalMergeTableOperator::update_partial_global_merge_info2222222", KR(ret), K(meta_tenant_id));
     ObDMLExecHelper exec(sql_client, meta_tenant_id);
 
     if (OB_FAIL(dml.add_pk_column("tenant_id", tenant_id))) {

@@ -86,7 +86,9 @@ int ObZoneMergeManagerBase::reload()
       LOG_ERROR("the count of zone is more than limit, cannot reload",
                 KR(ret), K_(tenant_id), "zone count", zone_list.count(),
                 "zone count limit", common::MAX_ZONE_NUM);
-    } else if (zone_list.empty()) {
+    } 
+    //这个函数报错了
+    else if (zone_list.empty()) {
       ret = OB_ERR_SYS;
       LOG_WARN("zone_list is empty", KR(ret), K_(tenant_id));
     } else {

@@ -301,6 +301,7 @@ int ObTabletCreator::add_create_tablet_arg(const ObTabletCreatorArg &arg)
 int ObTabletCreator::execute()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObTabletCreator::execute()", KR(ret), K(tenant_id_),K(major_frozen_scn_));
   ObTimeoutCtx ctx;
   const int64_t default_timeout_ts = GCONF.rpc_timeout;
   const int64_t SLEEP_INTERVAL = 100 * 1000L; // 100ms
@@ -359,6 +360,7 @@ int ObTabletCreator::execute()
     } // end for
   }
   reset();
+  LOG_ERROR("这个方法ObTabletCreator::execute的ret222222222222222222222是", KR(ret));
   return ret;
 }
 

@@ -175,6 +175,7 @@ int ObTenantSSTableMergeInfoMgr::size()
 int ObTenantSSTableMergeInfoMgr::add_sstable_merge_info(ObSSTableMergeInfo &input_info)
 {
   int ret = OB_SUCCESS;
+  STORAGE_LOG(ERROR, "进入了ObTenantSSTableMergeInfoMgr::add_sstable_merge_info", K(ret),K(input_info));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     STORAGE_LOG(WARN, "ObTenantSSTableMergeInfoMgr is not initialized", K(ret));

@@ -1038,7 +1038,7 @@ int ObBootstrap::construct_all_schema(ObIArray<ObTableSchema> &table_schemas)
           } else if (!exist) {
             // skip 如果表不存在，就跳过
           } 
-           else if (ObSysTableChecker::is_sys_table_has_index(table_schema.get_table_id())) { 
+            else if (ObSysTableChecker::is_sys_table_has_index(table_schema.get_table_id())) { 
             const int64_t data_table_id = table_schema.get_table_id(); // 处理表的索引
             if (OB_FAIL(ObSysTableChecker::fill_sys_index_infos(table_schema))) {
               LOG_WARN("fail to fill sys index infos", KR(ret), K(data_table_id));
@@ -1277,7 +1277,7 @@ int ObBootstrap::parallel_create_table_schema(uint64_t tenant_id, ObDDLService &
    //create_schema(720, 757);
    //create_schema(770, 1071);
 
-  //batch_create_schema(ddl_service, table_schemas, 756, 770);
+  batch_create_schema(ddl_service, table_schemas, 756, 770);
   for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
     if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
       if (begin == 700) {
@@ -1394,7 +1394,7 @@ int ObBootstrap::batch_create_schema(ObDDLService &ddl_service,
               "table_name", table.get_table_name());
         } else {
           int64_t end_time = ObTimeUtility::current_time();
-          LOG_INFO("add table schema succeed", K(i),
+          LOG_ERROR("add table schema succeed", K(i),
               "table_id", table.get_table_id(),
               "table_name", table.get_table_name(), 
               "core_table", is_core_table(table.get_table_id()), "cost", end_time-start_time);
