@@ -130,12 +130,13 @@ namespace rootserver
   
 class CreateTenantTask : public lib::TGRunnable { // TODO (gushengjie)
 public:
-  CreateTenantTask(uint64_t tenant_id,ObIArray<share::ObResourcePoolName> &pool_list, share::schema::ObTenantSchema &tenant_schema,share::ObTenantRole &tenant_role,SCN &recovery_until_scn,ObSysVariableSchema &sys_variable,bool create_ls_with_palf,palf::PalfBaseInfo &palf_base_info,common::ObIArray<common::ObConfigPairs> &init_configs,bool is_creating_standby,common::ObString &log_restore_source,ObDDLService &ddl_service)
+  CreateTenantTask(const uint64_t tenant_id,const ObIArray<share::ObResourcePoolName> &pool_list,const share::schema::ObTenantSchema &tenant_schema,const share::ObTenantRole &tenant_role,const SCN &recovery_until_scn,ObSysVariableSchema &sys_variable,const bool create_ls_with_palf,const palf::PalfBaseInfo &palf_base_info,const common::ObIArray<common::ObConfigPairs> &init_configs,bool is_creating_standby,const common::ObString &log_restore_source,ObDDLService &ddl_service)
       : tenant_id_(tenant_id),pool_list_(pool_list),tenant_schema_(tenant_schema),tenant_role_(tenant_role),recovery_until_scn_(recovery_until_scn),sys_variable_(sys_variable),create_ls_with_palf_(create_ls_with_palf),palf_base_info_(palf_base_info),init_configs_(init_configs),is_creating_standby_(is_creating_standby),log_restore_source_(log_restore_source),ddl_service_(ddl_service) {}
   virtual ~CreateTenantTask() {destroy();}
 
   virtual void run1() override {
     int ret = OB_SUCCESS;
+    lib::set_thread_name("CreateTenantTask");
     if(OB_FAIL(ddl_service_.create_normal_tenant(tenant_id_,pool_list_,tenant_schema_,tenant_role_,recovery_until_scn_,sys_variable_,create_ls_with_palf_,palf_base_info_,init_configs_,is_creating_standby_,log_restore_source_)))
     {
       LOG_WARN("我的创建租户失败了", KR(ret), K(tenant_id_), K(pool_list_), K(sys_variable_),
@@ -175,21 +176,21 @@ private:
   int tg_id_;
   bool is_inited_ = false;
 
-  uint64_t tenant_id_;
+  const uint64_t tenant_id_;
   //感觉是这个原因呢
-  common::ObIArray<share::ObResourcePoolName> &pool_list_;
+  const common::ObIArray<share::ObResourcePoolName> &pool_list_;
   //ObArray<ObResourcePoolName> &pool_list_;
-  share::schema::ObTenantSchema &tenant_schema_;
-  share::ObTenantRole &tenant_role_;
-  SCN &recovery_until_scn_;
+  const share::schema::ObTenantSchema &tenant_schema_;
+  const share::ObTenantRole &tenant_role_;
+  const SCN &recovery_until_scn_;
   ObSysVariableSchema &sys_variable_;
-  bool create_ls_with_palf_;
-  palf::PalfBaseInfo &palf_base_info_;
-  common::ObIArray<common::ObConfigPairs> &init_configs_;
+  const bool create_ls_with_palf_;
+  const palf::PalfBaseInfo &palf_base_info_;
+  const common::ObIArray<common::ObConfigPairs> &init_configs_;
   //ObSEArray<ObConfigPairs, 2> &init_configs_;
 
   bool is_creating_standby_;
-  common::ObString &log_restore_source_;
+  const common::ObString &log_restore_source_;
   
   ObDDLService &ddl_service_;
 };
@@ -22324,18 +22325,23 @@ int ObDDLService::create_tenant(
       //重点，创建普通租户，但是传入的是meta_tenant_id
       //TODO，从这里开始细看，注意传入的参数。11个参数，注意哪些参数是引用
 
-      std::thread meta();
-      /*std::vector<CreateTenantTask> ths;
+      
+      std::vector<CreateTenantTask> ths;
       ObString empty_str;
       ths.reserve(2);
       ths.emplace_back(meta_tenant_id,pools,meta_tenant_schema,tenant_role,recovery_until_scn,meta_sys_variable,false,meta_palf_base_info,init_configs,arg.is_creating_standby_,arg.log_restore_source_, *this);
       ths.back().init();
       ths.back().start();
+
       ths.emplace_back(user_tenant_id,pools,user_tenant_schema,tenant_role,recovery_until_scn,user_sys_variable,create_ls_with_palf,user_palf_base_info,init_configs,false,empty_str, *this);
       ths.back().init();
       ths.back().start();
 
-      for(int i=0;i<2;++i)
+      
+      //sleep(2);
+      
+
+      /*for(int i=0;i<2;++i)
       {
         ths.at(i).wait();
       }*/
@@ -23519,14 +23525,16 @@ int ObDDLService::init_tenant_schema(
       if (OB_FAIL(schema_service_impl->gen_new_schema_version(
                  tenant_id, init_schema_version, new_schema_version))) {
       } 
+      LOG_ERROR("马上开始replace_sys_variable", KR(ret), K(tenant_id));
       //取代系统表里，这个稍微看一下，好像是这个替换的proxy？不是吧，感觉也没啥必要
-      else if (OB_FAIL(ddl_operator.replace_sys_variable(
+      if (OB_FAIL(ddl_operator.replace_sys_variable(
                  sys_variable, new_schema_version, trans, OB_DDL_ALTER_SYS_VAR))) {
         LOG_WARN("fail to replace sys variable", KR(ret), K(sys_variable));
       } 
+      LOG_ERROR("replace_sys_variable搞定了", KR(ret), K(tenant_id));
       //感觉依赖确实只从这里开始
       //初始化租户环境
-      else if (OB_FAIL(ddl_operator.my_init_tenant_env(tenant_schema, sys_variable, tenant_role,
+      if (OB_FAIL(ddl_operator.my_init_tenant_env(tenant_schema, sys_variable, tenant_role,
                                                       recovery_until_scn, init_configs, trans))) {
         LOG_WARN("init tenant env failed", KR(ret), K(tenant_role), K(recovery_until_scn), K(tenant_schema));
       } 
@@ -23664,6 +23672,7 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service));
   } else {
     int ret = OB_SUCCESS;
+    
     int64_t begin = 16;
     int64_t batch_count = tables.count() / 15; // 【62，139】
     std::vector<CreateSysSchemaTask> ths;
@@ -23671,6 +23680,8 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     ths.emplace_back(tenant_id, *this, tables, 0, 16);
     ths.back().init();
     ths.back().start();
+    
+
     // ths.back().wait();
     for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
       if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
