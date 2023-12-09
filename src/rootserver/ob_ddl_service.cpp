@@ -130,13 +130,8 @@ namespace rootserver
   
 class CreateTenantTask : public lib::TGRunnable { // TODO (gushengjie)
 public:
-  CreateTenantTask(uint64_t tenant_id,ObArray<ObResourcePoolName> &pool_list, share::schema::ObTenantSchema &tenant_schema,share::ObTenantRole &tenant_role,SCN &recovery_until_scn,
-  ObSysVariableSchema &sys_variable,bool create_ls_with_palf,palf::PalfBaseInfo &palf_base_info,common::ObIArray<common::ObConfigPairs> &init_configs,bool is_creating_standby,
-  common::ObString &log_restore_source,ObDDLService &ddl_service)
-      : tenant_id_(tenant_id),pool_list_(pool_list),tenant_schema_(tenant_schema),tenant_role_(tenant_role),
-      recovery_until_scn_(recovery_until_scn),sys_variable_(sys_variable),create_ls_with_palf_(create_ls_with_palf),
-      palf_base_info_(palf_base_info),init_configs_(init_configs),is_creating_standby_(is_creating_standby),
-      log_restore_source_(log_restore_source),ddl_service_(ddl_service) {}
+  CreateTenantTask(uint64_t tenant_id,ObIArray<share::ObResourcePoolName> &pool_list, share::schema::ObTenantSchema &tenant_schema,share::ObTenantRole &tenant_role,SCN &recovery_until_scn,ObSysVariableSchema &sys_variable,bool create_ls_with_palf,palf::PalfBaseInfo &palf_base_info,common::ObIArray<common::ObConfigPairs> &init_configs,bool is_creating_standby,common::ObString &log_restore_source,ObDDLService &ddl_service)
+      : tenant_id_(tenant_id),pool_list_(pool_list),tenant_schema_(tenant_schema),tenant_role_(tenant_role),recovery_until_scn_(recovery_until_scn),sys_variable_(sys_variable),create_ls_with_palf_(create_ls_with_palf),palf_base_info_(palf_base_info),init_configs_(init_configs),is_creating_standby_(is_creating_standby),log_restore_source_(log_restore_source),ddl_service_(ddl_service) {}
   virtual ~CreateTenantTask() {destroy();}
 
   virtual void run1() override {
@@ -153,7 +148,7 @@ public:
     if (IS_INIT) {
       ret = OB_INIT_TWICE;
       LOG_WARN("init twice", K(ret));
-    } else if (OB_FAIL(TG_CREATE_TENANT(lib::TGDefIDs::CREATE_TENANT_TASK,
+    } else if (OB_FAIL(TG_CREATE_TENANT(lib::TGDefIDs::CREATE_SCHEMA_TASK,
                                         tg_id_))) {
       LOG_WARN("fail to create tenant for create schema task", K(ret));
     } else {
@@ -178,8 +173,12 @@ public:
 
 private:
   int tg_id_;
+  bool is_inited_ = false;
+
   uint64_t tenant_id_;
-  ObArray<ObResourcePoolName> &pool_list_;
+  //感觉是这个原因呢
+  common::ObIArray<share::ObResourcePoolName> &pool_list_;
+  //ObArray<ObResourcePoolName> &pool_list_;
   share::schema::ObTenantSchema &tenant_schema_;
   share::ObTenantRole &tenant_role_;
   SCN &recovery_until_scn_;
@@ -187,11 +186,10 @@ private:
   bool create_ls_with_palf_;
   palf::PalfBaseInfo &palf_base_info_;
   common::ObIArray<common::ObConfigPairs> &init_configs_;
+  //ObSEArray<ObConfigPairs, 2> &init_configs_;
+
   bool is_creating_standby_;
   common::ObString &log_restore_source_;
-
-  
-  bool is_inited_ = false;
   
   ObDDLService &ddl_service_;
 };
@@ -256,30 +254,6 @@ public:
     return ret;
   }
 
-  // int BatchCreateSysSchema() {
-  //   int ret = OB_SUCCESS;
-  //   for (int64_t i = begin_; OB_SUCC(ret) && i < end_; i++) {
-  //     ObTableSchema &table = tables_.at(i);
-  //     const int64_t table_id = table.get_table_id();
-  //     const ObString &table_name = table.get_table_name();
-  //     const ObString *ddl_stmt = NULL;
-  //     //是否需要同步schema版本。
-  //     bool need_sync_schema_version =
-  //         !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
-  //           is_sys_lob_table(table_id));
-
-  //     if (OB_FAIL(ddl_operator_.create_table(table, trans_, ddl_stmt,
-  //                                            need_sync_schema_version,
-  //                                            false /*is_truncate_table*/))) {
-  //       LOG_WARN("add table schema failed", KR(ret), K(table_id),
-  //                K(table_name));
-  //     } else {
-  //       //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
-  //       LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
-  //     }
-  //   }
-  //   return ret;
-  // }
   int batch_create_schema_local(uint64_t tenant_id, ObDDLService &ddl_service,
                                 ObIArray<ObTableSchema> &table_schemas,
                                 const int64_t begin, const int64_t end) {
@@ -22330,7 +22304,7 @@ int ObDDLService::create_tenant(
         LOG_WARN("get_pools failed", KR(ret), K(arg));
       } 
       /*else {
-        ObString empty_str;
+        
         DEBUG_SYNC(BEFORE_CREATE_USER_TENANT);
         //TODO重点，创建普通租户，但是传入的是user_tenant_id
         //第2,3,4,5,6,8，9,11是引用。
@@ -22349,7 +22323,10 @@ int ObDDLService::create_tenant(
       }*/
       //重点，创建普通租户，但是传入的是meta_tenant_id
       //TODO，从这里开始细看，注意传入的参数。11个参数，注意哪些参数是引用
-      std::vector<CreateTenantTask> ths;
+
+      std::thread meta();
+      /*std::vector<CreateTenantTask> ths;
+      ObString empty_str;
       ths.reserve(2);
       ths.emplace_back(meta_tenant_id,pools,meta_tenant_schema,tenant_role,recovery_until_scn,meta_sys_variable,false,meta_palf_base_info,init_configs,arg.is_creating_standby_,arg.log_restore_source_, *this);
       ths.back().init();
@@ -22361,7 +22338,7 @@ int ObDDLService::create_tenant(
       for(int i=0;i<2;++i)
       {
         ths.at(i).wait();
-      }
+      }*/
       /*else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
         recovery_until_scn, meta_sys_variable, false, meta_palf_base_info, init_configs,
         arg.is_creating_standby_, arg.log_restore_source_))) {

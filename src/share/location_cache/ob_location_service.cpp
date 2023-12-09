@@ -60,6 +60,7 @@ int ObLocationService::get(
   return ret;
 }
 
+//从这里开始的
 int ObLocationService::get_leader(
     const int64_t cluster_id,
     const uint64_t tenant_id,

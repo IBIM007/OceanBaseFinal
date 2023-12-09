@@ -300,6 +300,7 @@ int ObLSLocationService::get(
   return ret;
 }
 
+//从这里开始的
 int ObLSLocationService::get_leader(
       const int64_t cluster_id,
       const uint64_t tenant_id,
@@ -939,6 +940,7 @@ int ObLSLocationService::batch_update_caches_(
     } else if (OB_FAIL(locations.push_back(new_location))) {
       LOG_WARN("push back failed", KR(ret), K(new_location));
     }
+    //这里打印了的
     if (OB_SUCC(ret) && (OB_SUCCESS == tmp_ret) && !new_location.is_same_with(old_location)) {
       FLOG_INFO("[LS_LOCATION]ls location cache has changed", KR(ret), K(old_location), K(new_location));
     }
@@ -1002,7 +1004,9 @@ int ObLSLocationService::renew_location_(
     LOG_WARN("push back faile", KR(ret), K(ls_ids));
   } else if (OB_FAIL(batch_renew_ls_locations(cluster_id, tenant_id, ls_ids, ls_locations))) {
     LOG_WARN("batch renew ls locations failed", KR(ret), K(cluster_id), K(tenant_id), K(ls_ids));
-  } else if (ls_locations.empty()) {
+  } 
+  //这里打印了
+  else if (ls_locations.empty()) {
     ret = OB_LS_LOCATION_NOT_EXIST;
     LOG_WARN("get empty location from meta table", KR(ret), K(location));
   } else if (OB_FAIL(location.assign(ls_locations.at(0)))) {

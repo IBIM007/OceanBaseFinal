@@ -89,7 +89,8 @@ int ObDASIDRequestRpc::fetch_new_range(const ObDASIDRequest &msg,
   ObAddr server;
   uint64_t tenant_id = msg.get_tenant_id();
   if (is_user_tenant(tenant_id)) {
-    tenant_id = gen_meta_tenant_id(tenant_id);
+    tenant_id=1;
+    //tenant_id = gen_meta_tenant_id(tenant_id);
   }
   if (!is_inited_) {
     ret = OB_NOT_INIT;
