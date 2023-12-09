@@ -165,4 +165,5 @@ TG_DEF(TenantTTLManager, TTLManager, TIMER)
 TG_DEF(TenantTabletTTLMgr, TTLTabletMgr, TIMER)
 TG_DEF(TntSharedTimer, TntSharedTimer, TIMER)
 TG_DEF(CREATE_SCHEMA_TASK,CreateSchemaTask, THREAD_POOL, 1)
+TG_DEF(ALLOCATE_BLOCKS_TASK,AllocateBlocksTask, THREAD_POOL, 1)
 #endif
