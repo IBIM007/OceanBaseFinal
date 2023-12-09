@@ -193,7 +193,11 @@ int ObLSTemplateOperator::exec_read(const uint64_t &tenant_id,
   } else {
     ObTimeoutCtx ctx;
     const int64_t default_timeout = GCONF.internal_sql_execute_timeout;
+    //TODO这里面读取是不是也需要修改呢？
     uint64_t exec_tenant_id = table_operator->get_exec_tenant_id(tenant_id);
+    /*uint64_t exec_tenant_id;
+    if(tenant_id==1002)exec_tenant_id=1;
+    else exec_tenant_id = table_operator->get_exec_tenant_id(tenant_id);*/
     if (OB_UNLIKELY(OB_INVALID_TENANT_ID == exec_tenant_id)) {
       ret = OB_ERR_UNEXPECTED;
       SHARE_LOG(WARN, "failed to get exec tenant id", KR(ret), K(exec_tenant_id));
@@ -253,7 +257,10 @@ int ObLSTemplateOperator::exec_write(const uint64_t &tenant_id,
     ObTimeoutCtx ctx;
     const int64_t timestamp = ObTimeUtility::current_time();
     const int64_t default_timeout = GCONF.internal_sql_execute_timeout;
-    uint64_t exec_tenant_id = table_operator->get_exec_tenant_id(tenant_id);
+    /*uint64_t exec_tenant_id;
+    if(tenant_id==1002)exec_tenant_id=1;
+    else exec_tenant_id = table_operator->get_exec_tenant_id(tenant_id);*/
+    uint64_t exec_tenant_id=table_operator->get_exec_tenant_id(tenant_id);
     if (OB_UNLIKELY(OB_INVALID_TENANT_ID == exec_tenant_id)) {
       ret = OB_ERR_UNEXPECTED;
       //没打印

@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include <cstdint>
 #define USING_LOG_PREFIX RS
 #include "ob_ls_service_helper.h"
 #include "lib/profile/ob_trace_id.h"
@@ -492,12 +493,15 @@ int ObLSServiceHelper::process_status_to_steady(
     ObTenantLSInfo& tenant_ls_info)
 {
   int ret = OB_SUCCESS;
+  //这里也会构造
   ObArray<ObLSStatusMachineParameter> status_machine_array;
   const uint64_t tenant_id = tenant_ls_info.get_tenant_id();
   if (OB_ISNULL(GCTX.sql_proxy_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("sql proxy is null", KR(ret), KP(GCTX.sql_proxy_));
-  } else if (OB_FAIL(construct_ls_status_machine(
+  } 
+  //感觉这个自动构造应该构造成1吧。
+  else if (OB_FAIL(construct_ls_status_machine(
           lock_sys_ls, tenant_id, GCTX.sql_proxy_, status_machine_array))) {
     LOG_WARN("failed to construct ls status machine array", KR(ret), K(lock_sys_ls), K(tenant_id));
   } else {
@@ -642,8 +646,8 @@ int ObLSServiceHelper::revision_to_equal_status_(const ObLSStatusMachineParamete
   const share::ObLSStatusInfo &status_info = machine.status_info_;
   const share::ObLSAttr &ls_info = machine.ls_info_;
   const uint64_t tenant_id = tenant_ls_info.get_tenant_id();
-  LOG_WARN("老的status_info的日志流的id是，状态时是", K(status_info.get_ls_id()), K(status_info.get_status()));
-  LOG_WARN("新的ls_info的日志流的id是，状态时是", K(ls_info.get_ls_id().id()), K(ls_info.get_ls_status()));
+  LOG_ERROR("租户id是，老的status_info的日志流的id是，状态时是", K(tenant_id),K(status_info.get_ls_id()), K(status_info.get_status()));
+  
   ObLSStatusOperator status_op;
   if (OB_UNLIKELY(!machine.is_valid())) {
     ret = OB_INVALID_ARGUMENT;
@@ -677,10 +681,17 @@ int ObLSServiceHelper::revision_to_equal_status_(const ObLSStatusMachineParamete
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("status machine not expected", KR(ret), K(machine));
     }
-  } else if (ls_info.ls_is_creating()) {
+  } 
+  //不对，感觉是走这里呢
+  else if (ls_info.ls_is_creating()) {
+    LOG_ERROR("revision_to_equal_status_里面走的是ls_info_ls_is_creating", K(ls_info.get_ls_id().id()), K(ls_info.get_ls_status()));
     if (!status_info.is_valid()) {
+      
       //create ls
+      //这里获取的id应该是1,，那么就是插入ls_info到系统租户的all_ls_status表中
       START_TRANSACTION(GCTX.sql_proxy_, ObLSLifeIAgent::get_exec_tenant_id(tenant_id));
+      uint64_t exec=ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+      LOG_ERROR("revision_to_equal_status_里面走的是!status_info.is_valid()，并且执行id是", K(exec));
       if (FAILEDx(create_new_ls_in_trans(ls_info.get_ls_id(),
                                          ls_info.get_ls_group_id(),
                                          ls_info.get_create_scn(),
@@ -694,7 +705,9 @@ int ObLSServiceHelper::revision_to_equal_status_(const ObLSStatusMachineParamete
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("status machine not expected", KR(ret), K(machine));
     }
-  } else if (ls_info.ls_is_normal()) {
+  } 
+  //我应该是走这里吧
+  else if (ls_info.ls_is_normal()) {
     if (!status_info.ls_is_created()) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("status machine not expected", KR(ret), K(machine));
@@ -883,6 +896,7 @@ int ObLSServiceHelper::create_new_ls_in_trans(
       LOG_WARN("failed to get ls group info", KR(ret), K(ls_group_id), K(tenant_ls_info));
     }
 
+    //新的日志流吧。
     if (FAILEDx(new_info.init(tenant_id, ls_id,
                               ls_group_id,
                               share::OB_LS_CREATING,
@@ -893,8 +907,11 @@ int ObLSServiceHelper::create_new_ls_in_trans(
     } else if (OB_FAIL(ObTenantThreadHelper::get_zone_priority(primary_zone,
             *tenant_ls_info.get_tenant_schema(), zone_priority))) {
       LOG_WARN("failed to get normalize primary zone", KR(ret), K(primary_zone), K(zone_priority));
-    } else if (OB_FAIL(ls_life_agent.create_new_ls_in_trans(new_info, create_scn,
+    } 
+    //这里rpc是走的具体哪里？应该是插入all_ls_status
+    else if (OB_FAIL(ls_life_agent.create_new_ls_in_trans(new_info, create_scn,
             zone_priority.string(), working_sw_status, trans))) {
+              //打印了的
       LOG_WARN("failed to insert ls info", KR(ret), K(new_info), K(create_scn), K(zone_priority));
     }
   }

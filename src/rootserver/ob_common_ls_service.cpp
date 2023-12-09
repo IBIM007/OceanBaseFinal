@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "lib/ob_define.h"
 #define USING_LOG_PREFIX RS
 #include "ob_common_ls_service.h"
 #include "ob_ls_service_helper.h"
@@ -73,15 +74,25 @@ void ObCommonLSService::do_work()
   } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0,1))) {
     LOG_WARN("failed to wait tenant schema version ready", KR(ret), K(tenant_id_), K(DATA_CURRENT_VERSION));
   } else {
-    LOG_WARN("进入了commonlsservice的do_work的else", KR(ret));
+    bool stop=has_set_stop();
+    LOG_ERROR("进入了commonlsservice的do_work的else，tenant_id是,bool是", KR(ret),K(tenant_id_),K(stop));
     int64_t idle_time_us = 100 * 1000L;//1s，这个地方应该减小。
     share::schema::ObTenantSchema user_tenant_schema;
     int tmp_ret = OB_SUCCESS;
     while (!has_set_stop()) {
       ret = OB_SUCCESS;
       ObCurTraceId::init(GCONF.self_addr_);
-      if (is_meta_tenant(tenant_id_)) {
-        const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id_);
+      //if (is_sys_tenant(tenant_id_)) {
+      //if (is_meta_tenant(tenant_id_)||is_sys_tenant(tenant_id_)) {
+        if (is_meta_tenant(tenant_id_)) {
+          //const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id_);
+          //LOG_ERROR("进入了commonlsservice的do_work的循环，user_tenant_id是", KR(ret),K(user_tenant_id));
+        //好像就是这里，1002依赖于1001，然后1001就能生成1002的用户id，然后插入
+        uint64_t user_tenant_id;
+        if(tenant_id_==1)user_tenant_id=1002;
+        //这里还是可能会错，因为1002可能重复创建吧。
+        else user_tenant_id = gen_user_tenant_id(tenant_id_);
+        LOG_ERROR("这个时候开始循环了，用户id是，自己的id是",K(ret),KR(user_tenant_id),K(tenant_id_));
         if (OB_FAIL(check_can_do_recovery_(user_tenant_id))) {
           LOG_WARN("can not do recovery now", KR(ret), K(user_tenant_id));
         } else if (OB_FAIL(get_tenant_schema(user_tenant_id, user_tenant_schema))) {
@@ -93,7 +104,7 @@ void ObCommonLSService::do_work()
         } else if (OB_TMP_FAIL(try_create_ls_(user_tenant_schema))) {
           LOG_WARN("failed to create ls", KR(ret), KR(tmp_ret), K(user_tenant_schema));
         }
-        LOG_WARN("try_create_ls执行完了", KR(ret));
+        LOG_ERROR("try_create_ls执行完了", KR(ret));
         if (OB_SUCC(ret) && !user_tenant_schema.is_dropping()) {
           if (OB_TMP_FAIL(ObBalanceLSPrimaryZone::try_adjust_user_ls_primary_zone(user_tenant_schema))) {
             LOG_WARN("failed to adjust user tenant primary zone", KR(ret), KR(tmp_ret), K(user_tenant_schema));
@@ -102,15 +113,15 @@ void ObCommonLSService::do_work()
             LOG_WARN("failed to modify ls unit group", KR(ret), KR(tmp_ret), K(user_tenant_schema));
           }
         }
-        LOG_WARN("try_create_ls下面的东西执行完了", KR(ret));
+        LOG_ERROR("try_create_ls下面的东西执行完了", KR(ret));
       }
 
       if (OB_TMP_FAIL(ObBalanceLSPrimaryZone::try_update_sys_ls_primary_zone(tenant_id_))) {
         LOG_WARN("failed to update sys ls primary zone", KR(ret), KR(tmp_ret), K(tenant_id_));
       }
-      LOG_WARN("这个时候do_create_ls和process_after_has_member_list__应该也执行完了", KR(ret));
+      LOG_ERROR("这个时候do_create_ls和process_after_has_member_list__应该也执行完了", KR(ret),K(tenant_id_));
       user_tenant_schema.reset();
-      LOG_INFO("[COMMON_LS_SERVICE] finish one round", KR(ret), KR(tmp_ret), K(idle_time_us));
+      LOG_ERROR("[COMMON_LS_SERVICE] finish one round", KR(ret), KR(tmp_ret), K(idle_time_us),K(tenant_id_));
       idle(idle_time_us);
     }  // end while
   }
@@ -142,6 +153,8 @@ int ObCommonLSService::try_create_ls_(const share::schema::ObTenantSchema &tenan
       const ObLSStatusInfo &status_info = status_info_array.at(i);
       if (status_info.ls_is_creating()) {
         recovery_stat.reset();
+        LOG_ERROR("try_create_ls这里面马上要创建的ls_id是", KR(ret),K(status_info.ls_id_));
+        //这里好像有个什么recovery了
         if (OB_FAIL(ls_recovery_operator.get_ls_recovery_stat(
                   tenant_id, status_info.ls_id_, false /*for_update*/,
                   recovery_stat, *GCTX.sql_proxy_))) {

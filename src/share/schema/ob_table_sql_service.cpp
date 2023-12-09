@@ -85,6 +85,7 @@ int ObTableSqlService::exec_insert(
   int ret = OB_SUCCESS;
   if (is_core_table(table_id)) {
     ObArray<ObCoreTableProxy::UpdateCell> cells;
+    //直接就是tenant_id哇。现在相当于事务是1，然后目标是1002
     ObCoreTableProxy kv(table_name, sql_client, tenant_id);
     if (OB_FAIL(kv.load_for_update())) {
       LOG_WARN("failed to load kv for insert", K(ret));
@@ -94,7 +95,7 @@ int ObTableSqlService::exec_insert(
       LOG_WARN("failed to replace row", K(ret));
     }
   } else {
-    const uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
+    uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
     ObDMLExecHelper exec(sql_client, exec_tenant_id);
     if (OB_FAIL(exec.exec_insert(table_name, dml, affected_rows))) { // TODO  () 这里出问题
       LOG_WARN("execute insert failed", K(ret));
@@ -1176,7 +1177,7 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
   int ret = OB_SUCCESS;
   const int64_t new_schema_version = table.get_schema_version();
   const uint64_t tenant_id = table.get_tenant_id();
-  const uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
+  uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
   if (OB_FAIL(check_ddl_allowed(table))) {
     LOG_WARN("check ddl allowd failed", K(ret), K(table));
   }
@@ -1305,7 +1306,7 @@ int ObTableSqlService::add_constraints_for_not_core(ObISQLClient &sql_client,
   int ret = OB_SUCCESS;
   const int64_t new_schema_version = table.get_schema_version();
   const uint64_t tenant_id = table.get_tenant_id();
-  const uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
+  uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
   ObDMLExecHelper exec(sql_client, exec_tenant_id);
   int64_t affected_rows = 0;
   int64_t cst_cols_num_in_table = 0;
@@ -1875,10 +1876,12 @@ int ObTableSqlService::add_table(
   int ret = OB_SUCCESS;
 
   ObDMLSqlSplicer dml;
+  //这里的tenant_id是从table里面拿出来的了
   const uint64_t tenant_id = table.get_tenant_id();
   const int64_t table_id = table.get_table_id();
-  const uint64_t exec_tenant_id = ObSchemaUtils::get_exec_tenant_id(tenant_id);
+  uint64_t exec_tenant_id= ObSchemaUtils::get_exec_tenant_id(tenant_id);
   uint64_t tenant_data_version = 0;
+  //没打印过
   if (OB_FAIL(GET_MIN_DATA_VERSION(exec_tenant_id, tenant_data_version))) {
     LOG_WARN("get tenant data version failed", K(ret));
   } else if (tenant_data_version < DATA_VERSION_4_1_0_0 && table.is_spatial_index()) {
@@ -2367,6 +2370,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
     LOG_WARN("check ddl allowd failed", K(ret), K(table));
   }
   if (OB_SUCCESS == ret && 0 != table.get_autoinc_column_id()) {
+    //这个有用到tenant_id
     if (OB_FAIL(add_sequence(tenant_id, table.get_table_id(),
                              table.get_autoinc_column_id(), table.get_auto_increment(),
                              table.get_truncate_version()))) {
@@ -2375,6 +2379,7 @@ int ObTableSqlService::create_table(ObTableSchema &table,
     end_usec = ObTimeUtility::current_time();
     cost_usec = end_usec - start_usec;
     start_usec = end_usec;
+    //没打印过
     LOG_INFO("add_sequence for autoinc cost: ", K(cost_usec));
   }
 
@@ -2398,13 +2403,14 @@ int ObTableSqlService::create_table(ObTableSchema &table,
              && FALSE_IT(table.set_view_column_filled_flag(ObViewColumnFilledFlag::FILLED))) {
   } 
   //这个方法注意一下。真不知道怎么调用的这个，它自己和父类都没有这个方法。
+  //这里好像需要更改
   else if (OB_FAIL(add_table(sql_client, table, update_object_status_ignore_version, only_history))) {
     LOG_WARN("insert table schema failed, ", K(ret), "table", to_cstring(table));
   } else if (!table.is_view_table()) {
     end_usec = ObTimeUtility::current_time();
     cost_usec = end_usec - start_usec;
     start_usec = end_usec;
-    //这里打印了的
+    //这里打印了的，普通租户并没有打印的，所以好像没问题
     LOG_INFO("add_table cost: ", K(cost_usec));
     if (OB_FAIL(add_columns(sql_client, table))) {
       LOG_WARN("insert column schema failed, ", K(ret), "table", to_cstring(table));
@@ -2432,7 +2438,9 @@ int ObTableSqlService::create_table(ObTableSchema &table,
         LOG_WARN("failed to add foreign key", K(ret));
       }
     }
-  } else if (table.view_column_filled() //view table
+  } 
+  //没打印过
+  else if (table.view_column_filled() //view table
              && OB_FAIL(add_columns(sql_client, table))) {
     LOG_WARN("insert column schema failed, ", K(ret), "table", to_cstring(table));
   }
@@ -3670,6 +3678,7 @@ int ObTableSqlService::add_sequence(const uint64_t tenant_id,
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans;
   // FIXME:__all_time_zone contains auto increment column. Cyclic dependence may occur.
+  //执行id就是它自己，没问题的
   const uint64_t exec_tenant_id = tenant_id;
   if (OB_FAIL(trans.start(sql_proxy_, tenant_id, false))) {
     LOG_WARN("failed to start trans, ", K(ret), K(tenant_id));

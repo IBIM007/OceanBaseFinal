@@ -285,13 +285,16 @@ int ObLSCreator::create_tenant_sys_ls(
       LOG_WARN("failed to alloc user ls addr", KR(ret), K(tenant_id_), K(pool_list));
     } else {
       //获取日志流初始化成员列表
+      //就是这里获取表，没拿到，如果先创建用户租户的话
       ret = ls_operator.get_ls_init_member_list(tenant_id_, id_, member_list, exist_status_info, *proxy_, arbitration_service, learner_list);
+      LOG_ERROR("执行完了get_ls_init_member_list了", KR(ret), K_(id), K(tenant_id_));
       if (OB_FAIL(ret) && OB_ENTRY_NOT_EXIST != ret) {
         LOG_WARN("failed to get log stream member list", KR(ret), K_(id), K(tenant_id_));
       } 
       //日志流是否已经创建过了
       else if (OB_SUCC(ret) && status_info.ls_is_created()) {
       } else {
+        LOG_ERROR("执行完了get_ls_init_member_list，进入了else了", KR(ret), K_(id), K(tenant_id_));
         //刚才报错的就是这个
         if (OB_ENTRY_NOT_EXIST == ret) {
           ret = OB_SUCCESS;
@@ -303,7 +306,7 @@ int ObLSCreator::create_tenant_sys_ls(
         }
         if (OB_SUCC(ret)) {
           //这里还进入了的吧
-          REPEAT_CREATE_LS();
+          REPEAT_CREATE_LS();//这里打印了失败的就追这里
         }
       }
     }
@@ -311,7 +314,7 @@ int ObLSCreator::create_tenant_sys_ls(
 
   const int64_t cost = ObTimeUtility::current_time() - start_time;
   LOG_INFO("finish to create log stream", KR(ret), K_(id), K_(tenant_id), K(cost));
-  //这里又添加了一个什么事件
+  //这里又添加了一个什么事件，系统日志流需要吗？
   LS_EVENT_ADD(tenant_id_, id_, "create_ls_finish", ret, paxos_replica_num, "", K(cost));
   return ret;
 }
@@ -340,11 +343,15 @@ int ObLSCreator::do_create_ls_(const ObLSAddr &addr,
             K(addr), K(create_scn));
  } else if (OB_FAIL(ObAllTenantInfoProxy::load_tenant_info(tenant_id_, proxy_, false, tenant_info))) {
    LOG_WARN("failed to load tenant info", KR(ret), K_(tenant_id));
- } else if (OB_FAIL(create_ls_(addr, paxos_replica_num, tenant_info, create_scn,
+ } 
+ //这个方法应该是没问题的
+ else if (OB_FAIL(create_ls_(addr, paxos_replica_num, tenant_info, create_scn,
                                compat_mode, create_with_palf, palf_base_info, member_list, arbitration_service, learner_list))) {
    LOG_WARN("failed to create log stream", KR(ret), K_(id), K_(tenant_id), K(create_with_palf),
             K(addr), K(paxos_replica_num), K(tenant_info), K(create_scn), K(compat_mode), K(palf_base_info), K(learner_list));
- } else if (OB_FAIL(persist_ls_member_list_(member_list, arbitration_service, learner_list))) {
+ } 
+ //应该也是成功了的
+ else if (OB_FAIL(persist_ls_member_list_(member_list, arbitration_service, learner_list))) {
    LOG_WARN("failed to persist log stream member list", KR(ret),
             K(member_list), K(arbitration_service), K(learner_list));
  }
@@ -361,7 +368,9 @@ int ObLSCreator::process_after_has_member_list_(
   if (OB_UNLIKELY(!is_valid())) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret));
-  } else if (OB_FAIL(set_member_list_(member_list, arbitration_service, paxos_replica_num, learner_list))) {
+  } 
+  //这里失败了的
+  else if (OB_FAIL(set_member_list_(member_list, arbitration_service, paxos_replica_num, learner_list))) {
     LOG_WARN("failed to set member list", KR(ret), K_(id), K_(tenant_id),
         K(member_list), K(arbitration_service), K(paxos_replica_num), K(learner_list));
   } else if (OB_ISNULL(proxy_)) {
@@ -687,7 +696,9 @@ int ObLSCreator::check_member_list_and_learner_list_all_in_meta_table_(
       if (ctx.is_timeouted()) {
         ret = OB_TIMEOUT;
         LOG_WARN("wait member list all reported to meta table timeout", KR(ret), K(member_list), K_(tenant_id), K_(id));
-      } else if (OB_FAIL(GCTX.lst_operator_->get(GCONF.cluster_id, tenant_id_, id_, share::ObLSTable::DEFAULT_MODE, ls_info_to_check))) {
+      } 
+      //应该是这里面失败的
+      else if (OB_FAIL(GCTX.lst_operator_->get(GCONF.cluster_id, tenant_id_, id_, share::ObLSTable::DEFAULT_MODE, ls_info_to_check))) {
         LOG_WARN("fail to get ls info", KR(ret), K_(tenant_id), K_(id));
       } else {
         for (int64_t i = 0; OB_SUCC(ret) && i < member_list.get_member_number(); ++i) {
@@ -722,6 +733,7 @@ int ObLSCreator::check_member_list_and_learner_list_all_in_meta_table_(
             }
           }
         }
+        //这里一直在重试了，说明前面有些东西没有拿到吧
         if (OB_SUCC(ret) && has_replica_only_in_member_list_or_learner_list) {
           ob_usleep(retry_interval_us);
         }
@@ -746,7 +758,9 @@ int ObLSCreator::set_member_list_(const common::ObMemberList &member_list,
                          || member_list.get_member_number() < rootserver::majority(paxos_replica_num))) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(member_list), K(paxos_replica_num));
-  } else if (!is_sys_tenant(tenant_id_) && OB_FAIL(check_member_list_and_learner_list_all_in_meta_table_(member_list, learner_list))) {
+  } 
+  //这里失败的
+  else if (!is_sys_tenant(tenant_id_) && OB_FAIL(check_member_list_and_learner_list_all_in_meta_table_(member_list, learner_list))) {
     LOG_WARN("fail to check member_list all in meta table", KR(ret), K(member_list), K(learner_list), K_(tenant_id), K_(id));
   } else {
     ObTimeoutCtx ctx;

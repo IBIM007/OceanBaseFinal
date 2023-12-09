@@ -181,7 +181,9 @@ int ObAllTenantInfoProxy::init_tenant_info(
 {
   int64_t begin_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_info.get_tenant_id());
+  uint64_t exec_tenant_id;
+  if(tenant_info.get_tenant_id()==1002)exec_tenant_id=1;
+  else exec_tenant_id= gen_meta_tenant_id(tenant_info.get_tenant_id());
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
@@ -397,7 +399,9 @@ int ObAllTenantInfoProxy::load_pure_tenant_info_(const uint64_t tenant_id,
     LOG_WARN("invalid argument", KR(ret), K(tenant_id));
   } else {
     ObSqlString sql;
-    uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t exec_tenant_id;
+    if(tenant_id==1002)exec_tenant_id=1;
+    else exec_tenant_id = gen_meta_tenant_id(tenant_id);
     if (OB_FAIL(rootserver::ObRootUtils::get_rs_default_timeout_ctx(ctx))) {
       LOG_WARN("fail to get timeout ctx", KR(ret), K(ctx));
     } else if (OB_FAIL(sql.assign_fmt("select ORA_ROWSCN, * from %s where tenant_id = %lu ",
@@ -540,7 +544,9 @@ int ObAllTenantInfoProxy::update_tenant_max_ls_id(
     ObMySQLTransaction &trans, const bool for_upgrade)
 {
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  uint64_t exec_tenant_id;
+  if(tenant_id==1002)exec_tenant_id=1;
+  else exec_tenant_id = gen_meta_tenant_id(tenant_id);
   ObSqlString sql;
   int64_t affected_rows = 0;
   int64_t ora_rowscn = 0;//no used

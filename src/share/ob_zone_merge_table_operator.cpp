@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "lib/ob_define.h"
 #define USING_LOG_PREFIX SHARE
 
 #include "share/ob_zone_merge_table_operator.h"
@@ -201,8 +202,9 @@ int ObZoneMergeTableOperator::inner_insert_or_update_zone_merge_infos_(
       }
     }
   }
-
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+  uint64_t meta_tenant_id;
+  if(tenant_id==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id);
   for (int64_t i = 0; OB_SUCC(ret) && (i < info_cnt); ++i) {
     const ObZoneMergeInfo &cur_info = infos.at(i);
     const uint64_t all_merged_scn_val = cur_info.all_merged_scn_.get_scn_val();

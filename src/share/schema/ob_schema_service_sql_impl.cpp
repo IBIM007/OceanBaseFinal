@@ -457,7 +457,9 @@ int ObSchemaServiceSQLImpl::gen_new_schema_version(
     if (OB_ISNULL(tsi_generator)) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("tsi schema version generator is null", KR(ret));
-    } else if (OB_FAIL(tsi_generator->next_version(schema_version))) {
+    } 
+    //这个也没磁盘读呢
+    else if (OB_FAIL(tsi_generator->next_version(schema_version))) {
       LOG_WARN("fail to gen next schema version", KR(ret), KPC(tsi_generator), K(lbt()));
     }
   } else {
@@ -852,6 +854,7 @@ int ObSchemaServiceSQLImpl::get_core_version(
     const int64_t snapshot_timestamp = schema_status.snapshot_timestamp_;
     bool check_sys_variable = false;  // to avoid cyclic dependence
     DEFINE_SQL_CLIENT_RETRY_WEAK_WITH_PARAMETER(sql_client, snapshot_timestamp, check_sys_variable);
+    //这个代理有tenant_id了
     ObGlobalStatProxy proxy(sql_client_retry_weak, tenant_id);
     if (OB_FAIL(proxy.get_core_schema_version(core_schema_version))) {
       LOG_WARN("get_core_schema_version failed", K(ret));

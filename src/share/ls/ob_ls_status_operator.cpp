@@ -182,6 +182,7 @@ int ObLSStatusOperator::create_new_ls(const ObLSStatusInfo &ls_info,
   common::ObSqlString sql;
   //这里面可以看到全是表名
   const char *table_name = OB_ALL_LS_STATUS_TNAME;
+  LOG_ERROR("进入了ObLSStatusOperator::create_new_ls", KR(ret));
   if (OB_UNLIKELY(!ls_info.is_valid()
                   || !working_sw_status.is_valid())) {
     ret = OB_INVALID_ARGUMENT;
@@ -344,8 +345,12 @@ int ObLSStatusOperator::update_ls_status(
   } else {
     //init_member_list is no need after create success
     ObMySQLTransaction trans;
-    const uint64_t exec_tenant_id =
-      ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+    //这里应该还会报错
+    uint64_t exec_tenant_id;
+    if(tenant_id==1002)exec_tenant_id=1;
+    else exec_tenant_id =ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+    //注意这里原版就是切换为1001，那么就是插入到1001租户的all_ls_status的表中。然后那边的common_ls就能发现，那这里trans起始就是1了
+
     if (OB_FAIL(trans.start(&client, exec_tenant_id))) {
       LOG_WARN("failed to start trans", KR(ret), K(exec_tenant_id));
     } else if (OB_FAIL(update_ls_status_in_trans(tenant_id, id, old_status, new_status, switch_status, trans))) {
@@ -361,7 +366,7 @@ int ObLSStatusOperator::update_ls_status(
   }
   return ret;
 }
-
+//注意不是lsattr operator了
 int ObLSStatusOperator::update_ls_status_in_trans(
     const uint64_t tenant_id,
     const ObLSID &id, const ObLSStatus &old_status,
@@ -388,8 +393,10 @@ int ObLSStatusOperator::update_ls_status_in_trans(
   } else {
     //init_member_list is no need after create success
     common::ObSqlString sql;
-    const uint64_t exec_tenant_id =
-      ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+    uint64_t exec_tenant_id;
+    if(tenant_id==1002)exec_tenant_id=1;
+    else exec_tenant_id =ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+
     common::ObSqlString sub_string;
     bool is_compatible_with_readonly_replica = false;
     int tmp_ret = OB_SUCCESS;
@@ -411,7 +418,9 @@ int ObLSStatusOperator::update_ls_status_in_trans(
                                id.id(), tenant_id, ls_status_to_str(old_status)))) {
       LOG_WARN("failed to assign sql", KR(ret), K(id), K(new_status),
                K(old_status), K(tenant_id), K(sub_string), K(sql));
-    } else if (OB_FAIL(exec_write(tenant_id, sql, this, trans))) {
+    } 
+    //这里感觉会出问题，因为tenant_id，应该不会，因为是，继承的lifeagent，然后会走Lifeagent的获取id，那么需要修改那里。因为如果1002这样走，就是一直都是1001
+    else if (OB_FAIL(exec_write(tenant_id, sql, this, trans))) {
       LOG_WARN("failed to exec write", KR(ret), K(tenant_id), K(id), K(sql));
     }
     ALL_LS_EVENT_ADD(tenant_id, id, "update_ls_status", ret, sql);
@@ -1034,12 +1043,24 @@ int ObLSStatusOperator::get_ls_status_(const uint64_t tenant_id,
                                     OB_ALL_LS_STATUS_TNAME, id.id(), tenant_id))) {
     LOG_WARN("failed to assign sql", KR(ret), K(sql));
   } 
-  //这里也打印了的
-  else if (OB_FAIL(inner_get_ls_status_(sql, get_exec_tenant_id(tenant_id), need_member_list,
+
+  if(tenant_id==1002)
+  {
+    if (OB_FAIL(inner_get_ls_status_(sql, 1, need_member_list,
+                                          client, member_list, status_info, arb_member, learner_list))) {
+    LOG_WARN("fail to inner get ls status info", KR(ret), K(sql), K(tenant_id), "exec_tenant_id",
+             1, K(need_member_list));
+    }
+  }
+  else{
+    if (OB_FAIL(inner_get_ls_status_(sql, get_exec_tenant_id(tenant_id), need_member_list,
                                           client, member_list, status_info, arb_member, learner_list))) {
     LOG_WARN("fail to inner get ls status info", KR(ret), K(sql), K(tenant_id), "exec_tenant_id",
              get_exec_tenant_id(tenant_id), K(need_member_list));
+    }
   }
+  //这里也打印了的
+  
   return ret;
 }
 

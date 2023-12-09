@@ -2054,12 +2054,15 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     //更新基本shcema的版本
     else if (OB_FAIL(update_baseline_schema_version())) {
       LOG_WARN("failed to update baseline schema version", K(ret));
-    } else if (OB_FAIL(global_proxy.get_baseline_schema_version(
+    } 
+    LOG_ERROR("updatebaseline执行完了", KR(ret));
+    if (OB_FAIL(global_proxy.get_baseline_schema_version(
                        baseline_schema_version_))) {
       LOG_WARN("fail to get baseline schema version", KR(ret));
-    } 
+    }
+    LOG_ERROR("get_baseline_schema_version执行完了", KR(ret),K(baseline_schema_version_));
     //设置cpu限额的并发配置
-    else if (OB_FAIL(set_cpu_quota_concurrency_config_())) {
+    if (OB_FAIL(set_cpu_quota_concurrency_config_())) {
       LOG_WARN("failed to update cpu_quota_concurrency", K(ret));
     }
 
@@ -2197,6 +2200,7 @@ int ObRootService::update_baseline_schema_version()
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans;
   int64_t baseline_schema_version = OB_INVALID_VERSION;
+  LOG_ERROR("进入update_baseline_schema_version方法里面了",  K(ret));
   if (!inited_) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", K(ret));
@@ -2207,17 +2211,20 @@ int ObRootService::update_baseline_schema_version()
                                                          baseline_schema_version))) {
     LOG_WARN("fail to get refreshed schema version", K(ret));
   } else {
+    LOG_ERROR("进入update_baseline_schema_version的else了",  K(ret));
     ObGlobalStatProxy proxy(trans, OB_SYS_TENANT_ID);
     if (OB_FAIL(proxy.set_baseline_schema_version(baseline_schema_version))) {
       LOG_WARN("set_baseline_schema_version failed", K(baseline_schema_version), K(ret));
     }
   }
   int temp_ret = OB_SUCCESS;
+  LOG_ERROR("马上进入!trans.is_started()",  K(ret));
   if (!trans.is_started()) {
   } else if (OB_SUCCESS != (temp_ret = trans.end(OB_SUCCESS == ret))) {
     LOG_WARN("trans end failed", "commit", OB_SUCCESS == ret, K(temp_ret));
     ret = (OB_SUCCESS == ret) ? temp_ret : ret;
   }
+  LOG_ERROR("trans.end执行结束了)",  K(ret));
     LOG_DEBUG("update_baseline_schema_version finish", K(ret), K(temp_ret),
               K(baseline_schema_version));
   return ret;
@@ -5272,7 +5279,7 @@ int ObRootService::do_restart()
   }
 
   // to avoid increase rootservice_epoch while fail to restart RS,
-  // put it and the end of restart RS.
+  // put it and the end of restart RS. 这里耗时
   if (FAILEDx(init_sequence_id())) {
     FLOG_WARN("fail to init sequence id", KR(ret));
   } else {
@@ -5409,36 +5416,50 @@ int ObRootService::init_sequence_id()
   } else if (OB_FAIL(trans.start(&sql_proxy_, OB_SYS_TENANT_ID))) {
     LOG_WARN("trans start failed", K(ret));
   } else {
+    LOG_ERROR("进入init_sequence_id的else了", K(ret));
     ObGlobalStatProxy proxy(trans, OB_SYS_TENANT_ID);
     ObSchemaService *schema_service = schema_service_->get_schema_service();
     int64_t rootservice_epoch = 0;
     int64_t schema_version = OB_INVALID_VERSION;
     ObRefreshSchemaInfo schema_info;
     //increase sequence_id can trigger every observer refresh schema while restart RS
-    if (OB_FAIL(proxy.inc_rootservice_epoch())) {
+    //这里卡住了
+    /*if (OB_FAIL(proxy.inc_rootservice_epoch())) {
       LOG_WARN("fail to increase rootservice_epoch", K(ret));
-    } else if (OB_FAIL(proxy.get_rootservice_epoch(rootservice_epoch))) {
+    }  */
+    LOG_ERROR("马上进入get_rootservice_epoch", K(ret));
+    if (OB_FAIL(proxy.get_rootservice_epoch(rootservice_epoch))) {
       LOG_WARN("fail to get rootservice start times", K(ret), K(rootservice_epoch));
     } else if (rootservice_epoch <= 0) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("invalid rootservice_epoch", K(ret), K(rootservice_epoch));
-    } else if (OB_FAIL(schema_service->init_sequence_id(rootservice_epoch))) {
+    }  
+    LOG_ERROR("马上进入schema_service init_sequence_id", K(ret));
+    if (OB_FAIL(schema_service->init_sequence_id(rootservice_epoch))) {
       LOG_WARN("init sequence id failed", K(ret), K(rootservice_epoch));
-    } else if (OB_FAIL(schema_service_->get_tenant_refreshed_schema_version(OB_SYS_TENANT_ID, schema_version))) {
+    } 
+    //后面都不耗时，就这里init_sequen_id以及前面可能耗时
+    LOG_ERROR("马上进入schema_service get_tenant_refreshed_schema_version", K(ret));
+    if (OB_FAIL(schema_service_->get_tenant_refreshed_schema_version(OB_SYS_TENANT_ID, schema_version))) {
       LOG_WARN("fail to get sys tenant refreshed schema version", K(ret));
     } else if (schema_version <= OB_CORE_SCHEMA_VERSION + 1) {
       // in bootstrap and new schema mode, to avoid write failure while schema_version change,
       // only actively refresh schema at the end of bootstrap, and make heartbeat'srefresh_schema_info effective.
-    } else if (OB_FAIL(schema_service->set_refresh_schema_info(schema_info))) {
+    } 
+    LOG_ERROR("马上进入schema_service set_refresh_schema_info", K(ret));
+    if (OB_FAIL(schema_service->set_refresh_schema_info(schema_info))) {
       LOG_WARN("fail to set refresh schema info", K(ret), K(schema_info));
     }
 
     int temp_ret = OB_SUCCESS;
+    LOG_ERROR("马上进入trans的end了", K(ret));
     if (OB_SUCCESS != (temp_ret = trans.end(OB_SUCCESS == ret))) {
       LOG_WARN("trans end failed", "commit", OB_SUCCESS == ret, K(temp_ret));
       ret = (OB_SUCCESS == ret) ? temp_ret : ret;
     }
+    
   }
+  LOG_ERROR("init_sequence_id这个方法跑完了", K(ret));
   return ret;
 }
 

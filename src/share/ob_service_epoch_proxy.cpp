@@ -42,6 +42,22 @@ int ObServiceEpochProxy::init_service_epoch(
     LOG_WARN("invalid argument", KR(ret), K(tenant_id));
   // sys/meta tenant initialized freeze_service_epoch
   } else if (is_sys_tenant(tenant_id)) {
+    const uint64_t user_tenant_id = 1002;
+    if (OB_FAIL(insert_service_epoch(
+        sql_proxy,
+        user_tenant_id,
+        FREEZE_SERVICE_EPOCH,
+        freeze_service_epoch))) {
+      LOG_WARN("fail to init freeze_service_epoch", KR(ret), K(user_tenant_id), K(freeze_service_epoch));
+    } 
+    else if (OB_FAIL(ObServiceEpochProxy::insert_service_epoch(
+        sql_proxy,
+        user_tenant_id,
+        ARBITRATION_SERVICE_EPOCH,
+        arbitration_service_epoch))) {
+      LOG_WARN("fail to init arb service epoch", KR(ret), K(user_tenant_id), K(arbitration_service_epoch));
+    }
+
     if (OB_FAIL(insert_service_epoch(
         sql_proxy,
         tenant_id,
@@ -69,31 +85,31 @@ int ObServiceEpochProxy::init_service_epoch(
     } else {}
   } else if (is_meta_tenant(tenant_id)) {
     // user tenant initialized freeze_service_epoch
-    const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
+    /*const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
     if (OB_FAIL(insert_service_epoch(
         sql_proxy,
         user_tenant_id,
         FREEZE_SERVICE_EPOCH,
         freeze_service_epoch))) {
       LOG_WARN("fail to init freeze_service_epoch", KR(ret), K(user_tenant_id), K(freeze_service_epoch));
-    } else if (OB_FAIL(insert_service_epoch(
+    } else */if (OB_FAIL(insert_service_epoch(
         sql_proxy,
         tenant_id,
         FREEZE_SERVICE_EPOCH,
         freeze_service_epoch))) {
       LOG_WARN("fail to init freeze_service_epoch", KR(ret), K(tenant_id), K(freeze_service_epoch));
-    } else if (OB_FAIL(ObServiceEpochProxy::insert_service_epoch(
+    } /*else if (OB_FAIL(ObServiceEpochProxy::insert_service_epoch(
         sql_proxy,
         user_tenant_id,
         ARBITRATION_SERVICE_EPOCH,
         arbitration_service_epoch))) {
       LOG_WARN("fail to init arb service epoch", KR(ret), K(user_tenant_id), K(arbitration_service_epoch));
-    } else if (OB_FAIL(ObServiceEpochProxy::insert_service_epoch(
+    } */else if (OB_FAIL(ObServiceEpochProxy::insert_service_epoch(
         sql_proxy,
         tenant_id,
         ARBITRATION_SERVICE_EPOCH,
         arbitration_service_epoch))) {
-      LOG_WARN("fail to init arb service epoch", KR(ret), K(user_tenant_id), K(arbitration_service_epoch));
+      //LOG_WARN("fail to init arb service epoch", KR(ret), K(user_tenant_id), K(arbitration_service_epoch));
     } else {}
   } else {}
   return ret;
@@ -114,7 +130,9 @@ int ObServiceEpochProxy::insert_service_epoch(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), KP(name));
   } else {
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
     if (OB_FAIL(dml.add_pk_column("tenant_id", tenant_id))
         || OB_FAIL(dml.add_pk_column("name", name))
         || OB_FAIL(dml.add_column("value", epoch_value))) {

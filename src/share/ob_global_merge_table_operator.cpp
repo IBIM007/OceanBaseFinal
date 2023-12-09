@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "lib/ob_define.h"
 #define USING_LOG_PREFIX SHARE
 
 #include "share/ob_global_merge_table_operator.h"
@@ -101,7 +102,9 @@ int ObGlobalMergeTableOperator::insert_global_merge_info(
   int ret = OB_SUCCESS;
   ObDMLSqlSplicer dml;
   int64_t affected_rows = 0;
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+  uint64_t meta_tenant_id;
+  if(tenant_id==1002)meta_tenant_id =1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id);
   ObDMLExecHelper exec(sql_client, meta_tenant_id);
   if (!info.is_valid() || !is_valid_tenant_id(tenant_id) ||
       (tenant_id != info.tenant_id_)) {

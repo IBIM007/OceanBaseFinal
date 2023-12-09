@@ -3253,6 +3253,7 @@ int ObMultiVersionSchemaService::refresh_tenant_schema(
       // 1. System tenants strengthen the consistency of reading and refresh schema
       // 2. user tenants of the primary cluster strengthened to read and refresh schema consistently
       refresh_schema_status.reset();
+      //这里把tenant嵌入进去了
       refresh_schema_status.tenant_id_ = tenant_id;
       refresh_schema_status.snapshot_timestamp_ = OB_INVALID_TIMESTAMP;
       refresh_schema_status.readable_schema_version_ = OB_INVALID_VERSION;
@@ -3277,6 +3278,7 @@ int ObMultiVersionSchemaService::refresh_tenant_schema(
     if (OB_SUCC(ret)) {
       bool need_refresh = true;
       int64_t baseline_schema_version = OB_INVALID_VERSION;
+      //并没有，没问题继续往后面走
       if (OB_FAIL(get_baseline_schema_version(tenant_id, true/*auto_update*/, baseline_schema_version))) {
         LOG_WARN("fail to get baseline schema version", KR(ret), K(tenant_id));
       } else if (OB_FAIL(refresh_full_schema_map_.get_refactored(tenant_id, refresh_full_schema))) {
@@ -3303,6 +3305,7 @@ int ObMultiVersionSchemaService::refresh_tenant_schema(
       }
 
       if (OB_SUCC(ret) && need_refresh) {
+        //还是这里出错的
         if (OB_FAIL(refresh_schema(refresh_schema_status))) {
           LOG_WARN("fail to refresh schema by tenant", KR(ret), K(refresh_schema_status));
         }

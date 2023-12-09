@@ -275,9 +275,15 @@ int ObLSAttrOperator::operator_ls_(
     ObLSAttr duplicate_ls_attr;
     bool skip_sub_trans = false;
     ObAllTenantInfo tenant_info;
-    if (OB_FAIL(trans.start(proxy_, tenant_id_))) {
+    //这里需要切换吗？感觉不需要吧？
+    
+      if (OB_FAIL(trans.start(proxy_, tenant_id_))) {
+        LOG_WARN("failed to start transaction", KR(ret), K(tenant_id_));
+      } 
+
+    /*if (OB_FAIL(trans.start(proxy_, tenant_id_))) {
       LOG_WARN("failed to start transaction", KR(ret), K(tenant_id_));
-    } else if (OB_FAIL(operator_ls_in_trans_(ls_attr, sql,
+    } else*/ if (OB_FAIL(operator_ls_in_trans_(ls_attr, sql,
         working_sw_status, trans))) {
       LOG_WARN("failed to operator ls in trans", KR(ret), K(ls_attr), K(sql));
     }
@@ -398,6 +404,7 @@ int ObLSAttrOperator::insert_ls(
     }*/ 
     else if (OB_ISNULL(trans)) {
       //LOG_WARN("进入了operator_ls_1111111111111111", K(ret));
+      //应该是进入的这里
       if (OB_FAIL(operator_ls_(ls_attr, sql, working_sw_status))) {
         LOG_WARN("failed to operator ls", KR(ret), K(ls_attr), K(sql));
       }

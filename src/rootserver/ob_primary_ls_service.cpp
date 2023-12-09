@@ -70,7 +70,7 @@ void ObPrimaryLSService::do_work()
   } else if (OB_FAIL(wait_tenant_schema_and_version_ready_(tenant_id_, DATA_VERSION_4_1_0_0))) {
     LOG_WARN("failed to wait tenant schema version ready", KR(ret), K(tenant_id_), K(DATA_CURRENT_VERSION));
   } else {
-    LOG_WARN("进入了ObPrimaryLSService的do_work的else", KR(ret));
+    LOG_ERROR("进入了ObPrimaryLSService的do_work的else，注意tenant_id是", KR(ret),K(tenant_id_));
     int64_t idle_time_us = 100 * 1000L;
     int tmp_ret = OB_SUCCESS;
     share::schema::ObTenantSchema tenant_schema;
@@ -92,7 +92,7 @@ void ObPrimaryLSService::do_work()
               K(tenant_id_));
         }
       }
-      LOG_INFO("primaryd_do_work执行一次了下面会等到但是应该不影响，因为只有用户日志流会进入这里面吧", KR(ret));
+      LOG_ERROR("primaryd_do_work执行一次了下面会等到但是应该不影响，因为只有用户日志流会进入这里面吧", KR(ret),K(tenant_id_));
       LOG_INFO("[PRIMARY_LS_SERVICE] finish one round", KR(ret), K(tenant_schema));
       tenant_schema.reset();
       idle(idle_time_us);
@@ -260,6 +260,7 @@ int ObPrimaryLSService::try_set_next_ls_status_(
           //in drop tenant, __all_ls will be deleted while status is creating
         } else {
           ret = OB_ERR_UNEXPECTED;
+          //我进入了这里
           LOG_WARN("status info is invalid", KR(ret), K(machine));
         }
       } else if (ls_info.ls_is_creating()) {
@@ -277,10 +278,13 @@ int ObPrimaryLSService::try_set_next_ls_status_(
           }
         } else if (status_info.ls_is_creating()) {
         } else {
+          //进入的这里面
           ret = OB_ERR_UNEXPECTED;
           LOG_WARN("status info is invalid", KR(ret), K(machine));
         }
-      } else if (ls_info.ls_is_normal()) {
+      } 
+      //这里啥都不做
+      else if (ls_info.ls_is_normal()) {
         if (status_info.ls_is_normal()) {
         } else if (status_info.ls_is_created()) {
         } else {
@@ -475,6 +479,7 @@ int ObPrimaryLSService::process_all_ls_status_to_steady_(const share::schema::Ob
 int ObPrimaryLSService::create_ls_for_create_tenant()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("入了ObPrimaryLSService::create_ls_for_create_tenant", KR(ret),  K(tenant_id_));
   //LOG_WARN("进入了ObPrimaryLSService::create_ls_for_create_tenant", K(ret));
   share::schema::ObTenantSchema tenant_schema;
   ObArray<ObZone> primary_zone;
@@ -497,6 +502,7 @@ int ObPrimaryLSService::create_ls_for_create_tenant()
     START_TRANSACTION(GCTX.sql_proxy_, tenant_id_)
     ObArray<share::ObLSAttr> ls_array;
     share::ObLSAttr sys_ls;
+    //它查找的就是系统日志流
     if (FAILEDx(ls_operator.get_ls_attr(SYS_LS, true, trans, sys_ls))) {
       //没打印
       LOG_WARN("failed to get SYS_LS attr", KR(ret));
@@ -525,7 +531,7 @@ int ObPrimaryLSService::create_ls_for_create_tenant()
             } else if (OB_FAIL(ObLSAttrOperator::get_tenant_gts(tenant_id_, create_scn))) {
               LOG_WARN("failed to get tenant gts", KR(ret), K(tenant_id_));
             } 
-            //初始化
+            //初始化,这就是那个用户日志流，
             else if (OB_FAIL(new_ls.init(ls_id, ls_group_id, flag, share::OB_LS_CREATING,
                            share::OB_LS_OP_CREATE_PRE, create_scn))) {
               LOG_WARN("failed to init new operation", KR(ret), K(create_scn),

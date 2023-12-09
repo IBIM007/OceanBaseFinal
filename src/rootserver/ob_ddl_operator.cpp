@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "lib/ob_define.h"
 #define USING_LOG_PREFIX RS
 #include "rootserver/ob_ddl_operator.h"
 
@@ -238,6 +239,7 @@ int ObDDLOperator::insert_tenant_merge_info(
           }
         }
         // add zone merge info of current tenant(sys tenant or meta tenant)
+        //添加当前租户（系统租户或元租户）的区域合并信息,注意这里就是当前什么东西了
         if (OB_SUCC(ret)) {
           if (OB_FAIL(ObGlobalMergeTableOperator::insert_global_merge_info(trans,
               tenant_id, global_info))) {
@@ -249,7 +251,10 @@ int ObDDLOperator::insert_tenant_merge_info(
           }
         }
         // add zone merge info of relative user tenant if current tenant is meta tenant
-        if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
+        //如果当前租户是元租户，则添加相对用户租户的区域合并信息，这里就是相关了
+        //这里面系统租户不会走，我们现在需要把它当成元数据租户并且要走。
+        /*if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
+          //这里要模仿
           const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
           global_info.tenant_id_ = user_tenant_id;
           for (int64_t i = 0; i < merge_info_array.count(); ++i) {
@@ -263,7 +268,25 @@ int ObDDLOperator::insert_tenant_merge_info(
             LOG_WARN("fail to insert zone merge infos of user tenant", KR(ret), K(user_tenant_id),
               K(merge_info_array));
           }
+        }*/
+        LOG_ERROR("马上进入系统租户insertmergeinfo", KR(ret));
+        if (OB_SUCC(ret) && is_sys_tenant(tenant_id)) {
+          //这里要模仿
+          const uint64_t user_tenant_id = 1002;
+          global_info.tenant_id_ = user_tenant_id;
+          for (int64_t i = 0; i < merge_info_array.count(); ++i) {
+            merge_info_array.at(i).tenant_id_ = user_tenant_id;
+          }
+          if (OB_FAIL(ObGlobalMergeTableOperator::insert_global_merge_info(trans,
+              user_tenant_id, global_info))) {
+            LOG_WARN("fail to insert global merge info of user tenant", KR(ret), K(global_info));
+          } else if (OB_FAIL(ObZoneMergeTableOperator::insert_zone_merge_infos(
+                    trans, user_tenant_id, merge_info_array))) {
+            LOG_WARN("fail to insert zone merge infos of user tenant", KR(ret), K(user_tenant_id),
+              K(merge_info_array));
+          }
         }
+        LOG_ERROR("结束系统租户insertmergeinfo", KR(ret));
       }
     }
   }
@@ -1479,11 +1502,13 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
     RS_LOG(ERROR, "schema_service must not null");
   } else if (OB_FAIL(schema_service_.get_tenant_schema_guard(tenant_id, schema_guard))) {
     LOG_WARN("failed to get schema guard", K(ret));
-  } else if (OB_FAIL(schema_service_.gen_new_schema_version(tenant_id, new_schema_version))) { // 生成新的schema版本
+  } 
+  //细看一下，这个应该没啥问题，那就只剩剩余的这几个东西吧
+  else if (OB_FAIL(schema_service_.gen_new_schema_version(tenant_id, new_schema_version))) { // 生成新的schema版本
     LOG_WARN("fail to gen new schema_version", K(ret), K(tenant_id));
   } else {
     table_schema.set_schema_version(new_schema_version);
-    //从这里开始吧
+    //从这里开始吧，这个错误有打印过的。正常版没有的，正常版只有meta租户有两项。
     if (OB_FAIL(schema_service->get_table_sql_service().create_table(
         table_schema,
         trans,
@@ -1491,10 +1516,15 @@ int ObDDLOperator::create_table(ObTableSchema &table_schema,
         need_sync_schema_version,
         is_truncate_table))) {
       RS_LOG(WARN, "failed to create table", K(ret)); 
-    } else if (OB_FAIL(sync_version_for_cascade_table(tenant_id,
+    } 
+    //下面这些涉及到东西吧
+    //这里可能依赖表的id为0，所以其实没用
+    else if (OB_FAIL(sync_version_for_cascade_table(tenant_id,
                table_schema.get_depend_table_ids(), trans))) {
       RS_LOG(WARN, "fail to sync cascade depend table", K(ret));
-    } else if (OB_FAIL(sync_version_for_cascade_mock_fk_parent_table(table_schema.get_tenant_id(), table_schema.get_depend_mock_fk_parent_table_ids(), trans))) {
+    } 
+    //这个也没打赢过
+    else if (OB_FAIL(sync_version_for_cascade_mock_fk_parent_table(table_schema.get_tenant_id(), table_schema.get_depend_mock_fk_parent_table_ids(), trans))) {
       LOG_WARN("fail to sync cascade depend_mock_fk_parent_table_ids table", K(ret));
     }
   }
@@ -5122,7 +5152,7 @@ int ObDDLOperator::fetch_expire_recycle_objects(
   return ret;
 }
 
-int ObDDLOperator::init_tenant_env(
+int ObDDLOperator::my_init_tenant_env(
     const ObTenantSchema &tenant_schema,
     const ObSysVariableSchema &sys_variable,
     const share::ObTenantRole &tenant_role,
@@ -5131,6 +5161,7 @@ int ObDDLOperator::init_tenant_env(
     ObMySQLTransaction &trans)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了my_init_tenant_env", KR(ret));
   const uint64_t tenant_id = tenant_schema.get_tenant_id();
 
   if (OB_UNLIKELY(!recovery_until_scn.is_valid_and_not_min())) {
@@ -5162,18 +5193,104 @@ int ObDDLOperator::init_tenant_env(
     }
     //TODO [profile]
   }
-  if (OB_SUCC(ret) && !is_user_tenant(tenant_id)) {
-    uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
+  if(tenant_id==1002)return ret;
+  if(tenant_id==1001){
     if (OB_FAIL(init_tenant_config(tenant_id, init_configs, trans))) {
       LOG_WARN("insert tenant config failed", KR(ret), K(tenant_id));
-    } else if (is_meta_tenant(tenant_id)
-               && OB_FAIL(init_tenant_config(user_tenant_id, init_configs, trans))) {
+    } 
+    return ret;
+  }
+  LOG_ERROR("马上可能进入系统租户处理user_id的东西了", KR(ret),K(tenant_id));
+  //这里还需要再看吧
+  if(tenant_id==OB_SYS_TENANT_ID)
+  {
+      if (OB_FAIL(init_tenant_config(tenant_id, init_configs, trans))) {
+      LOG_WARN("insert tenant config failed", KR(ret), K(tenant_id));
+      } 
+      uint64_t user_tenant_id = 1002;
+      if (OB_FAIL(init_tenant_config(user_tenant_id, init_configs, trans))) {
       LOG_WARN("insert tenant config failed", KR(ret), K(user_tenant_id));
+      }
+      ObAllTenantInfo tenant_info;
+      if (OB_FAIL(tenant_info.init(user_tenant_id, tenant_role, NORMAL_SWITCHOVER_STATUS, 0,
+                SCN::base_scn(), SCN::base_scn(), SCN::base_scn(), recovery_until_scn))) {
+        LOG_WARN("failed to init tenant info", KR(ret), K(tenant_id), K(tenant_role));
+      } 
+      //这里报错了
+      else if (OB_FAIL(ObAllTenantInfoProxy::init_tenant_info(tenant_info, &trans))) {
+        LOG_WARN("failed to init tenant info", KR(ret), K(tenant_info));
+      }
+  }
+  return ret;
+}
+
+int ObDDLOperator::init_tenant_env(
+    const ObTenantSchema &tenant_schema,
+    const ObSysVariableSchema &sys_variable,
+    const share::ObTenantRole &tenant_role,
+    const SCN &recovery_until_scn,
+    const common::ObIArray<common::ObConfigPairs> &init_configs,
+    ObMySQLTransaction &trans)
+{
+  int ret = OB_SUCCESS;
+  const uint64_t tenant_id = tenant_schema.get_tenant_id();
+  LOG_ERROR("进入init_tenant_env", KR(ret),K(tenant_id));
+  if (OB_UNLIKELY(!recovery_until_scn.is_valid_and_not_min())) {
+    ret = OB_INVALID_ARGUMENT;
+    LOG_WARN("invalid recovery_until_scn", KR(ret), K(recovery_until_scn));
+  } else if (OB_FAIL(init_tenant_tablegroup(tenant_id, trans))) {
+    LOG_WARN("insert default tablegroup failed", K(tenant_id), K(ret));
+  } else if (OB_FAIL(init_tenant_databases(tenant_schema, sys_variable, trans))) {
+    LOG_WARN("insert default databases failed,", K(tenant_id), K(ret));
+  } else if (OB_FAIL(init_tenant_profile(tenant_id, sys_variable, trans))) {
+    LOG_WARN("fail to init tenant profile", K(tenant_id), K(ret));
+  } else if (OB_FAIL(init_tenant_users(tenant_schema, sys_variable, trans))) {
+    LOG_WARN("insert default user failed", K(tenant_id), K(ret));
+  } else if (OB_FAIL(init_tenant_keystore(tenant_id, sys_variable, trans))) {
+    LOG_WARN("fail to init tenant keystore", K(ret));
+  } else if (OB_FAIL(init_tenant_sys_stats(tenant_id, trans))) {
+    LOG_WARN("insert default sys stats failed", K(tenant_id), K(ret));
+  } else if (OB_FAIL(init_freeze_info(tenant_id, trans))) {
+    LOG_WARN("insert freeze info failed", K(tenant_id), KR(ret));
+  } else if (OB_FAIL(init_tenant_srs(tenant_id, trans))) {
+    LOG_WARN("insert tenant srs failed", K(tenant_id), K(ret));
+  } else if (OB_SYS_TENANT_ID == tenant_id) {
+    if (OB_FAIL(init_sys_tenant_charset(trans))) {
+      LOG_WARN("insert charset failed", K(tenant_id), K(ret));
+    } else if (OB_FAIL(init_sys_tenant_collation(trans))) {
+      LOG_WARN("insert collation failed", K(tenant_id), K(ret));
+    } else if (OB_FAIL(init_sys_tenant_privilege(trans))) {
+      LOG_WARN("insert privilege failed", K(tenant_id), K(ret));
     }
+    //TODO [profile]
   }
 
+  //如果是系统租户要进去的，只是不一定进第二个if
+  if (OB_SUCC(ret) && !is_user_tenant(tenant_id)) {
+    LOG_ERROR("进入了不是用户租户", KR(ret),K(tenant_id));
+    uint64_t user_tenant_id = gen_user_tenant_id(tenant_id); //系统租户就是1，元数据住户它就是1002
+    LOG_ERROR("第一个if此时的user_tenant_id是", KR(ret),K(user_tenant_id));
+    //这个方法不进入会不会有问题
+    if (OB_FAIL(init_tenant_config(tenant_id, init_configs, trans))) {
+      LOG_WARN("insert tenant config failed", KR(ret), K(tenant_id));
+    } 
+    LOG_ERROR("init_tenant_config执行完了", KR(ret),K(tenant_id));
+    if (is_meta_tenant(tenant_id))
+    {
+      LOG_ERROR("进入了第一个循环的是元数据租户", KR(ret),K(tenant_id));
+      if(OB_FAIL(init_tenant_config(user_tenant_id, init_configs, trans))){
+        LOG_WARN("insert tenant config failed", KR(ret), K(user_tenant_id));
+      }
+      LOG_ERROR("第一个if执行结束了", KR(ret),K(tenant_id));
+    }
+  }
+  
+  //如果是系统租户返回false
+  LOG_ERROR("不知道会不会进入第二个if", KR(ret),K(tenant_id));
   if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
+    
     const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
+    LOG_ERROR("进入了第二个if的is_meta_tenant，user_tenant_id是", KR(ret),K(user_tenant_id));
     ObAllTenantInfo tenant_info;
     if (OB_FAIL(tenant_info.init(user_tenant_id, tenant_role, NORMAL_SWITCHOVER_STATUS, 0,
                 SCN::base_scn(), SCN::base_scn(), SCN::base_scn(), recovery_until_scn))) {
@@ -5181,6 +5298,7 @@ int ObDDLOperator::init_tenant_env(
     } else if (OB_FAIL(ObAllTenantInfoProxy::init_tenant_info(tenant_info, &trans))) {
       LOG_WARN("failed to init tenant info", KR(ret), K(tenant_info));
     }
+    LOG_ERROR("第二个if执行完了，原始tenant_id是", KR(ret),K(tenant_id));
   }
 
   return ret;
@@ -5698,9 +5816,11 @@ int ObDDLOperator::init_tenant_config(
     ObMySQLTransaction &trans)
 {
   int ret = OB_SUCCESS;
+  //这东西好像有用
   int64_t tenant_idx = !is_user_tenant(tenant_id) ? 0 : 1;
   if (is_user_tenant(tenant_id) && init_configs.count() == 1) {
     ret = OB_SUCCESS;
+    //打印了的，说明进入的是这里，不会走后面
     LOG_WARN("no user config", KR(ret), K(tenant_idx), K(tenant_id), K(init_configs));
   } else if (OB_UNLIKELY(
       init_configs.count() < tenant_idx + 1
@@ -5762,7 +5882,9 @@ int ObDDLOperator::init_tenant_config_(
     } // end foreach
     ObSqlString sql;
     int64_t affected_rows = 0;
-    const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t exec_tenant_id;
+    if(tenant_id==1002)exec_tenant_id=1;
+    else exec_tenant_id = gen_meta_tenant_id(tenant_id);
     if (FAILEDx(dml.splice_batch_insert_sql(OB_TENANT_PARAMETER_TNAME, sql))) {
       LOG_WARN("fail to generate sql", KR(ret), K(tenant_id));
     } else if (OB_FAIL(trans.write(exec_tenant_id, sql.ptr(), affected_rows))) {
@@ -5782,6 +5904,7 @@ int ObDDLOperator::init_tenant_config_from_seed_(
   int ret = OB_SUCCESS;
   int64_t start = ObTimeUtility::current_time();
   ObSqlString sql;
+  //这里很明显有个config_version，就是比如说元数据租户插入的那个东西吧。
   const static char *from_seed = "select config_version, zone, svr_type, svr_ip, svr_port, name, "
                 "data_type, value, info, section, scope, source, edit_level "
                 "from __all_seed_parameter";
@@ -5846,7 +5969,11 @@ int ObDDLOperator::init_tenant_config_from_seed_(
 
       if (OB_ITER_END == ret) {
         ret = OB_SUCCESS;
-        uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+        //uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+        uint64_t exec_tenant_id;
+        if(tenant_id==1002)exec_tenant_id=1;
+        else exec_tenant_id = gen_meta_tenant_id(tenant_id);
+
         if (expected_rows > 0) {
           int64_t affected_rows = 0;
           if (OB_FAIL(trans.write(exec_tenant_id, sql.ptr(), affected_rows))) {

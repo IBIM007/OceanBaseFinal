@@ -132,6 +132,7 @@ int ObLSRecoveryStatOperator::create_new_ls(const ObLSStatusInfo &ls_info,
 {
   UNUSEDx(zone_priority, working_sw_status);
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObLSRecoveryStatOperator::create_new_ls", KR(ret));
   if (OB_UNLIKELY(!ls_info.is_valid() || !create_ls_scn.is_valid())) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid_argument", KR(ret), K(ls_info));

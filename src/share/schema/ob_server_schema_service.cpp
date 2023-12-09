@@ -9,6 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PubL v2 for more details.
  */
+
 #include "lib/ob_errno.h"
 #define USING_LOG_PREFIX SHARE_SCHEMA
 #include "ob_server_schema_service.h"
@@ -5328,6 +5329,7 @@ int ObServerSchemaService::my_tenant_refresh_schema(
   return ret;
 }
 
+
 int ObServerSchemaService::my_refresh_schema(
     const ObRefreshSchemaStatus &schema_status,ObIArray<ObTableSchema> &table_schemas)
 {
@@ -5353,12 +5355,12 @@ int ObServerSchemaService::my_refresh_schema(
   } else if (is_full_schema) {
     FLOG_INFO("[REFRESH_SCHEMA] start to refresh full schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
-
+    LOG_WARN("马上开始我的tenant refresh full schema failed", K(ret), K(schema_status));
     if (OB_FAIL(my_refresh_full_schema(schema_status,table_schemas))) {
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
 
-    FLOG_INFO("[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
+    FLOG_INFO("[REFRESH_SCHEMA] finish mymymymymy refresh full schema", K(ret), K(schema_status),
               "current schema_version", schema_mgr_for_cache->get_schema_version(),
               "cost", ObTimeUtility::current_time() - start);
 
@@ -5389,6 +5391,7 @@ int ObServerSchemaService::my_refresh_schema(
   }
   return ret;
 }
+
 
 // new schema refresh
 int ObServerSchemaService::refresh_schema(
@@ -5416,11 +5419,13 @@ int ObServerSchemaService::refresh_schema(
   } else if (is_full_schema) {
     FLOG_INFO("[REFRESH_SCHEMA] start to refresh full schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
-
+    //还有两次是在init_tenant_schema调用的吧
+    LOG_ERROR("马上开始tenant refresh full schema", K(ret), K(schema_status));
+    //确定就是这里出错了
     if (OB_FAIL(refresh_full_schema(schema_status))) {
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
-
+    LOG_ERROR("结束tenant refresh full schema", K(ret), K(schema_status));
     FLOG_INFO("[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
               "current schema_version", schema_mgr_for_cache->get_schema_version(),
               "cost", ObTimeUtility::current_time() - start);
@@ -5452,6 +5457,7 @@ int ObServerSchemaService::refresh_schema(
   }
   return ret;
 }
+
 
 int ObServerSchemaService::my_tenant_refresh_full_schema(
     const ObRefreshSchemaStatus &schema_status,ObIArray<ObTableSchema> &table_schemas)
@@ -5742,7 +5748,7 @@ int ObServerSchemaService::my_refresh_full_schema(
 
         // refresh full normal schema by schema_version
         if (OB_SUCC(ret) && !core_schema_change && !sys_schema_change) {
-          LOG_WARN("马上调用refresh_tenant_full_normal_schema了", KR(ret));
+          LOG_ERROR("马上调用my_refresh_tenant_full_normal_schema了", KR(ret));
           const int64_t fetch_version = std::max(core_schema_version, schema_version);
           if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
             LOG_WARN("fail to get schema_mgr_for_cache", KR(ret), K(schema_status));
@@ -5751,7 +5757,7 @@ int ObServerSchemaService::my_refresh_full_schema(
             LOG_WARN("schema mgr for cache is null", KR(ret), K(schema_status));
           } 
           //这里调用的refresh_tenant_full_normal_schema
-          else if (OB_FAIL(refresh_tenant_full_normal_schema(sql_client, schema_status, fetch_version))) {
+          else if (OB_FAIL(my_refresh_tenant_full_normal_schema(sql_client, schema_status, fetch_version,table_schemas))) {
             LOG_WARN("refresh_full_normal_schema failed", KR(ret), K(schema_status), K(fetch_version));
           } else {
             const int64_t publish_version = std::max(core_schema_version, schema_version);
@@ -5837,13 +5843,17 @@ int ObServerSchemaService::refresh_full_schema(
         } else if (retry_count > 0) {
           LOG_WARN("refresh_full_schema failed, retry", K(schema_status), K(retry_count));
         }
+        //这里定义的，不是事务
         ObISQLClient &sql_client = *sql_proxy_;
         // refresh core table schemas
         if (OB_SUCC(ret) && core_schema_change) {
+          //感觉应该没啥问题吧。
           if (OB_FAIL(schema_service_->get_core_version(
                       sql_client, schema_status, core_schema_version))) {
             LOG_WARN("get_core_version failed", KR(ret), K(schema_status));
-          } else if (core_schema_version <= OB_CORE_SCHEMA_VERSION + 1) {
+          } 
+          //这里卡住了
+          else if (core_schema_version <= OB_CORE_SCHEMA_VERSION + 1) {
             ret = OB_EAGAIN;
             LOG_WARN("schema may be not persisted, try again",
                      KR(ret), K(schema_status), K(core_schema_version));
@@ -5917,13 +5927,16 @@ int ObServerSchemaService::refresh_full_schema(
 
         // refresh full normal schema by schema_version
         if (OB_SUCC(ret) && !core_schema_change && !sys_schema_change) {
+          //LOG_ERROR("马上调用refresh_tenant_full_normal_schema了", KR(ret));
           const int64_t fetch_version = std::max(core_schema_version, schema_version);
           if (OB_FAIL(schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
             LOG_WARN("fail to get schema_mgr_for_cache", KR(ret), K(schema_status));
           } else if (OB_ISNULL(schema_mgr_for_cache)) {
             ret = OB_ERR_UNEXPECTED;
             LOG_WARN("schema mgr for cache is null", KR(ret), K(schema_status));
-          } else if (OB_FAIL(refresh_tenant_full_normal_schema(sql_client, schema_status, fetch_version))) {
+          } 
+          //这里调用的refresh_tenant_full_normal_schema
+          else if (OB_FAIL(refresh_tenant_full_normal_schema(sql_client, schema_status, fetch_version))) {
             LOG_WARN("refresh_full_normal_schema failed", KR(ret), K(schema_status), K(fetch_version));
           } else {
             const int64_t publish_version = std::max(core_schema_version, schema_version);
@@ -5958,6 +5971,7 @@ int ObServerSchemaService::refresh_full_schema(
       if (OB_SUCC(ret)) {
         break;
       } else {
+        //这里失败了
         FLOG_WARN("[REFRESH_SCHEMA] refresh full schema failed, do some clear", KR(ret), K(schema_status));
         int tmp_ret = OB_SUCCESS;
         if (OB_SUCCESS != (tmp_ret = schema_mgr_for_cache_map_.get_refactored(tenant_id, schema_mgr_for_cache))) {
@@ -6360,7 +6374,6 @@ int ObServerSchemaService::my_tenant_try_fetch_publish_core_schemas(
   return ret;
 }
 
-
 int ObServerSchemaService::my_try_fetch_publish_core_schemas(
     const ObRefreshSchemaStatus &schema_status,
     const int64_t core_schema_version,
@@ -6391,7 +6404,7 @@ int ObServerSchemaService::my_try_fetch_publish_core_schemas(
     } else {
       // core schema don't change, publish core schemas
       ObArray<ObTableSchema *> core_tables;
-      LOG_WARN("table_schemas是这么多",KR(ret),K(table_schemas.count()));
+      LOG_ERROR("my_table_schemas是这么多",KR(ret),K(table_schemas.count()));
       for (int64_t i = 0; i < table_schemas.count() && OB_SUCC(ret); ++i) {
         if(table_schemas.at(i).is_sys_table_schema==0)
         {
@@ -6404,9 +6417,9 @@ int ObServerSchemaService::my_try_fetch_publish_core_schemas(
           LOG_WARN("add table schema failed", KR(ret), K(schema_status));
           }
         }
-
+        
       }
-      LOG_WARN("刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
+      LOG_ERROR("刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
       if (OB_SUCC(ret)) {
         ObSchemaMgr *schema_mgr_for_cache = NULL;
         auto attr = SET_USE_500("PubCoreSchema", ObCtxIds::SCHEMA_SERVICE);
@@ -6477,6 +6490,7 @@ int ObServerSchemaService::try_fetch_publish_core_schemas(
           LOG_WARN("add table schema failed", KR(ret), K(schema_status));
         }
       }
+      LOG_ERROR("原版的刷新从磁盘读取这么多条core数据",KR(ret),K(core_tables.count()));
       if (OB_SUCC(ret)) {
         ObSchemaMgr *schema_mgr_for_cache = NULL;
         auto attr = SET_USE_500("PubCoreSchema", ObCtxIds::SCHEMA_SERVICE);
@@ -6610,7 +6624,7 @@ int ObServerSchemaService::my_try_fetch_publish_sys_schemas(
     {
       if(table_schemas.at(i).is_sys_table_schema==1)sys_schemas.push_back(&table_schemas.at(i));
     }
-    LOG_WARN("刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
+    LOG_ERROR("刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
     ObArray<uint64_t> sys_table_ids;
     int64_t new_schema_version = 0;
     if (OB_FAIL(get_sys_table_ids(tenant_id, sys_table_ids))) {
@@ -6631,7 +6645,7 @@ int ObServerSchemaService::my_try_fetch_publish_sys_schemas(
       LOG_WARN("sys schema change during refresh full schema",
                K(schema_status), K(schema_version), K(new_schema_version));
     } else if (!sys_schema_change) {
-
+      
       ObSchemaMgr *schema_mgr_for_cache = NULL;
       auto attr = SET_USE_500("PubSysSchema", ObCtxIds::SCHEMA_SERVICE);
       ObArenaAllocator allocator(attr);
@@ -6702,6 +6716,7 @@ int ObServerSchemaService::try_fetch_publish_sys_schemas(
       LOG_WARN("sys schema change during refresh full schema",
                K(schema_status), K(schema_version), K(new_schema_version));
     } else if (!sys_schema_change) {
+      LOG_ERROR("原版的刷新从磁盘读取这么多条sys数据",KR(ret),K(sys_schemas.count()));
       ObSchemaMgr *schema_mgr_for_cache = NULL;
       auto attr = SET_USE_500("PubSysSchema", ObCtxIds::SCHEMA_SERVICE);
       ObArenaAllocator allocator(attr);
@@ -7030,9 +7045,9 @@ int ObServerSchemaService::my_tenant_refresh_tenant_full_normal_schema(
           sql_client, schema_status, schema_version, tenant_id, simple_mock_fk_parent_tables))) {
         LOG_WARN("get all mock_fk_parent_tables schema failed", K(ret), K(schema_version), K(tenant_id));
       } else {
-
+         
       }
-
+      
       if (OB_SUCC(ret)) {
         const ObSimpleTableSchemaV2 *tmp_table = NULL;
         if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_POLICY_HISTORY_TID, tmp_table))) {
@@ -7209,7 +7224,6 @@ int ObServerSchemaService::my_tenant_refresh_tenant_full_normal_schema(
   }
   return ret;
 }
-
 
 int ObServerSchemaService::my_refresh_tenant_full_normal_schema(
     ObISQLClient &sql_client,
@@ -7449,9 +7463,9 @@ int ObServerSchemaService::my_refresh_tenant_full_normal_schema(
           sql_client, schema_status, schema_version, tenant_id, simple_mock_fk_parent_tables))) {
         LOG_WARN("get all mock_fk_parent_tables schema failed", K(ret), K(schema_version), K(tenant_id));
       } else {
-
+         
       }
-
+      
       if (OB_SUCC(ret)) {
         const ObSimpleTableSchemaV2 *tmp_table = NULL;
         if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_POLICY_HISTORY_TID, tmp_table))) {
@@ -7637,6 +7651,7 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
 {
   int ret = OB_SUCCESS;
   uint64_t tenant_id = schema_status.tenant_id_;
+  //LOG_ERROR("进入refresh_tenant_full_normal_schema", K(tenant_id),K(ret));
   ObSchemaMgr *schema_mgr_for_cache = NULL;
 
   if (!check_inner_stat()) {
@@ -7654,10 +7669,11 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("schema mgr for cache is null", K(ret));
   } else {
-    // System tenants need to do the following:
-    // 1. Add the full tenant schema of the system tenant to schema_cache
-    // 2. Initialize the schema memory management structure of ordinary tenants
-    // 3. Add the simple tenant schema of all tenants
+    // System tenants need to do the following: 系统租户需要执行以下操作：
+    // 1. Add the full tenant schema of the system tenant to schema_cache 1.将系统租户的全租户架构添加到schema_cache
+    // 2. Initialize the schema memory management structure of ordinary tenants 2.初始化普通租户的模式内存管理结构
+    // 3. Add the simple tenant schema of all tenants 3.添加所有租户的简单租户模式
+    //如果是系统租户的话
     if (is_sys_tenant(tenant_id)) {
       ObArray<ObSimpleTenantSchema> simple_tenants;
       ObArray<ObDropTenantInfo> drop_tenant_infos;
@@ -7722,7 +7738,7 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
         }
       }
     } else {
-      // Ordinary tenant schema refreshing relies on the system tenant to refresh the tenant and
+      // Ordinary tenant schema refreshing relies on the system tenant to refresh the tenant and 普通租户模式刷新依赖于系统租户来刷新租户并初始化相关的内存结构
       // initialize the related memory structure
     }
 
@@ -7778,10 +7794,17 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
       } else if (OB_FAIL(schema_service_->get_all_tablegroups(
           sql_client, schema_status, schema_version, tenant_id, simple_tablegroups))) {
         LOG_WARN("get all tablegroups failed", K(ret), K(schema_version), K(tenant_id));
-      } else if (OB_FAIL(schema_service_->get_all_tables(
+      } 
+      //这个耗时，找不到这个方法
+      else if (OB_FAIL(schema_service_->get_all_tables(
           sql_client, allocator, schema_status, schema_version, tenant_id, simple_tables))) {
         LOG_WARN("get all table schema failed", KR(ret), K(schema_version), K(tenant_id));
-      } else if (OB_FAIL(schema_service_->get_all_outlines(
+      } 
+      /*else if (OB_SUCC(schema_service_->get_all_tables(
+          sql_client, allocator, schema_status, schema_version, tenant_id, simple_tables))) {
+        LOG_WARN("get_all_tables拿到的schema个数是",K(simple_tables.count()),K(ret));
+      }*/
+      else if (OB_FAIL(schema_service_->get_all_outlines(
           sql_client, schema_status, schema_version, tenant_id, simple_outlines))) {
         LOG_WARN("get all outline schema failed", K(ret), K(schema_version), K(tenant_id));
       } else if (OB_FAIL(schema_service_->get_all_routines(
@@ -7854,7 +7877,9 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
           sql_client, schema_status, schema_version, tenant_id, simple_mock_fk_parent_tables))) {
         LOG_WARN("get all mock_fk_parent_tables schema failed", K(ret), K(schema_version), K(tenant_id));
       } else {
+         
       }
+      LOG_ERROR("原版get_all_tables拿到的schema个数是",K(simple_tables.count()),K(ret));
       if (OB_SUCC(ret)) {
         const ObSimpleTableSchemaV2 *tmp_table = NULL;
         if (OB_FAIL(schema_mgr_for_cache->get_table_schema(tenant_id, OB_ALL_RLS_POLICY_HISTORY_TID, tmp_table))) {
@@ -8006,13 +8031,22 @@ int ObServerSchemaService::refresh_tenant_full_normal_schema(
       ObArray<ObTableSchema *> non_sys_tables;
       if (OB_FAIL(schema_mgr_for_cache->get_non_sys_table_ids(tenant_id, non_sys_table_ids))) {
         LOG_WARN("fail to get non sys table_ids", KR(ret), K(schema_status));
-      } else if (OB_FAIL(schema_service_->get_batch_table_schema(
+      } 
+      //这个耗时
+      else if (OB_FAIL(schema_service_->get_batch_table_schema(
                  schema_status, schema_version, non_sys_table_ids, sql_client,
                  allocator, non_sys_tables))) {
         LOG_WARN("get non core table schemas failed", KR(ret), K(schema_status), K(schema_version));
-      } else if (OB_FAIL(update_non_sys_schemas_in_cache_(*schema_mgr_for_cache, non_sys_tables))) {
-        LOG_WARN("update core and sys schemas in cache faield", KR(ret), K(schema_status));
       }
+      /*else if (OB_SUCC(schema_service_->get_batch_table_schema(
+                 schema_status, schema_version, non_sys_table_ids, sql_client,
+                 allocator, non_sys_tables))) {
+        LOG_WARN("在normal_full_schema里面拿到的batch_table_schema个数是",K(non_sys_tables.count()),K(ret)); 
+      }*/
+      else if (OB_FAIL(update_non_sys_schemas_in_cache_(*schema_mgr_for_cache, non_sys_tables))) {
+        LOG_WARN("update core and sys schemas in cache faield", KR(ret), K(schema_status));
+      } 
+      LOG_ERROR("原版在normal_full_schema里面拿到的batch_table_schema个数是",K(non_sys_tables.count()),K(ret)); 
     }
   }
   return ret;

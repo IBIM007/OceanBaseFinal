@@ -154,6 +154,7 @@ int ObLSTableOperator::get(
     ObLSInfo &ls_info)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObLSTableOperator::get了", KR(ret), KT(tenant_id), K(ls_id));
   int64_t start_time = ObTimeUtility::fast_current_time();
   ObLSTable *lst = NULL;
   // For sys tenant in COMPOSITE_MODE, it will fetch ls from memory first.
@@ -182,7 +183,7 @@ int ObLSTableOperator::get(
     if (OB_FAIL(rootserver::ObRootUtils::get_rs_default_timeout_ctx(ctx))) {
       LOG_WARN("fail to get timeout ctx", KR(ret), K(ctx));
     } 
-    //这是获取日志信息失败了
+    //这是获取日志信息失败了,这里好像会走
     else if (OB_FAIL(lst->get(cluster_id, tenant_id, ls_id, mode, ls_info))) {
       LOG_WARN("get log stream info failed", KR(ret), KT(tenant_id), K(ls_id), K(mode));
     }
