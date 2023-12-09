@@ -1218,7 +1218,7 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
       if ((stash_desc->get_stash_query().empty() && !stash_desc2->get_stash_query().empty()) ||
         (!stash_desc->get_stash_query().empty() && stash_desc2->get_stash_query().empty())) {
         LOG_WARN("table stash scene is not match", K(stash_desc->get_row_cnt()), K(stash_desc2->get_row_cnt()));
-        if (OB_FAIL(trans->do_stash_query(2000))) { // TODO 重点分析这个函数
+        if (OB_FAIL(trans->do_stash_query(20))) { // TODO 重点分析这个函数
            LOG_WARN("do_stash_query fail", K(ret));
         } else if (OB_FAIL(trans->get_stash_query(tenant_id, OB_ALL_COLUMN_TNAME, stash_desc))) {
           LOG_WARN("get_stash_query fail", K(ret), K(tenant_id));
