@@ -33,6 +33,7 @@
 #include "share/ob_errno.h"                     // errno
 #include "logservice/ob_log_service.h"          // ObLogService
 #include "logservice/palf/log_io_utils.h"       // renameat_with_retry
+#include "lib/oblog/ob_log_module.h"
 namespace oceanbase
 {
 using namespace palf;
@@ -1004,7 +1005,7 @@ int ObServerLogBlockMgr::do_expand_(const LogPoolMeta &new_log_pool_meta,
   } else if (OB_FAIL(make_resizing_tmp_dir_(tmp_dir_path, resizing_tmp_dir_fd))) {
     CLOG_LOG(ERROR, "make_resizing_tmp_dir_ failed", K(ret), KPC(this),
              K(resizing_tmp_dir_fd));
-  } else if (OB_FAIL(allocate_blocks_at_tmp_dir_(resizing_tmp_dir_fd, dest_start_block_id,
+  } else if (OB_FAIL(parallel_allocate_blocks_at_tmp_dir_(resizing_tmp_dir_fd, dest_start_block_id,
                                                  remain_block_cnt))) {
     CLOG_LOG(ERROR, "allocate_blocks_at_ failed", K(ret), KPC(this));
   } else if (OB_FAIL(move_blocks_from_tmp_dir_to_log_pool_(
@@ -1084,6 +1085,136 @@ int ObServerLogBlockMgr::do_shrink_(const LogPoolMeta &new_log_pool_meta,
   return ret;
 }
 
+
+class AllocateBlocksTask : public lib::TGRunnable 
+{
+  public:
+  AllocateBlocksTask(oceanbase::logservice::ObServerLogBlockMgr* log_block_mgr,
+                     const FileDesc &dir_fd,
+                     block_id_t start_block_id,
+                     int64_t block_cnt)
+      : log_block_mgr_(log_block_mgr), dir_fd_(dir_fd),
+        start_block_id_(start_block_id), block_cnt_(block_cnt) {}
+  virtual ~AllocateBlocksTask() {
+    destroy();
+  }
+
+  virtual void run1() override {
+    auto start = ObTimeUtility::current_time();
+    lib::set_thread_name("AllocateBlocksTask");
+    //LOG_INFO("进入线程", K(start_block_id_), K(block_cnt_));
+    int ret = OB_SUCCESS;
+    // ObCurTraceId::set(*cur_trace_id_);  // 这里段错误；
+
+    int64_t remain_block_cnt = block_cnt_;
+    block_id_t block_id = start_block_id_;
+
+    while (OB_SUCC(ret) && remain_block_cnt > 0) {
+      if (OB_FAIL(log_block_mgr_->allocate_block_at_tmp_dir_(dir_fd_, block_id))) {
+        CLOG_LOG(ERROR, "allocate_block_at_tmp_dir_ failed", K(ret), KPC(log_block_mgr_), K(dir_fd_),
+               K(block_id));
+      } else {
+        remain_block_cnt--;
+        block_id++;
+      }
+    }
+      
+    auto end = ObTimeUtility::current_time();
+    //LOG_INFO("batch create allocate blocks worker job", K(start_block_id_), K(block_cnt_), K(ret), "cost",end-start);
+  }
+
+  int init() {
+    int ret = OB_SUCCESS;
+    if(IS_INIT) {
+      ret = OB_INIT_TWICE;
+      //LOG_WARN("init twice", K(ret));
+    } else if(OB_FAIL(TG_CREATE_TENANT(lib::TGDefIDs::ALLOCATE_BLOCKS_TASK, tg_id_))) {
+      //LOG_WARN("fail to create tenant for create schema task", K(ret));
+    } else {
+      is_inited_ = true;
+    }
+    return ret;
+  }
+  int start() {
+    int ret = OB_SUCCESS;
+    if(IS_NOT_INIT) {
+      ret = OB_NOT_INIT;
+      //LOG_WARN("not init", K(ret));
+    } else if(OB_FAIL(TG_SET_RUNNABLE_AND_START(tg_id_, *this))) {
+      //LOG_WARN("fail to set runnable and start", K(ret));
+    }
+    return ret;
+  }
+  void set_begin(int64_t begin) { begin_ = begin; }
+  void set_i(int64_t i) { i_ = i; }
+  void set_cur_trace_id(const ObCurTraceId::TraceId* cur_trace_id) { cur_trace_id_ = cur_trace_id; }
+  void wait() { TG_WAIT(tg_id_); }
+  void stop() { TG_STOP(tg_id_); }
+  void destroy() { TG_DESTROY(tg_id_); }
+
+private:
+  int tg_id_;
+  bool is_inited_ = false;
+  oceanbase::logservice::ObServerLogBlockMgr* log_block_mgr_;
+  const FileDesc &dir_fd_;
+  block_id_t start_block_id_;
+  int64_t block_cnt_;
+  int64_t finish_cnt_;
+  int64_t begin_;
+  int64_t i_;
+  const ObCurTraceId::TraceId* cur_trace_id_;
+};
+
+int ObServerLogBlockMgr::parallel_allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
+                                                     const block_id_t start_block_id,
+                                                     const int64_t block_cnt)
+{
+  auto start_time = ObTimeUtility::current_time();
+  int ret = OB_SUCCESS;
+  int64_t begin = start_block_id;
+  int64_t thread_num = 128;
+  bool flag = false;
+
+  if (block_cnt % thread_num != 0) {
+    flag = true;
+  }
+
+  int64_t batch_count = block_cnt / thread_num;
+  const int64_t MAX_RETRY_TIMES = 10;
+  int64_t finish_cnt = 0;
+
+  std::vector<AllocateBlocksTask> allocate_block_tasks; 
+  
+  allocate_block_tasks.reserve(thread_num + 1);
+
+  for (int64_t i = 0; OB_SUCC(ret) && i < thread_num; ++i) {
+    allocate_block_tasks.emplace_back(const_cast<ObServerLogBlockMgr*>(this), dir_fd, start_block_id + i * batch_count, batch_count);
+    allocate_block_tasks.back().init();
+    allocate_block_tasks.back().start();
+  }
+
+  if (flag) {
+    allocate_block_tasks.emplace_back(const_cast<ObServerLogBlockMgr*>(this), dir_fd, start_block_id + thread_num * batch_count, block_cnt % thread_num);
+    allocate_block_tasks.back().init();
+    allocate_block_tasks.back().start();
+  }
+
+  for (int i = 0; i < allocate_block_tasks.size(); ++i) {
+    allocate_block_tasks[i].wait();
+  }
+
+  if (-1 == ::fsync(dir_fd)) {
+    int tmp_ret = convert_sys_errno();
+    CLOG_LOG(ERROR, "::fsync failed", K(ret), K(tmp_ret), KPC(this), K(dir_fd));
+    ret = (OB_SUCCESS == ret ? tmp_ret : ret);
+  }
+
+  auto end_time = ObTimeUtility::current_time();
+  //LOG_INFO("parallel_create_table_schema", K(ret), "cost", end_time - start_time);
+  return ret;
+}
+
+
 int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
                                                      const block_id_t start_block_id,
                                                      const int64_t block_cnt)
@@ -1091,6 +1222,7 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
   int ret = OB_SUCCESS;
   int64_t remain_block_cnt = block_cnt;
   block_id_t block_id = start_block_id;
+
   while (OB_SUCC(ret) && remain_block_cnt > 0) {
     if (OB_FAIL(allocate_block_at_tmp_dir_(dir_fd, block_id))) {
       CLOG_LOG(ERROR, "allocate_block_at_tmp_dir_ failed", K(ret), KPC(this), K(dir_fd),

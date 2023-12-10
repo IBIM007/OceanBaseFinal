@@ -31,8 +31,10 @@ namespace oceanbase
 namespace logservice
 {
 class ObLogService;
+class AllocateBlocksTask;
 class ObServerLogBlockMgr : public palf::ILogBlockPool
 {
+  friend class AllocateBlocksTask;
 public:
   static int check_clog_directory_is_empty(const char *clog_dir, bool &result);
 private:
@@ -264,7 +266,10 @@ private:
   int do_shrink_(const LogPoolMeta &new_log_meta, const int64_t resize_block_cnt);
   int allocate_blocks_at_tmp_dir_(const palf::FileDesc &dir_fd,
                                   const palf::block_id_t start_block_id,
-                                  const int64_t block_cnt);
+                                  const int64_t block_cnt);     
+  int parallel_allocate_blocks_at_tmp_dir_(const palf::FileDesc &dir_fd,
+                                           const palf::block_id_t start_block_id,
+                                           const int64_t block_cnt);                                                            
   int allocate_block_at_tmp_dir_(const palf::FileDesc &dir_fd, const palf::block_id_t block_id);
   int free_blocks_at_log_pool_(const int64_t block_cnt);
   int free_block_at_(const palf::FileDesc &dir_fd, const palf::block_id_t block_id);
