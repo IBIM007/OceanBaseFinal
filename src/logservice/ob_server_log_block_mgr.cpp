@@ -1111,8 +1111,8 @@ class AllocateBlocksTask : public lib::TGRunnable
 
     while (OB_SUCC(ret) && remain_block_cnt > 0) {
       if (OB_FAIL(log_block_mgr_->allocate_block_at_tmp_dir_(dir_fd_, block_id))) {
-        //CLOG_LOG(ERROR, "allocate_block_at_tmp_dir_ failed", K(ret), KPC(log_block_mgr_), K(dir_fd_),
-        //       K(block_id));
+        CLOG_LOG(ERROR, "allocate_block_at_tmp_dir_ failed", K(ret), KPC(log_block_mgr_), K(dir_fd_),
+               K(block_id));
       } else {
         remain_block_cnt--;
         block_id++;
