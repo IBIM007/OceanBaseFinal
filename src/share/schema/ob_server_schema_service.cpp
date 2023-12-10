@@ -5290,14 +5290,14 @@ int ObServerSchemaService::my_tenant_refresh_schema(
   } else if (OB_FAIL(refresh_full_schema_map_.get_refactored(tenant_id, is_full_schema))) {
     LOG_WARN("refresh full schema", K(ret), K(tenant_id));
   } else if (is_full_schema) {
-    FLOG_INFO("最新的[REFRESH_SCHEMA] start to refresh full schema",
+    FLOG_INFO("两个租户的[REFRESH_SCHEMA] start to refresh full schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
 
     if (OB_FAIL(my_tenant_refresh_full_schema(schema_status,table_schemas))) {
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
 
-    FLOG_INFO("最新的[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
+    FLOG_INFO("两个租户的[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
               "current schema_version", schema_mgr_for_cache->get_schema_version(),
               "cost", ObTimeUtility::current_time() - start);
 
@@ -5420,13 +5420,13 @@ int ObServerSchemaService::refresh_schema(
     FLOG_INFO("[REFRESH_SCHEMA] start to refresh full schema",
               "current schema_version", schema_mgr_for_cache->get_schema_version(), K(schema_status));
     //还有两次是在init_tenant_schema调用的吧
-    LOG_ERROR("马上开始tenant refresh full schema", K(ret), K(schema_status));
+    LOG_ERROR("马上开始最原始的tenant refresh full schema", K(ret), K(schema_status));
     //确定就是这里出错了
     if (OB_FAIL(refresh_full_schema(schema_status))) {
       LOG_WARN("tenant refresh full schema failed", K(ret), K(schema_status));
     }
-    LOG_ERROR("结束tenant refresh full schema", K(ret), K(schema_status));
-    FLOG_INFO("[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
+    LOG_ERROR("马上结束tenant refresh full schema", K(ret), K(schema_status));
+    FLOG_INFO("最原始的[REFRESH_SCHEMA] finish refresh full schema", K(ret), K(schema_status),
               "current schema_version", schema_mgr_for_cache->get_schema_version(),
               "cost", ObTimeUtility::current_time() - start);
 

@@ -23600,9 +23600,9 @@ int ObDDLService::init_tenant_schema(
       } 
       LOG_ERROR("马上开始init_tenant_schema里面的publish了", KR(ret), K(tenant_id), K(addrs));
       //注意一下这个方法
-      //if (OB_FAIL(publish_schema(tenant_id, addrs))) {
+      if (OB_FAIL(my_publish_schema(tenant_id, addrs,tables))) {
         //现在是卡在这里了，不知道是不是异步的原因，测一下就知道了
-      if (OB_FAIL(publish_schema(tenant_id, addrs))) {
+      //if (OB_FAIL(publish_schema(tenant_id, addrs))) {
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
       }
       LOG_ERROR("结束了init_tenant_schema里面的publish了", KR(ret), K(tenant_id), K(addrs));
