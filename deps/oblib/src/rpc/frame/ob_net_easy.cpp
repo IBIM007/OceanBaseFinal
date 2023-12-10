@@ -20,6 +20,9 @@
 #include "lib/utility/utility.h"
 #include "lib/file/file_directory_utils.h"
 #include "lib/thread/ob_thread_name.h"
+#include "share/config/ob_server_config.h"
+
+#include <thread>
 
 using namespace oceanbase::rpc;
 using namespace oceanbase::rpc::frame;
@@ -143,6 +146,43 @@ static int __update_s2r_map(void *args)
   return EASY_OK;
 }
 
+void ObNetEasy::speedup_create_eio()
+{
+  ObNetOptions opts;
+  int ret = OB_SUCCESS;
+
+  int io_cnt = static_cast<int>(GCONF.net_thread_count);
+  // make net thread count adaptive
+  // if (0 == io_cnt) {
+  //   io_cnt = get_default_net_thread_count();
+  // }
+  const int hp_io_cnt = static_cast<int>(GCONF.high_priority_net_thread_count);
+  uint8_t negotiation_enable = 0;
+  opts.rpc_io_cnt_ = io_cnt;
+  opts.high_prio_rpc_io_cnt_ = hp_io_cnt;
+  opts.mysql_io_cnt_ = io_cnt;
+  opts.batch_rpc_io_cnt_ = io_cnt;
+  opts.use_ipv6_ = GCONF.use_ipv6;
+  //TODO(tony.wzh): fix opts.tcp_keepidle  negative
+  opts.tcp_user_timeout_ = static_cast<int>(GCONF.dead_socket_detection_timeout);
+  opts.tcp_keepidle_     = static_cast<int>(GCONF.tcp_keepidle);
+  opts.tcp_keepintvl_    = static_cast<int>(GCONF.tcp_keepintvl);
+  opts.tcp_keepcnt_      = static_cast<int>(GCONF.tcp_keepcnt);
+
+  if (GCONF.enable_tcp_keepalive) {
+    opts.enable_tcp_keepalive_ = 1;
+  } else {
+    opts.enable_tcp_keepalive_ = 0;
+  }
+
+  if (OB_ISNULL(rpc_eio_ = create_eio_(opts.rpc_io_cnt_, RPC_EIO_MAGIC, 1))) {
+      LOG_ERROR("create rpc easy io fail", K(ret));
+      ret = OB_LIBEASY_ERROR;
+    } else if (OB_FAIL(init_rpc_eio_(rpc_eio_, opts))) {
+      LOG_ERROR("init rpc easy io fail", K(ret));
+    } 
+}
+
 ObNetEasy::ObNetEasy()
     : transports_(),
       proto_cnt_(0),
@@ -158,6 +198,9 @@ ObNetEasy::ObNetEasy()
 {
   net_easy_update_s2r_map_cb_ = NULL;
   net_easy_update_s2r_map_cb_args_ = NULL;
+
+  std::thread speedup_task(&ObNetEasy::speedup_create_eio, this);
+  speedup_task.detach();
 }
 
 ObNetEasy::~ObNetEasy()
@@ -693,12 +736,14 @@ int ObNetEasy::init(const ObNetOptions &opts, uint8_t negotiation_enable)
   }
 
   if (!is_inited_) {
-    if (OB_ISNULL(rpc_eio_ = create_eio_(opts.rpc_io_cnt_, RPC_EIO_MAGIC, negotiation_enable))) {
-      LOG_ERROR("create rpc easy io fail", K(ret));
-      ret = OB_LIBEASY_ERROR;
-    } else if (OB_FAIL(init_rpc_eio_(rpc_eio_, opts))) {
-      LOG_ERROR("init rpc easy io fail", K(ret));
-    } else if (is_high_prio_rpc_enabled && OB_ISNULL(high_prio_rpc_eio_ = create_eio_(opts.high_prio_rpc_io_cnt_, HIGH_PRI_RPC_EIO_MAGIC, negotiation_enable))) {
+    // if (OB_ISNULL(rpc_eio_ = create_eio_(opts.rpc_io_cnt_, RPC_EIO_MAGIC, negotiation_enable))) {
+    //   LOG_ERROR("create rpc easy io fail", K(ret));
+    //   ret = OB_LIBEASY_ERROR;
+    // } else if (OB_FAIL(init_rpc_eio_(rpc_eio_, opts))) {
+    //   LOG_ERROR("init rpc easy io fail", K(ret));
+    // } 
+    
+    if (is_high_prio_rpc_enabled && OB_ISNULL(high_prio_rpc_eio_ = create_eio_(opts.high_prio_rpc_io_cnt_, HIGH_PRI_RPC_EIO_MAGIC, negotiation_enable))) {
       LOG_ERROR("create high priority rpc easy io fail", K(ret));
       ret = OB_LIBEASY_ERROR;
     } else if (is_high_prio_rpc_enabled && OB_FAIL(init_rpc_eio_(high_prio_rpc_eio_, opts))) {

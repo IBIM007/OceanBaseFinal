@@ -137,6 +137,8 @@ private:
                                     int enable_tcp_keepalive, int64_t tcp_keepidle,
                                     int64_t tcp_keepintvl, int64_t tcp_keepcnt);
 
+  void speedup_create_eio();                                  
+
 public:
   net_easy_update_s2r_map_pt *net_easy_update_s2r_map_cb_;
   void *net_easy_update_s2r_map_cb_args_;
