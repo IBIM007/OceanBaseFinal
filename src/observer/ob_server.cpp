@@ -340,9 +340,13 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
       LOG_ERROR("fail to init schema status proxy", KR(ret));
     } else if (OB_FAIL(init_schema())) {
       LOG_ERROR("init schema failed", KR(ret));
-    } else if (OB_FAIL(init_network())) {
-      LOG_ERROR("init network failed", KR(ret));
-    } else if (OB_FAIL(init_interrupt())) {
+    } 
+    
+    // else if (OB_FAIL(init_network())) {
+    //   LOG_ERROR("init network failed", KR(ret));
+    // } 
+    
+    else if (OB_FAIL(init_interrupt())) {
       LOG_ERROR("init interrupt failed", KR(ret));
     } else if (OB_FAIL(rs_mgr_.init(&srv_rpc_proxy_, &config_, &sql_proxy_))) {
       LOG_ERROR("init rs_mgr_ failed", KR(ret));
@@ -354,11 +358,15 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
       LOG_ERROR("init root service failed", KR(ret));
     } else if (OB_FAIL(root_service_monitor_.init())) {
       LOG_ERROR("init root service monitor failed", KR(ret));
-    } else if (OB_FAIL(init_sql())) {
-      LOG_ERROR("init sql failed", KR(ret));
-    } else if (OB_FAIL(init_sql_runner())) {
-      LOG_ERROR("init sql failed", KR(ret));
-    } else if (OB_FAIL(init_sequence())) {
+    } 
+    
+    // else if (OB_FAIL(init_sql())) {
+    //   LOG_ERROR("init sql failed", KR(ret));
+    // } else if (OB_FAIL(init_sql_runner())) {
+    //   LOG_ERROR("init sql failed", KR(ret));
+    // } 
+    
+    else if (OB_FAIL(init_sequence())) {
       LOG_ERROR("init sequence failed", KR(ret));
     } else if (OB_FAIL(init_pl())) {
       LOG_ERROR("init pl failed", K(ret));
@@ -374,11 +382,17 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
                                               rs_rpc_proxy_,
                                               srv_rpc_proxy_))) {
       LOG_ERROR("init location service failed", KR(ret));
-    } else if (OB_FAIL(init_autoincrement_service())) {
-      LOG_ERROR("init auto-increment service failed", KR(ret));
-    } else if (OB_FAIL(init_table_lock_rpc_client())) {
-      LOG_ERROR("init table_lock_rpc_client failed", KR(ret));
-    } else if (OB_FAIL(init_tablet_autoincrement_service())) {
+    } 
+    
+    // else if (OB_FAIL(init_autoincrement_service())) {
+    //   LOG_ERROR("init auto-increment service failed", KR(ret));
+    // }
+    
+    // else if (OB_FAIL(init_table_lock_rpc_client())) {
+    //   LOG_ERROR("init table_lock_rpc_client failed", KR(ret));
+    // } 
+    
+    else if (OB_FAIL(init_tablet_autoincrement_service())) {
       LOG_ERROR("init auto-increment service failed", KR(ret));
     } else if (OB_FAIL(init_bandwidth_throttle())) {
       LOG_ERROR("init bandwidth_throttle failed", KR(ret));
@@ -391,11 +405,15 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
     } else if (OB_FAIL(locality_manager_.init(self_addr_,
                                               &sql_proxy_))) {
       LOG_ERROR("init locality manager failed", KR(ret));
-    } else if (OB_FAIL(init_ts_mgr())) {
-      LOG_ERROR("init ts mgr failed", KR(ret));
-    } else if (OB_FAIL(weak_read_service_.init(net_frame_.get_req_transport()))) {
-      LOG_ERROR("init weak_read_service failed", KR(ret));
-    } else if (OB_FAIL(bl_service_.init())) {
+    } 
+    
+    // else if (OB_FAIL(init_ts_mgr())) {
+    //   LOG_ERROR("init ts mgr failed", KR(ret));
+    // } else if (OB_FAIL(weak_read_service_.init(net_frame_.get_req_transport()))) {
+    //   LOG_ERROR("init weak_read_service failed", KR(ret));
+    // } 
+    
+    else if (OB_FAIL(bl_service_.init())) {
       LOG_ERROR("init bl_service_ failed", KR(ret));
     } else if (OB_FAIL(ObDeviceManager::get_instance().init_devices_env())) {
       LOG_ERROR("init device manager failed", KR(ret));
@@ -455,9 +473,13 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
       LOG_ERROR("init bg thread monitor failed", KR(ret));
     } else if (OB_FAIL(ObPxBloomFilterManager::instance().init())) {
       LOG_ERROR("init px blomm filter manager failed", KR(ret));
-    } else if (OB_FAIL(PX_P2P_DH.init())) {
-      LOG_ERROR("init px p2p datahub failed", KR(ret));
-    } else if (OB_FAIL(compaction::ObCompactionSuggestionMgr::get_instance().init())) {
+    } 
+    
+    // else if (OB_FAIL(PX_P2P_DH.init())) {
+    //   LOG_ERROR("init px p2p datahub failed", KR(ret));
+    // } 
+    
+    else if (OB_FAIL(compaction::ObCompactionSuggestionMgr::get_instance().init())) {
       LOG_ERROR("init ObCompactionSuggestionMgr failed", KR(ret));
     } else if (OB_FAIL(G_RES_MGR.init())) {
       LOG_ERROR("failed to init resource plan", KR(ret));
@@ -473,9 +495,13 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
       LOG_ERROR("init backup index cache failed", KR(ret));
     } else if (OB_FAIL(ObActiveSessHistList::get_instance().init())) {
       LOG_ERROR("init ASH failed", KR(ret));
-    } else if (OB_FAIL(ObServerBlacklist::get_instance().init(self_addr_, net_frame_.get_req_transport()))) {
-      LOG_ERROR("init server blacklist failed", KR(ret));
-    } else if (OB_FAIL(ObLongopsMgr::get_instance().init())) {
+    } 
+    
+    // else if (OB_FAIL(ObServerBlacklist::get_instance().init(self_addr_, net_frame_.get_req_transport()))) {
+    //   LOG_ERROR("init server blacklist failed", KR(ret));
+    // } 
+    
+    else if (OB_FAIL(ObLongopsMgr::get_instance().init())) {
       LOG_WARN("init longops mgr fail", KR(ret));
     } else if (OB_FAIL(ObDDLRedoLogWriter::get_instance().init())) {
       LOG_WARN("init DDL redo log writer failed", KR(ret));
@@ -487,10 +513,30 @@ int ObServer::init(const ObServerOptions &opts, const ObPLogWriterCfg &log_cfg)
       LOG_ERROR("init arb_gcs_ failed", KR(ret));
     }
 #endif
-    else if (OB_FAIL(ObDetectManagerThread::instance().init(GCTX.self_addr(), net_frame_.get_req_transport()))) {
+    else if (OB_FAIL(init_network())) {
+      LOG_ERROR("init network failed", KR(ret));
+    } 
+
+    else if (OB_FAIL(init_table_lock_rpc_client())) {
+      LOG_ERROR("init table_lock_rpc_client failed", KR(ret));
+    } else if (OB_FAIL(init_sql())) {
+      LOG_ERROR("init sql failed", KR(ret));
+    } else if (OB_FAIL(init_sql_runner())) {
+      LOG_ERROR("init sql failed", KR(ret));
+    } else if (OB_FAIL(init_autoincrement_service())) {
+      LOG_ERROR("init auto-increment service failed", KR(ret));
+    } else if (OB_FAIL(init_ts_mgr())) {
+      LOG_ERROR("init ts mgr failed", KR(ret));
+    } else if (OB_FAIL(weak_read_service_.init(net_frame_.get_req_transport()))) {
+      LOG_ERROR("init weak_read_service failed", KR(ret));
+    } else if (OB_FAIL(ObServerBlacklist::get_instance().init(self_addr_, net_frame_.get_req_transport()))) {
+      LOG_ERROR("init server blacklist failed", KR(ret));
+    } else if (OB_FAIL(ObDetectManagerThread::instance().init(GCTX.self_addr(), net_frame_.get_req_transport()))) {
       LOG_WARN("init ObDetectManagerThread failed", KR(ret));
     } else if (OB_FAIL(wr_service_.init())) {
       LOG_WARN("failed to init wr service", K(ret));
+    } else if (OB_FAIL(PX_P2P_DH.init())) {
+      LOG_ERROR("init px p2p datahub failed", KR(ret));
     } else {
       GDS.set_rpc_proxy(&rs_rpc_proxy_);
     }
