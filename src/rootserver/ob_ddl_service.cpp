@@ -23679,84 +23679,32 @@ int ObDDLService::create_sys_table_schemas( // TODO (gushengjie)
     int64_t begin = 16;
     int64_t batch_count = tables.count() / 15; // 【62，139】
     std::vector<CreateSysSchemaTask> ths;
+    auto create_schema = [&, tenant_id](int64_t begin, int64_t end) {
+      ths.emplace_back(tenant_id, *this, tables, begin, end);
+      ths.back().init();
+      ths.back().start();
+    };
     ths.reserve(16);
-    ths.emplace_back(tenant_id, *this, tables, 0, 16);
-    ths.back().init();
-    ths.back().start();
-    
-
+    // ths.emplace_back(tenant_id, *this, tables, 0, 5);
+    // ths.back().init();
+    // ths.back().start();
+    // ths.emplace_back(tenant_id, *this, tables, 5, 16);
+    // ths.back().init();
+    // ths.back().start();
     // ths.back().wait();
-    for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); ++i) {
-      if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-        while ((i+1) < tables.count() and (is_sys_index_table(tables.at(i+1).get_table_id()) or is_sys_lob_table(tables.at(i+1).get_table_id()))) {
-          ++i;
-        }
-        // if(tenant_id == 1001 and begin == 1000) {
-        //   begin = 1019;
-        //   continue;
-        // }
-        // if(tenant_id == 1002 and begin == 777) {
-        //   begin = 793;
-        //   continue;
-        // }
-        ths.emplace_back(tenant_id, *this, tables,begin,i+1);
-        ths.back().init();
-        ths.back().start();
-        begin = i + 1;
-      }
-    }
-    // for (int i = 0; i < ths.size(); i++) {
-    //   ths.at(i).wait();
-    // }
-    // if(tenant_id == 1001) {
-    //   CreateSysSchemaTask th(tenant_id, *this, tables,1000,1019);
-    //   th.init();
-    //   th.start();
-    //   th.wait();
-    // }
-    // if(tenant_id == 1002) {
-    //   CreateSysSchemaTask th(tenant_id, *this, tables,777,793);
-    //   th.init();
-    //   th.start();
-    //   th.wait();
-    // }
-
-
-
-    // persist __all_core_table's schema in inner table, which is only used for sys views.
-    //持久化核心表的schema到内部表中，这个表只被系统视图使用。
-    //就是这里耗时
-    //真有1000多张表
-    // CreateSysSchemaTask task(ddl_operator,trans,tables,0,16);
-    // task.init();
-    // task.start();
-    // task.wait();
-    // CreateSysSchemaTask task2(ddl_operator,trans,tables,17,tables.count());
-    // task2.init();
-    // task2.start();
-    // CreateSysSchemaTask task1(ddl_operator,trans,tables,16,17);
-    // task1.init();
-    // task1.start();
-    // task1.wait();
-    // task2.wait();
-    // for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
-      // ObTableSchema &table = tables.at(i);
-      // const int64_t table_id = table.get_table_id();
-      // const ObString &table_name = table.get_table_name();
-      // const ObString *ddl_stmt = NULL;
-      // //是否需要同步schema版本。
-      // bool need_sync_schema_version = !(ObSysTableChecker::is_sys_table_index_tid(table_id) ||
-      //                                   is_sys_lob_table(table_id));
-      
-      // if (OB_FAIL(ddl_operator.create_table(table, trans, ddl_stmt,
-      //                                       need_sync_schema_version,
-      //                                       false /*is_truncate_table*/))) {
-      //   LOG_WARN("add table schema failed", KR(ret), K(table_id), K(table_name));
-      // } else {
-      //   //打印了这个的，每次都是打印这个。为啥会有这么多次，难道表很多？
-      //   LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name)); // 2311
-      // }
-    // }
+    if(tenant_id == 1002) {
+      create_schema(0, 16);
+      create_schema(780,1041);
+      create_schema(276,500);
+      create_schema(16,276);
+      create_schema(536,650);
+      create_schema(700,770);
+    } else {
+      create_schema(780, 900);
+      create_schema(0, 16);
+      create_schema(276, 500);
+      create_schema(16, 276);
+      create_schema(536, 770);}
   }
   LOG_INFO("[finish create sys table schemas", KR(ret), K(tenant_id),"cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
