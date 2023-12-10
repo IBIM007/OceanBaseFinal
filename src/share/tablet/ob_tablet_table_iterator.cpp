@@ -84,6 +84,7 @@ int ObTenantTabletMetaIterator::next(ObTabletInfo &tablet_info)
       if (prefetch_tablet_idx_ < prefetched_tablets_.count()) {
         // directly get from prefetched tablet_info
         tablet_info.reset();
+        //这里复制的
         if (OB_FAIL(tablet_info.assign(prefetched_tablets_.at(prefetch_tablet_idx_)))) {
           LOG_WARN("fail to assign tablet_info", KR(ret), K_(prefetch_tablet_idx));
         } else if (tablet_info.replica_count() > 0) {
@@ -95,7 +96,9 @@ int ObTenantTabletMetaIterator::next(ObTabletInfo &tablet_info)
           }
         }
         ++prefetch_tablet_idx_;
-      } else if (OB_FAIL(prefetch())) { // need to prefetch a batch of tablet_info
+      } 
+      //应该是这里面做的数据
+      else if (OB_FAIL(prefetch())) { // need to prefetch a batch of tablet_info
         if (OB_ITER_END != ret) {
           LOG_WARN("fail to prefetch", KR(ret), K_(tenant_id), K_(prefetch_tablet_idx));
         }
@@ -169,7 +172,7 @@ int ObTenantTabletMetaIterator::prefetch_tablets()
   } else {
     prefetch_tablet_idx_ = 0;
     prefetched_tablets_.reuse();
-
+    //这里去查找了
     if (OB_FAIL(tablet_table_operator_.batch_get(tenant_id_,
                                                  valid_tablet_ls_pairs_,
                                                  prefetched_tablets_))) {

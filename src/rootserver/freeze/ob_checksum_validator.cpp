@@ -451,6 +451,7 @@ int ObChecksumValidatorBase::try_update_tablet_checksum_items(
   } else {
     SMART_VAR(ObArray<ObTabletReplicaChecksumItem>, items) {
       FREEZE_TIME_GUARD;
+      //TODO这里需要改
       if (OB_FAIL(ObTabletReplicaChecksumOperator::batch_get(tenant_id_, pairs, frozen_scn, *sql_proxy_, items))) {
         LOG_WARN("fail to batch get tablet replica checksum items", KR(ret), K_(tenant_id), K(frozen_scn));
       } else if (0 == items.count()) {

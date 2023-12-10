@@ -300,6 +300,7 @@ int ObZoneMergeManagerBase::get_snapshot(
     ObIArray<ObZoneMergeInfo> &info_array)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObMajorMergeScheduler::add_merge_time_stat",KR(ret));
   SpinRLockGuard guard(lock_);
   global_merge_info.reset();
   info_array.reset();
@@ -325,7 +326,9 @@ int ObZoneMergeManagerBase::start_zone_merge(
   int64_t idx = OB_INVALID_INDEX;
   ObMySQLTransaction trans;
   const int64_t cur_time = ObTimeUtility::current_time();
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
   FREEZE_TIME_GUARD;
 
   if (OB_FAIL(check_valid(zone, idx))) {
@@ -390,7 +393,10 @@ int ObZoneMergeManagerBase::finish_zone_merge(
   int64_t idx = OB_INVALID_INDEX;
   ObMySQLTransaction trans;
   const int64_t cur_time = ObTimeUtility::current_time();
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  LOG_ERROR("进入了ObZoneMergeManagerBase::finish_zone_merge", KR(ret), K(tenant_id_));
   FREEZE_TIME_GUARD;
 
   if (OB_FAIL(check_valid(zone, idx))) {
@@ -480,6 +486,7 @@ int ObZoneMergeManagerBase::set_merge_error(const int64_t error_type, const int6
     LOG_WARN("invalid argument", KR(ret), K_(tenant_id), K(error_type));
   } else {
     ObMySQLTransaction trans;
+    LOG_ERROR("进入了ObZoneMergeManagerBase::set_merge_error", KR(ret), K(tenant_id_));
     const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
     int64_t is_merge_error = 1;
     if (error_type == ObZoneMergeInfo::NONE_ERROR) {
@@ -533,7 +540,9 @@ int ObZoneMergeManagerBase::set_zone_merging(
   int ret = OB_SUCCESS;
   int64_t idx = OB_INVALID_INDEX;
   ObMySQLTransaction trans;
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
   FREEZE_TIME_GUARD;
   if (OB_FAIL(check_valid(zone, idx))) {
     LOG_WARN("fail to check valid", KR(ret), K(zone), K_(tenant_id));
@@ -592,7 +601,9 @@ int ObZoneMergeManagerBase::set_global_freeze_info(
 {
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans;
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
 
   bool need_broadcast = false;
   if (OB_FAIL(check_need_broadcast(frozen_scn, need_broadcast))) {
@@ -695,7 +706,10 @@ int ObZoneMergeManagerBase::generate_next_global_broadcast_scn(
   int ret = OB_SUCCESS;
   FREEZE_TIME_GUARD;
   ObMySQLTransaction trans;
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  //const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("fail to check inner stat", KR(ret), K_(tenant_id));
   } else if (global_merge_info_.is_merge_error()) {
@@ -764,7 +778,10 @@ int ObZoneMergeManagerBase::try_update_global_last_merged_scn(const int64_t expe
 {
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans;
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  LOG_ERROR("进入了ObZoneMergeManagerBase::try_update_global_last_merged_scn", KR(ret), K_(tenant_id));
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("fail to check inner stat", KR(ret), K_(tenant_id));
   } else {
@@ -829,7 +846,10 @@ int ObZoneMergeManagerBase::update_global_merge_info_after_merge(const int64_t e
 {
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans;
-  const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  uint64_t meta_tenant_id;
+  if(tenant_id_==1002)meta_tenant_id=1;
+  else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+  //const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("fail to check inner stat", KR(ret), K_(tenant_id));
   } else if (global_merge_info_.is_in_verifying_status()) {
@@ -882,7 +902,10 @@ int ObZoneMergeManagerBase::try_update_zone_merge_info(const int64_t expected_ep
   } else if (zone_list.count() > 0) {
     ObMySQLTransaction trans;
     ObArray<ObZoneMergeInfo> ori_merge_infos;
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+    uint64_t meta_tenant_id;
+    if(tenant_id_==1002)meta_tenant_id=1;
+    else meta_tenant_id= gen_meta_tenant_id(tenant_id_);
+    //const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
     if (OB_FAIL(trans.start(proxy_, meta_tenant_id))) {
       LOG_WARN("fail to start transaction", KR(ret), K_(tenant_id), K(meta_tenant_id));
     } else if (OB_FAIL(check_freeze_service_epoch(trans, expected_epoch))) {
@@ -991,6 +1014,7 @@ int ObZoneMergeManagerBase::suspend_or_resume_zone_merge(
   int ret = OB_SUCCESS;
   const int64_t cur_time = ObTimeUtility::current_time();
   ObMySQLTransaction trans;
+  LOG_ERROR("进入了ObZoneMergeManagerBase::suspend_or_resume_zone_merge", KR(ret), K(tenant_id_));
   const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
 
   if (OB_FAIL(trans.start(proxy_, meta_tenant_id))) {
@@ -1171,7 +1195,9 @@ int ObZoneMergeManagerBase::inner_adjust_global_merge_info(
     // frozen_scn. So as to avoid error in ObMajorMergeScheduler::do_work(), which works based on
     // these global_merge_info in memory.
     ObMySQLTransaction trans;
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id_);
+    uint64_t meta_tenant_id;
+    if(tenant_id_==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id_);
     if (OB_FAIL(trans.start(proxy_, meta_tenant_id))) {
       LOG_WARN("fail to start transaction", KR(ret), K_(tenant_id), K(meta_tenant_id));
     } else if (OB_FAIL(check_freeze_service_epoch(trans, expected_epoch))) {

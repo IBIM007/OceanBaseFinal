@@ -239,6 +239,7 @@ int ObMajorMergeScheduler::do_work()
   int ret = OB_SUCCESS;
 
   HEAP_VARS_2((ObZoneMergeInfoArray, info_array), (ObGlobalMergeInfo, global_info)) {
+    LOG_ERROR("进入了ObMajorMergeScheduler::do_work()",KR(ret));
     const int64_t curr_round_epoch = get_epoch();
     if (IS_NOT_INIT) {
       ret = OB_NOT_INIT;
@@ -324,6 +325,7 @@ int ObMajorMergeScheduler::do_one_round_major_merge(const int64_t expected_epoch
 
   ObMergeTimeStatistics total_merge_time_statistics;
   HEAP_VARS_2((ObZoneMergeInfoArray, info_array), (ObGlobalMergeInfo, global_info)) {
+    LOG_ERROR("进入了ObMajorMergeScheduler::do_one_round_major_merge",KR(ret));
     LOG_INFO("start to do one round major_merge", K(expected_epoch));
     // loop until 'this round major merge finished' or 'epoch changed'
     while (!stop_ && !is_paused()) {
@@ -351,6 +353,7 @@ int ObMajorMergeScheduler::do_one_round_major_merge(const int64_t expected_epoch
       // Need to update_merge_status, even though to_merge_zone is empty.
       // E.g., in the 1st loop, already schedule all zones to merge, but not finish major merge.
       // In the 2nd loop, though to_merge_zone is empty, need continue to update_merge_status.
+      //do_one_round里面干的
       if (FAILEDx(update_merge_status(expected_epoch))) {
         LOG_WARN("fail to update merge status", KR(ret), K(expected_epoch));
       }
@@ -418,6 +421,7 @@ int ObMajorMergeScheduler::schedule_zones_to_merge(
   int ret = OB_SUCCESS;
 
   HEAP_VARS_2((ObZoneMergeInfoArray, info_array), (ObGlobalMergeInfo, global_info)) {
+    LOG_ERROR("进入了ObMajorMergeScheduler::schedule_zones_to_merge",KR(ret));
     if (to_merge.empty()) {
       ret = OB_INVALID_ARGUMENT;
       LOG_WARN("invalid argument", KR(ret), K(to_merge));
@@ -502,7 +506,9 @@ int ObMajorMergeScheduler::update_merge_status(const int64_t expected_epoch)
     LOG_WARN("not inited", KR(ret));
   } else if (OB_FAIL(zone_merge_mgr_->get_global_broadcast_scn(global_broadcast_scn))) {
     LOG_WARN("fail to get_global_broadcast_scn", KR(ret), K_(tenant_id));
-  } else if (OB_FAIL(progress_checker_.check_merge_progress(stop_, global_broadcast_scn,
+  } 
+  //这里检查了的
+  else if (OB_FAIL(progress_checker_.check_merge_progress(stop_, global_broadcast_scn,
                      all_progress, expected_epoch))) {
     LOG_WARN("fail to check merge status", KR(ret), K_(tenant_id), K(global_broadcast_scn), K(expected_epoch));
     int64_t time_interval = 10L * 60 * 1000 * 1000;  // record every 10 minutes
@@ -553,6 +559,7 @@ int ObMajorMergeScheduler::handle_all_zone_merge(
   } else {
     // 1. check all zone finished compaction
     HEAP_VAR(ObZoneMergeInfo, info) {
+      //progress就是一个ObMergeProgress
       FOREACH_X(progress, all_progress, OB_SUCC(ret) && !stop_) {
         const ObZone &zone = progress->zone_;
         bool merged = false;
@@ -587,6 +594,7 @@ int ObMajorMergeScheduler::handle_all_zone_merge(
           merged = progress->is_merge_finished();
           if (!merged) {
             all_merged = false;
+            //这里打印了
             LOG_INFO("zone merge not finish", "zone", progress->zone_, "merged_cnt", progress->merged_tablet_cnt_,
               "unmerged_cnt", progress->unmerged_tablet_cnt_);
           }
@@ -600,7 +608,7 @@ int ObMajorMergeScheduler::handle_all_zone_merge(
           } else {
             cur_all_merged_scn = progress->smallest_snapshot_scn_;
           }
-
+          //这个打印了的，可以看一下正常版怎么走的
           LOG_INFO("check updating merge status", K_(tenant_id), K(zone), K(merged), K(cur_all_merged_scn),
             K(cur_merged_scn), K(info),"smallest_snapshot_scn", progress->smallest_snapshot_scn_,
             "merged_cnt", progress->merged_tablet_cnt_, "unmerged_cnt", progress->unmerged_tablet_cnt_);
@@ -616,6 +624,7 @@ int ObMajorMergeScheduler::handle_all_zone_merge(
           }
 #endif
           if (OB_SUCC(ret) && merged) {
+            LOG_ERROR("循环里面的B_SUCC(ret) && merged", KR(ret), K_(tenant_id));
             // cur_all_merged_scn >= cur_merged_scn
             // 1. Equal: snapshot_version of all tablets change to frozen_scn after major compaction
             // 2. Greater: In backup-restore situation, tablets may have higher snapshot_version, which
@@ -661,6 +670,7 @@ int ObMajorMergeScheduler::handle_all_zone_merge(
     // 2. check all table finished compaction and verification
     if (OB_SUCC(ret) && all_merged) {
       bool exist_unverified = false;
+      //先进入的这里面
       if (OB_FAIL(progress_checker_.check_table_status(exist_unverified))) {
         LOG_WARN("fail to check table status", KR(ret), K_(tenant_id));
       } else if (exist_unverified) {
@@ -702,6 +712,7 @@ int ObMajorMergeScheduler::try_update_global_merged_scn(const int64_t expected_e
 {
   int ret = OB_SUCCESS;
   HEAP_VARS_2((ObZoneMergeInfoArray, infos), (ObGlobalMergeInfo, global_info)) {
+    LOG_ERROR("进入了ObMajorMergeScheduler::try_update_global_merged_scn",KR(ret));
     uint64_t global_broadcast_scn_val = UINT64_MAX;
     if (IS_NOT_INIT) {
       ret = OB_NOT_INIT;
@@ -719,12 +730,15 @@ int ObMajorMergeScheduler::try_update_global_merged_scn(const int64_t expected_e
           }
         }
         if (merged) {
+          //这里失败了
           if (OB_FAIL(progress_checker_.handle_table_with_first_tablet_in_sys_ls(stop_,
                       is_primary_service_, global_info.global_broadcast_scn(), expected_epoch))) {
             LOG_WARN("fail to handle table with first tablet in sys ls", KR(ret), K_(tenant_id),
                      "global_broadcast_scn", global_info.global_broadcast_scn(), K(expected_epoch));
           } else if (FALSE_IT(global_broadcast_scn_val = global_info.global_broadcast_scn_.get_scn_val())) {
-          } else if (OB_FAIL(update_all_tablets_report_scn(global_broadcast_scn_val, expected_epoch))) {
+          } 
+          //同样有一个这个meta
+          else if (OB_FAIL(update_all_tablets_report_scn(global_broadcast_scn_val, expected_epoch))) {
             LOG_WARN("fail to update all tablets report_scn", KR(ret), K(expected_epoch),
                      K(global_broadcast_scn_val));
           } else if (OB_FAIL(zone_merge_mgr_->try_update_global_last_merged_scn(expected_epoch))) {
@@ -949,6 +963,7 @@ void ObMajorMergeScheduler::check_merge_interval_time(const bool is_merging)
   int64_t max_merge_time = -1;
   int64_t start_service_time = -1;
   int64_t total_service_time = -1;
+  LOG_ERROR("进入了ObMajorMergeScheduler::check_merge_interval_time", KR(ret), K(tenant_id_));
   if (OB_ISNULL(zone_merge_mgr_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("zone_merge_mgr_ is unexpected nullptr", KR(ret), K_(tenant_id));
@@ -1023,6 +1038,7 @@ void ObMajorMergeScheduler::add_merge_time_stat(
      const ObGlobalMergeInfo &global_info)
 {
   char extra_info[256] = { 0 };
+  //LOG_ERROR("进入了ObMajorMergeScheduler::add_merge_time_stat",KR(ret));
   IGNORE_RETURN databuff_printf(extra_info, 256, "%s: %ld", "write_tablet_checksum_us", stat.write_tablet_checksum_us_);
   ROOTSERVICE_EVENT_ADD("daily_merge", "merge_stat", K_(tenant_id), "global_broadcast_scn",
     global_info.global_broadcast_scn_.get_scn_val(), "tablet_validator_us", stat.tablet_validator_us_,

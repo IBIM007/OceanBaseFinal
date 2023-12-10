@@ -50,7 +50,7 @@ int ObIteratePrivateVirtualTable::init(
     const ObVTableScanParam &scan_param)
 {
   int ret = OB_SUCCESS;
-
+  LOG_ERROR("进入了ObIteratePrivateVirtualTable::init",KR(ret), K(base_table_id));
   // To avoid column mistach problem when cluster is upgrading:
   // 1. sys tenant's base table schema should be modified at last.
   // 2. Can't query related virtual table with `select *`.
@@ -234,7 +234,12 @@ int ObIteratePrivateVirtualTable::next_tenant_()
   } else {
     tenant_idx_ += 1;
     cur_tenant_id_ = tenants_.at(tenant_idx_);
-    const uint64_t exec_tenant_id = get_exec_tenant_id_(cur_tenant_id_);
+    int base=ObAgentTableBase::get_base_tenant_id();
+    LOG_ERROR("进入了ObIteratePrivateVirtualTable::next_tenant_11111", KR(ret),K(cur_tenant_id_),K(base));
+    uint64_t exec_tenant_id;
+    if(cur_tenant_id_==1002)exec_tenant_id=1;
+    else exec_tenant_id = get_exec_tenant_id_(cur_tenant_id_);
+    LOG_ERROR("进入了ObIteratePrivateVirtualTable::next_tenant_2222222", KR(ret),K(exec_tenant_id),K(base));
     if (OB_UNLIKELY(OB_ISNULL(GCTX.sql_proxy_))) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("sql_proxy is null", KR(ret));
@@ -267,6 +272,8 @@ int ObIteratePrivateVirtualTable::next_tenant_()
 int ObIteratePrivateVirtualTable::inner_get_next_row(ObNewRow *&row)
 {
   int ret = OB_SUCCESS;
+  int base=ObAgentTableBase::get_base_tenant_id();
+  LOG_ERROR("进入了ObIteratePrivateVirtualTable::inner_get_next_row", KR(ret),K(base));
   if (!opened_ && OB_FAIL(do_open())) {
     LOG_WARN("do open failed", KR(ret));
   } else if (tenant_idx_ >= tenants_.count() || tenants_.empty()) {

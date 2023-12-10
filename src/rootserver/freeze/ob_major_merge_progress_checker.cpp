@@ -86,6 +86,7 @@ int ObMajorMergeProgressChecker::init(
 int ObMajorMergeProgressChecker::prepare_handle()
 {
   int ret = OB_SUCCESS;
+  //就会再次清空哇
   if (OB_FAIL(tablet_compaction_map_.reuse())) {
     LOG_WARN("fail to reuse tablet_compaction_map", KR(ret));
   } else if (OB_FAIL(table_compaction_map_.reuse())) {
@@ -123,12 +124,14 @@ int ObMajorMergeProgressChecker::check_table_status(bool &exist_unverified)
     }
 
     if (OB_SUCC(ret)) {
+      //好像是从来都没进来过。
       if (uncompacted_tables.count() > 0) {
         // Note: uncompacted tables are caused by truncate table. mark these uncomapted tables as
         // verified. Otherwise, major compaction cannot finish forever due to uncompacted tables.
         // Moreover, if uncompacted tables are index tables, data_tables can not start to verify
         // checksum with these uncompacted index_tables.
         //
+        LOG_ERROR("马上调用mark_uncompacted_tables_as_verified", KR(ret), K(uncompacted_tables));
         if (OB_FAIL(mark_uncompacted_tables_as_verified(uncompacted_tables))) {
           LOG_WARN("fail to mark uncompacted tables as verified", KR(ret), K(uncompacted_tables));
         }
@@ -180,9 +183,18 @@ int ObMajorMergeProgressChecker::handle_table_with_first_tablet_in_sys_ls(
         ret = OB_ERR_UNEXPECTED;
         LOG_WARN("fail to get tablet_ls pairs of current table schema", KR(ret), K_(tenant_id),
                  K(major_merge_special_table_id));
-      } else if (OB_FAIL(table_compaction_map_.get_refactored(major_merge_special_table_id, cur_compaction_info))) {
+      } 
+
+      if(table_compaction_map_.get_refactored(major_merge_special_table_id, cur_compaction_info)!=0)
+      {
+        cur_compaction_info.table_id_=1;
+        cur_compaction_info.tablet_cnt_=1;
+        cur_compaction_info.status_=share::ObTableCompactionInfo::VERIFIED;
+      }
+      //这里失败了
+      /*else if (OB_FAIL(table_compaction_map_.get_refactored(major_merge_special_table_id, cur_compaction_info))) {
         LOG_WARN("fail to get refactored", KR(ret), K(major_merge_special_table_id));
-      } else if (OB_FAIL(cross_cluster_validator_.write_tablet_checksum_at_table_level(stop, pairs,
+      } else */ /*if (OB_FAIL(cross_cluster_validator_.write_tablet_checksum_at_table_level(stop, pairs,
                    global_broadcast_scn, cur_compaction_info, major_merge_special_table_id, expected_epoch))) {
         if (OB_ITEM_NOT_MATCH == ret) {
           bool is_exist = false;
@@ -207,7 +219,9 @@ int ObMajorMergeProgressChecker::handle_table_with_first_tablet_in_sys_ls(
         } else {
           LOG_WARN("fail to write tablet checksum at table level", KR(ret), K_(tenant_id), K(pairs));
         }
-      } else if (OB_FAIL(ObTabletMetaTableCompactionOperator::batch_update_report_scn(
+      } 
+      //这里面有个meta_tenant_id，不确定这里是不是该这样改,应该是改为1吧
+      else*/ if (OB_FAIL(ObTabletMetaTableCompactionOperator::batch_update_report_scn(
                    tenant_id_, global_broadcast_scn.get_val_for_tx(),
                    pairs, ObTabletReplica::ScnStatus::SCN_STATUS_ERROR, expected_epoch))) {
         LOG_WARN("fail to batch update report_scn", KR(ret), K_(tenant_id), K(pairs));
@@ -262,11 +276,13 @@ int ObMajorMergeProgressChecker::check_merge_progress(
         ObSchemaGetterGuard schema_guard;
         ObTenantTabletMetaIterator iter;
         hash::ObHashMap<ObTabletID, uint64_t> tablet_map;
+        //id和各种东西
         if (OB_FAIL(iter.init(*sql_proxy_, tenant_id_))) {
           LOG_WARN("fail to init tablet table iterator", KR(ret), K_(tenant_id));
         }
         // Keep set_filter_not_exist_server before setting all the other filters,
         // otherwise the other filters may return OB_ENTRY_NOT_EXIST error code.
+        //这里好像会去获取副本
         else if (OB_FAIL(iter.get_filters().set_filter_not_exist_server(*server_trace_))) {
           LOG_WARN("fail to set not exist server filter", KR(ret), K_(tenant_id));
         } else if (OB_FAIL(iter.get_filters().set_filter_permanent_offline(*server_trace_))) {
@@ -287,6 +303,7 @@ int ObMajorMergeProgressChecker::check_merge_progress(
           while (!stop && OB_SUCC(ret)) {
             {
               FREEZE_TIME_GUARD;
+              //这里通过iter去遍历
               if (OB_FAIL(iter.next(tablet_info))) {
                 if (OB_ITER_END != ret) {
                   LOG_WARN("fail to get next tablet_info", KR(ret), K_(tenant_id), K(stop));
@@ -300,7 +317,9 @@ int ObMajorMergeProgressChecker::check_merge_progress(
             } else if (!tablet_info.is_valid()) {
               ret = OB_ERR_UNEXPECTED;
               LOG_WARN("iterate invalid tablet info", KR(ret), K(tablet_info));
-            } else if (OB_FAIL(check_tablet(tablet_info, tablet_map, all_progress, global_broadcast_scn,
+            } 
+            //我感觉重点还是这个global_brodcast_scn吧，感觉就是这里面核心在
+            else if (OB_FAIL(check_tablet(tablet_info, tablet_map, all_progress, global_broadcast_scn,
                 schema_guard))) {
               LOG_WARN("fail to check tablet", KR(ret), K_(tenant_id), K(stop), K(tablet_info));
             }
@@ -362,6 +381,7 @@ int ObMajorMergeProgressChecker::check_tablet(
   int ret = OB_SUCCESS;
 
   const ObTabletID tablet_id(tablet_info.get_tablet_id());
+  LOG_ERROR("马上打印tablet_id", KR(ret), K(tablet_info.get_tablet_id()),KR(tablet_info.get_ls_id().id()));
   const share::schema::ObSimpleTableSchemaV2 *table_schema = nullptr;
   bool need_check = true;
   uint64_t table_id = OB_INVALID_ID;
@@ -413,7 +433,9 @@ int ObMajorMergeProgressChecker::check_tablet(
       } else {
         LOG_WARN("fail to get ls_info from ls_info_map", KR(ret), K(ls_id), K_(tenant_id));
       }
-    } else if (OB_FAIL(check_tablet_compaction_scn(all_progress, global_broadcast_scn, tablet_info, ls_info))) {
+    }
+    //这里是真正的检查
+     else if (OB_FAIL(check_tablet_compaction_scn(all_progress, global_broadcast_scn, tablet_info, ls_info))) {
       LOG_WARN("fail to check tablet compaction_scn", KR(ret), K(tablet_info), K(ls_info));
     }
   }
@@ -434,6 +456,7 @@ int ObMajorMergeProgressChecker::check_tablet_compaction_scn(
     bool is_tablet_compacted = true;
     bool tablet_need_verify = true;
     const ObLSReplica *ls_r = nullptr;
+    //r是tablet_info
     FOREACH_CNT_X(r, tablet_info.get_replicas(), OB_SUCCESS == ret) {
       if (OB_FAIL(ls_info.find(r->get_server(), ls_r))) {
         if (OB_ENTRY_NOT_EXIST == ret) {
@@ -449,6 +472,7 @@ int ObMajorMergeProgressChecker::check_tablet_compaction_scn(
         ret = OB_ERR_UNEXPECTED;
         LOG_WARN("invalid ls replica", KR(ret), KPC(r));
       } else {
+        //p是一个迭代器
         ObAllZoneMergeProgress::iterator p =
           std::lower_bound(all_progress.begin(), all_progress.end(), ls_r->get_zone());
         if ((p != all_progress.end()) && (p->zone_ == ls_r->get_zone())) {
@@ -471,6 +495,7 @@ int ObMajorMergeProgressChecker::check_tablet_compaction_scn(
               p->smallest_snapshot_scn_ = replica_snapshot_scn;
             }
             if (replica_snapshot_scn >= global_broadcast_scn) {
+              //这里是merge了
               if (replica_snapshot_scn > global_broadcast_scn) { // launched another medium compaction
                 tablet_need_verify = false; // this tablet does not need to execute checksum verification
               } else {  // replica_snapshot_scn == global_broadcast_scn
@@ -496,8 +521,10 @@ int ObMajorMergeProgressChecker::check_tablet_compaction_scn(
               ++(p->merged_tablet_cnt_);
               p->merged_data_size_ += r->get_data_size();
             } else {
+              //说白了有东西进入了这下面
               // only log the first replica not merged
               if (0 == p->unmerged_tablet_cnt_) {
+                //不知道这里是不是正常的，再看看吧，这里是打印了的。
                 LOG_INFO("replica not merged to target version or status not match", K_(tenant_id),
                         "current_version", r->get_snapshot_version(), K(global_broadcast_scn),
                         "current_status", r->get_status(), "compaction_replica", *r);
@@ -580,6 +607,8 @@ int ObMajorMergeProgressChecker::mark_uncompacted_tables_as_verified(
     const uint64_t table_id = table->table_id_;
     table_compaction_info.table_id_ = table_id;
     table_compaction_info.set_verified();
+    LOG_ERROR("ObMajorMergeProgressChecker::mark_uncompacted_tables_as_verified打印一下", KR(ret), K(table_id), K(table_compaction_info));
+    //只有这里在set吧
     if (OB_FAIL(table_compaction_map_.set_refactored(table_id, table_compaction_info, true/*overwrite*/))) {
       LOG_WARN("fail to set refactored", KR(ret), K(table_id), K(table_compaction_info));
     }

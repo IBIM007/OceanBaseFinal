@@ -844,6 +844,7 @@ int ObTenantFreezeInfoMgr::ReloadTask::refresh_merge_info()
     LOG_WARN("sql_proxy is nullptr", KR(ret));
   } else {
     const uint64_t tenant_id = MTL_ID();
+    LOG_ERROR("进入了ObTenantFreezeInfoMgr::ReloadTask::refresh_merge_info", KR(tenant_id));
     ObZoneMergeInfo zone_merge_info;
     zone_merge_info.tenant_id_ = tenant_id;
     zone_merge_info.zone_ = GCTX.config_->zone.str();
@@ -890,7 +891,7 @@ int ObTenantFreezeInfoMgr::ReloadTask::refresh_merge_info()
     }
 
     if (OB_SUCC(ret)) {
-      LOG_TRACE("refresh merge info", K(tenant_id), "zone", zone_merge_info.zone_, "broadcast_scn",
+      LOG_ERROR("refresh merge info", K(tenant_id), "zone", zone_merge_info.zone_, "broadcast_scn",
         zone_merge_info.broadcast_scn_);
     }
   }

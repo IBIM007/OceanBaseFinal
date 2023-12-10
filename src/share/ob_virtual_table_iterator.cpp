@@ -366,6 +366,7 @@ int ObVirtualTableIterator::get_next_row(ObNewRow *&row)
 {
   ACTIVE_SESSION_FLAG_SETTER_GUARD(in_storage_read);
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObVirtualTableIterator::get_next_row!!!!!!!!!!!!!!!!!!!!!!!!!", K(ret));
   ObNewRow *cur_row = NULL;
   row_calc_buf_.reuse();
   if (OB_FAIL(inner_get_next_row(cur_row))) {

@@ -95,7 +95,9 @@ int ObZoneMergeTableOperator::update_partial_zone_merge_info(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(info));
   } else {
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
     ObDMLExecHelper exec(sql_client, meta_tenant_id);
 
     if (OB_FAIL(dml.add_pk_column("tenant_id", tenant_id))
@@ -376,8 +378,9 @@ int ObZoneMergeTableOperator::inner_load_zone_merge_infos_(
                  OB_ALL_ZONE_MERGE_INFO_TNAME, tenant_id))) {
         LOG_WARN("fail to assign sql", KR(ret), K(tenant_id));
       }
-
-      const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+      uint64_t meta_tenant_id;
+      if(tenant_id==1002)meta_tenant_id=1;
+      else meta_tenant_id = gen_meta_tenant_id(tenant_id);
       if (FAILEDx(sql_client.read(res, meta_tenant_id, sql.ptr()))) {
         LOG_WARN("fail to execute sql", KR(ret), K(tenant_id), K(meta_tenant_id), K(sql));
       } else if (OB_ISNULL(result = res.get_result())) {
@@ -413,6 +416,7 @@ int ObZoneMergeTableOperator::construct_zone_merge_info_(
     ObIArray<ObZoneMergeInfo> &infos)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObZoneMergeTableOperator::construct_zone_merge_info_", KR(ret));
   bool exist = false;
   int64_t tmp_real_str_len = 0; // only used for output parameter
   int64_t tenant_id = 0;

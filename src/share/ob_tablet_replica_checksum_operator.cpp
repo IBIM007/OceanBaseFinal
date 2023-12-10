@@ -730,6 +730,9 @@ int ObTabletReplicaChecksumOperator::inner_batch_get_by_sql_(
     LOG_WARN("invalid argument", KR(ret), K(tenant_id));
   } else {
     const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    /*uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);*/
     SMART_VAR(ObISQLClient::ReadResult, result) {
       if (OB_FAIL(sql_proxy.read(result, meta_tenant_id, sql.ptr()))) {
         LOG_WARN("fail to execute sql", KR(ret), K(tenant_id), K(meta_tenant_id), "sql", sql.ptr());
@@ -912,7 +915,7 @@ int ObTabletReplicaChecksumOperator::inner_batch_insert_or_update_by_sql_(
         }
       }
     }
-    
+
     const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
     if (FAILEDx(sql_client.write(meta_tenant_id, sql.ptr(), affected_rows))) {
       LOG_WARN("fail to execute sql", KR(ret), K(tenant_id), K(meta_tenant_id), K(sql));

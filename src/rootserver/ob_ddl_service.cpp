@@ -22329,7 +22329,7 @@ int ObDDLService::create_tenant(
       //TODO，从这里开始细看，注意传入的参数。11个参数，注意哪些参数是引用
 
       
-      /*std::vector<CreateTenantTask> ths;
+      std::vector<CreateTenantTask> ths;
       ObString empty_str;
       ths.reserve(2);
       ths.emplace_back(meta_tenant_id,pools,meta_tenant_schema,tenant_role,recovery_until_scn,meta_sys_variable,false,meta_palf_base_info,init_configs,arg.is_creating_standby_,arg.log_restore_source_, *this);
@@ -22338,7 +22338,7 @@ int ObDDLService::create_tenant(
 
       ths.emplace_back(user_tenant_id,pools,user_tenant_schema,tenant_role,recovery_until_scn,user_sys_variable,create_ls_with_palf,user_palf_base_info,init_configs,false,empty_str, *this);
       ths.back().init();
-      ths.back().start();*/
+      ths.back().start();
 
       
       //sleep(2);
@@ -22348,7 +22348,7 @@ int ObDDLService::create_tenant(
       {
         ths.at(i).wait();
       }*/
-      else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
+      /*else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
         recovery_until_scn, meta_sys_variable, false, meta_palf_base_info, init_configs,
         arg.is_creating_standby_, arg.log_restore_source_))) {
         LOG_WARN("fail to create meta tenant", KR(ret), K(meta_tenant_id), K(pools), K(meta_sys_variable),
@@ -22364,7 +22364,7 @@ int ObDDLService::create_tenant(
           LOG_WARN("fail to create user tenant", KR(ret), K(user_tenant_id), K(pools), K(user_sys_variable),
               K(tenant_role), K(recovery_until_scn), K(user_palf_base_info));
         }
-      }
+      }*/
 
       // drop tenant if create tenant failed.
       // meta tenant will be force dropped with its user tenant.

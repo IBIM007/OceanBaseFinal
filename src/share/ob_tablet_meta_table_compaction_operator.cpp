@@ -392,7 +392,9 @@ int ObTabletMetaTableCompactionOperator::batch_update_report_scn(
     // do nothing until schema upgrade
   } else {
     LOG_INFO("start to batch update report scn", KR(ret), K(tenant_id), K(global_broadcast_scn_val), K(expected_epoch));
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
     bool update_done = false;
     SMART_VAR(ObArray<uint64_t>, tablet_ids) {
       while (OB_SUCC(ret) && !update_done && !stop) {
@@ -654,7 +656,9 @@ int ObTabletMetaTableCompactionOperator::batch_update_report_scn(
     LOG_WARN("fail to get data version", KR(ret), K(tenant_id));
   } else if (compat_version < DATA_VERSION_4_1_0_0) {
   } else {
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
     for (int64_t i = 0; OB_SUCC(ret) && (i < all_pair_cnt); i += MAX_BATCH_COUNT) {
       const int64_t cur_end_idx = MIN(i + MAX_BATCH_COUNT, all_pair_cnt);
       ObMySQLTransaction trans;

@@ -496,6 +496,7 @@ int ObSchemaHistoryRecycler::get_recycle_schema_version_by_global_stat(
       }
       for (int64_t i = 0; OB_SUCC(ret) && i < tenant_ids.count(); i++) {
         const uint64_t tenant_id = tenant_ids.at(i);
+        LOG_ERROR("进入了ObSchemaHistoryRecycler::get_recycle_schema_version_by_global_stat",KR(ret), K(tenant_id));
         int64_t expire_schema_version = OB_INVALID_VERSION;
         ObRefreshSchemaStatus schema_status;
         if (!is_standby) {

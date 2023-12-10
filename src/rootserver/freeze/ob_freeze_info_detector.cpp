@@ -386,6 +386,7 @@ int ObFreezeInfoDetector::check_global_merge_info(bool &is_initial) const
   int ret = OB_SUCCESS;
   is_initial = false;
   HEAP_VAR(ObGlobalMergeInfo, global_merge_info) {
+    LOG_ERROR("进入了ObFreezeInfoDetector::check_global_merge_info",KR(ret));
     if (OB_FAIL(ObGlobalMergeTableOperator::load_global_merge_info(*sql_proxy_,
                 tenant_id_, global_merge_info))) {
       LOG_WARN("fail to get global merge info", KR(ret), K_(tenant_id), K_(is_primary_service));

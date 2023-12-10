@@ -44,6 +44,7 @@ int ObTenantMajorFreeze::init(
     ObIServerTrace &server_trace)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::init", K(ret));
   if (IS_INIT) {
     ret = OB_INIT_TWICE;
     LOG_WARN("init twice", KR(ret), K(tenant_id));
@@ -75,6 +76,7 @@ int ObTenantMajorFreeze::init(
 int ObTenantMajorFreeze::start()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::start()", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret));
@@ -105,6 +107,7 @@ void ObTenantMajorFreeze::stop()
 int ObTenantMajorFreeze::wait()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::wait()", K(ret));
   if (is_primary_service()) {
     LOG_INFO("daily_launcher start to wait", K_(tenant_id), K_(is_primary_service));
     daily_launcher_.wait();
@@ -170,6 +173,7 @@ bool ObTenantMajorFreeze::is_paused() const
 int ObTenantMajorFreeze::get_frozen_scn(SCN &frozen_scn)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::get_frozen_scn(SCN &frozen_scn)", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
@@ -182,6 +186,7 @@ int ObTenantMajorFreeze::get_frozen_scn(SCN &frozen_scn)
 int ObTenantMajorFreeze::get_global_broadcast_scn(SCN &global_broadcast_scn) const
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::get_global_broadcast_sc", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
@@ -194,6 +199,7 @@ int ObTenantMajorFreeze::get_global_broadcast_scn(SCN &global_broadcast_scn) con
 int ObTenantMajorFreeze::set_freeze_info()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::set_freeze_info()", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
@@ -206,11 +212,13 @@ int ObTenantMajorFreeze::set_freeze_info()
 int ObTenantMajorFreeze::launch_major_freeze()
 {
   int ret = OB_SUCCESS;
-  LOG_INFO("launch_major_freeze", K_(tenant_id));
+  LOG_ERROR("进入ObTenantMajorFreeze::launch_major_freeze()", K(ret),K(tenant_id_));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
-  } else if (OB_FAIL(check_tenant_status())) {
+  } 
+  LOG_ERROR("马上进入check_tenant_status", K(ret),K(tenant_id_));
+  if (OB_FAIL(check_tenant_status())) {
     LOG_WARN("fail to check tenant status", KR(ret), K_(tenant_id));
   } else if (!GCONF.enable_major_freeze) {
     ret = OB_MAJOR_FREEZE_NOT_ALLOW;
@@ -233,12 +241,14 @@ int ObTenantMajorFreeze::launch_major_freeze()
   } else if (OB_FAIL(freeze_info_detector_.signal())) {
     LOG_WARN("fail to signal", KR(ret), K_(tenant_id));
   }
+  LOG_ERROR("退出ObTenantMajorFreeze::launch_major_freeze()", K(ret),K(tenant_id_));
   return ret;
 }
 
 int ObTenantMajorFreeze::suspend_merge()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::suspend_merge()", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
@@ -262,6 +272,7 @@ int ObTenantMajorFreeze::suspend_merge()
 int ObTenantMajorFreeze::resume_merge()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::resume_merge()", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
@@ -285,6 +296,7 @@ int ObTenantMajorFreeze::resume_merge()
 int ObTenantMajorFreeze::clear_merge_error()
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::clear_merge_error()", K(ret));
   const ObZoneMergeInfo::ObMergeErrorType error_type = ObZoneMergeInfo::ObMergeErrorType::NONE_ERROR;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
@@ -313,6 +325,7 @@ int ObTenantMajorFreeze::get_uncompacted_tablets(
     ObArray<ObTabletReplica> &uncompacted_tablets) const
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::get_uncompacted_tablets(", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret), K_(tenant_id));
@@ -327,6 +340,7 @@ int ObTenantMajorFreeze::get_uncompacted_tablets(
 int ObTenantMajorFreeze::check_tenant_status() const
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("ObTenantMajorFreeze::check_tenant_status()", K(ret));
   share::schema::ObSchemaGetterGuard schema_guard;
   const ObSimpleTenantSchema *tenant_schema = nullptr;
   if (IS_NOT_INIT) {
@@ -349,7 +363,7 @@ int ObTenantMajorFreeze::check_freeze_info()
   SCN latest_frozen_scn;
   SCN global_last_merged_scn;
   ObZoneMergeInfo::MergeStatus global_merge_status = ObZoneMergeInfo::MergeStatus::MERGE_STATUS_MAX;
-
+  LOG_ERROR("ObTenantMajorFreeze::check_freeze_info()", K(ret));
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     LOG_WARN("not init", KR(ret));

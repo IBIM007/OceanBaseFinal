@@ -164,7 +164,9 @@ int ObServiceEpochProxy::update_service_epoch(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), KP(name), K(epoch_value));
   } else {
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
     ObSqlString sql;
     if (OB_FAIL(sql.assign_fmt("UPDATE %s SET value = %ld WHERE tenant_id = '%lu' AND name = '%s' "
         "AND value < %ld", OB_ALL_SERVICE_EPOCH_TNAME, epoch_value, tenant_id, name, epoch_value))) {
@@ -230,7 +232,9 @@ int ObServiceEpochProxy::inner_get_service_epoch_(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), KP(name));
   } else {
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else meta_tenant_id = gen_meta_tenant_id(tenant_id);
     ObSqlString sql;
     SMART_VAR(ObMySQLProxy::MySQLResult, res) {
       ObMySQLResult *result = nullptr;

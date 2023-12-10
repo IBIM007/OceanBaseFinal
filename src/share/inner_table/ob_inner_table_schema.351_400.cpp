@@ -12987,7 +12987,7 @@ int ObInnerTableSchema::all_zone_merge_info_schema(ObTableSchema &table_schema)
 {
   int ret = OB_SUCCESS;
   uint64_t column_id = OB_APP_MIN_COLUMN_ID - 1;
-
+  LOG_ERROR("进入了ObInnerTableSchema::all_zone_merge_info_schema", K(ret));
   //generated fields:
   table_schema.set_tenant_id(OB_SYS_TENANT_ID);
   table_schema.set_tablegroup_id(OB_SYS_TABLEGROUP_ID);

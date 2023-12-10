@@ -192,6 +192,7 @@ int ObTabletTableOperator::batch_get(
   } else {
     int64_t start_idx = 0;
     int64_t end_idx = min(batch_size_, pairs_cnt);
+    //这里好像就是去拿了吧
     while (OB_SUCC(ret) && (start_idx < end_idx)) {
       if (OB_FAIL(inner_batch_get_by_sql_(
           *sql_proxy_,
@@ -258,7 +259,10 @@ int ObTabletTableOperator::inner_batch_get_by_sql_(
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(tablet_ls_pairs), K(start_idx), K(end_idx));
   } else {
-    const uint64_t sql_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t sql_tenant_id;
+    if(tenant_id==1002)sql_tenant_id=1;
+    else sql_tenant_id = gen_meta_tenant_id(tenant_id);
+    LOG_ERROR("现在的查询的id是", KR(ret), K(tenant_id), K(sql_tenant_id));
     ObSqlString sql;
     SMART_VAR(ObISQLClient::ReadResult, result) {
       if (OB_FAIL(sql.append_fmt(

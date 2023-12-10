@@ -152,7 +152,9 @@ int ObGlobalMergeTableOperator::update_partial_global_merge_info(
   } else {
 
     LOG_ERROR("进入了ObGlobalMergeTableOperator::update_partial_global_merge_info111111", KR(ret), K(tenant_id));
-    const uint64_t meta_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t meta_tenant_id;
+    if(tenant_id==1002)meta_tenant_id=1;
+    else  meta_tenant_id = gen_meta_tenant_id(tenant_id);
     LOG_ERROR("进入了ObGlobalMergeTableOperator::update_partial_global_merge_info2222222", KR(ret), K(meta_tenant_id));
     ObDMLExecHelper exec(sql_client, meta_tenant_id);
 

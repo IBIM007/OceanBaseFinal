@@ -10193,6 +10193,7 @@ int ObInnerTableSchema::all_virtual_obj_lock_schema(ObTableSchema &table_schema)
 int ObInnerTableSchema::all_virtual_zone_merge_info_schema(ObTableSchema &table_schema)
 {
   int ret = OB_SUCCESS;
+  LOG_ERROR("进入了ObInnerTableSchema::all_virtual_zone_merge_info_schema", K(ret));
   uint64_t column_id = OB_APP_MIN_COLUMN_ID - 1;
 
   //generated fields:
