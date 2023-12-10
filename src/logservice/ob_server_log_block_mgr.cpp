@@ -1194,7 +1194,7 @@ int ObServerLogBlockMgr::parallel_allocate_blocks_at_tmp_dir_(const FileDesc &di
   }
 
   if (flag) {
-    allocate_block_tasks.emplace_back(const_cast<ObServerLogBlockMgr*>(this), dir_fd, start_block_id + thread_num * batch_count, block_cnt / thread_num);
+    allocate_block_tasks.emplace_back(const_cast<ObServerLogBlockMgr*>(this), dir_fd, start_block_id + thread_num * batch_count, block_cnt % thread_num);
   }
 
   for (int i = 0; i < allocate_block_tasks.size(); ++i) {
