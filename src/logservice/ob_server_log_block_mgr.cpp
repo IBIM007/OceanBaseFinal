@@ -1173,6 +1173,12 @@ int ObServerLogBlockMgr::parallel_allocate_blocks_at_tmp_dir_(const FileDesc &di
   int ret = OB_SUCCESS;
   int64_t begin = start_block_id;
   int64_t thread_num = 128;
+  bool flag = false;
+
+  if (block_cnt % thread_num != 0) {
+    flag = true;
+  }
+
   int64_t batch_count = block_cnt / thread_num;
   const int64_t MAX_RETRY_TIMES = 10;
   int64_t finish_cnt = 0;
@@ -1185,6 +1191,10 @@ int ObServerLogBlockMgr::parallel_allocate_blocks_at_tmp_dir_(const FileDesc &di
     allocate_block_tasks.emplace_back(const_cast<ObServerLogBlockMgr*>(this), dir_fd, start_block_id + i * batch_count, batch_count);
     allocate_block_tasks.back().init();
     allocate_block_tasks.back().start();
+  }
+
+  if (flag) {
+    allocate_block_tasks.emplace_back(const_cast<ObServerLogBlockMgr*>(this), dir_fd, start_block_id + thread_num * batch_count, block_cnt / thread_num);
   }
 
   for (int i = 0; i < allocate_block_tasks.size(); ++i) {
