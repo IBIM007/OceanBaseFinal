@@ -26783,7 +26783,7 @@ int ObDDLService::my_refresh_tenant_schema(const uint64_t tenant_id,ObIArray<ObT
           LOG_DBA_ERROR(OB_ERR_REFRESH_SCHEMA_TOO_LONG,
                         "msg", "refresh schema failed", KR(ret), K(refresh_count));
         }
-        ob_usleep(REFRESH_SCHEMA_INTERVAL_US);
+        ob_usleep(100);
       }
     }
     if (OB_SUCC(ret) && !stopped_) {
@@ -26947,7 +26947,7 @@ int ObDDLService::refresh_schema(uint64_t tenant_id, int64_t *publish_schema_ver
                         "msg", "refresh schema failed", KR(ret), K(refresh_count));
         }
         //应该就是睡得这里0.5秒
-        ob_usleep(REFRESH_SCHEMA_INTERVAL_US);
+        ob_usleep(100);
       }
     }
     if (OB_SUCC(ret) && !stopped_) {
