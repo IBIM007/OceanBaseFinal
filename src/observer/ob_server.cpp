@@ -1052,23 +1052,23 @@ int ObServer::start()
       FLOG_INFO("success to refresh server configure");
     }
 
-    bool synced = false;
-    while (OB_SUCC(ret) && !stop_ && !synced) {
-      synced = multi_tenant_.has_synced();
-      if (!synced) {
-        SLEEP(1);
-      }
-    }
-    FLOG_INFO("check if multi tenant synced", KR(ret), K(stop_), K(synced));
+    // bool synced = false;
+    // while (OB_SUCC(ret) && !stop_ && !synced) {
+    //   synced = multi_tenant_.has_synced();
+    //   if (!synced) {
+    //     SLEEP(1);
+    //   }
+    // }
+    // FLOG_INFO("check if multi tenant synced", KR(ret), K(stop_), K(synced));
 
-    bool schema_ready = false;
-    while (OB_SUCC(ret) && !stop_ && !schema_ready) {
-      schema_ready = schema_service_.is_sys_full_schema();
-      if (!schema_ready) {
-        SLEEP(1);
-      }
-    }
-    FLOG_INFO("check if schema ready", KR(ret), K(stop_), K(schema_ready));
+    // bool schema_ready = false;
+    // while (OB_SUCC(ret) && !stop_ && !schema_ready) {
+    //   schema_ready = schema_service_.is_sys_full_schema();
+    //   if (!schema_ready) {
+    //     SLEEP(1);
+    //   }
+    // }
+    // FLOG_INFO("check if schema ready", KR(ret), K(stop_), K(schema_ready));
 
     bool timezone_usable = false;
     if (FAILEDx(tenant_timezone_mgr_.start())) {
@@ -1085,36 +1085,36 @@ int ObServer::start()
     FLOG_INFO("check if timezone usable", KR(ret), K(stop_), K(timezone_usable));
 
     // check log replay and user tenant schema refresh status
-    if (OB_SUCC(ret)) {
-      if (stop_) {
-        ret = OB_SERVER_IS_STOPPING;
-        FLOG_WARN("server is in stopping status", KR(ret));
-      } else {
-        ObSEArray<uint64_t, 16> tenant_ids;
-        const int64_t MAX_CHECK_TIME = 15 * 60 * 1000 * 1000L; // 15min
-        const int64_t start_ts = ObTimeUtility::current_time();
-        int64_t schema_refreshed_ts = 0;
-        const int64_t expire_time = start_ts + MAX_CHECK_TIME;
-        tenant_ids.set_max_print_count(512);
+    // if (OB_SUCC(ret)) {
+    //   if (stop_) {
+    //     ret = OB_SERVER_IS_STOPPING;
+    //     FLOG_WARN("server is in stopping status", KR(ret));
+    //   } else {
+    //     ObSEArray<uint64_t, 16> tenant_ids;
+    //     const int64_t MAX_CHECK_TIME = 15 * 60 * 1000 * 1000L; // 15min
+    //     const int64_t start_ts = ObTimeUtility::current_time();
+    //     int64_t schema_refreshed_ts = 0;
+    //     const int64_t expire_time = start_ts + MAX_CHECK_TIME;
+    //     tenant_ids.set_max_print_count(512);
 
-        if (OB_FAIL(multi_tenant_.get_mtl_tenant_ids(tenant_ids))) {
-          FLOG_ERROR("get mtl tenant ids fail", KR(ret));
-        } else if (tenant_ids.count() <= 0) {
-          // do nothing
-        } else {
-          // check user tenant schema refresh
-          check_user_tenant_schema_refreshed(tenant_ids, expire_time);
-          schema_refreshed_ts = ObTimeUtility::current_time();
-          // check log replay status
-          check_log_replay_over(tenant_ids, expire_time);
-        }
-        FLOG_INFO("[OBSERVER_NOTICE] check log replay and user tenant schema finished",
-            KR(ret),
-            K(tenant_ids),
-            "refresh_schema_cost_us", schema_refreshed_ts - start_ts,
-            "replay_log_cost_us", ObTimeUtility::current_time() - schema_refreshed_ts);
-      }
-    }
+    //     if (OB_FAIL(multi_tenant_.get_mtl_tenant_ids(tenant_ids))) {
+    //       FLOG_ERROR("get mtl tenant ids fail", KR(ret));
+    //     } else if (tenant_ids.count() <= 0) {
+    //       // do nothing
+    //     } else {
+    //       // check user tenant schema refresh
+    //       check_user_tenant_schema_refreshed(tenant_ids, expire_time);
+    //       schema_refreshed_ts = ObTimeUtility::current_time();
+    //       // check log replay status
+    //       check_log_replay_over(tenant_ids, expire_time);
+    //     }
+    //     FLOG_INFO("[OBSERVER_NOTICE] check log replay and user tenant schema finished",
+    //         KR(ret),
+    //         K(tenant_ids),
+    //         "refresh_schema_cost_us", schema_refreshed_ts - start_ts,
+    //         "replay_log_cost_us", ObTimeUtility::current_time() - schema_refreshed_ts);
+    //   }
+    // }
   }
 
   if (OB_FAIL(ret)) {
