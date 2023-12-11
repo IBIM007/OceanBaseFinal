@@ -26783,7 +26783,7 @@ int ObDDLService::my_refresh_tenant_schema(const uint64_t tenant_id,ObIArray<ObT
           LOG_DBA_ERROR(OB_ERR_REFRESH_SCHEMA_TOO_LONG,
                         "msg", "refresh schema failed", KR(ret), K(refresh_count));
         }
-        ob_usleep(100);
+        ob_usleep(250);
       }
     }
     if (OB_SUCC(ret) && !stopped_) {
