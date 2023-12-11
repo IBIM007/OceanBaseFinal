@@ -117,23 +117,25 @@ int ObRootServiceMonitor::monitor_root_service()
   } else {
     const uint64_t tenant_id = OB_SYS_TENANT_ID;
     MTL_SWITCH(tenant_id) {
-      ObRole role = FOLLOWER;
-      bool palf_exist = false;
-      int64_t proposal_id = 0;  // unused
-      palf::PalfHandleGuard palf_handle_guard;
-      logservice::ObLogService *log_service = nullptr;
-      if (OB_ISNULL(log_service = MTL(logservice::ObLogService*))) {
-        ret = OB_ERR_UNEXPECTED;
-        FLOG_WARN("MTL ObLogService is null", KR(ret), K(tenant_id));
-      } else if (OB_FAIL(log_service->check_palf_exist(SYS_LS, palf_exist))) {
-        FLOG_WARN("fail to check palf exist", KR(ret), K(tenant_id), K(SYS_LS));
-      } else if (!palf_exist) {
-        // bypass
-      } else if (OB_FAIL(log_service->open_palf(SYS_LS, palf_handle_guard))) {
-        FLOG_WARN("open palf failed", KR(ret), K(tenant_id), K(SYS_LS));
-      } else if (OB_FAIL(palf_handle_guard.get_role(role, proposal_id))) {
-        FLOG_WARN("get role failed", KR(ret), K(tenant_id));
-      }
+      // ObRole role = FOLLOWER;
+      // bool palf_exist = false;
+      // int64_t proposal_id = 0;  // unused
+      // palf::PalfHandleGuard palf_handle_guard;
+      // logservice::ObLogService *log_service = nullptr;
+      // if (OB_ISNULL(log_service = MTL(logservice::ObLogService*))) {
+      //   ret = OB_ERR_UNEXPECTED;
+      //   FLOG_WARN("MTL ObLogService is null", KR(ret), K(tenant_id));
+      // } else if (OB_FAIL(log_service->check_palf_exist(SYS_LS, palf_exist))) {
+      //   FLOG_WARN("fail to check palf exist", KR(ret), K(tenant_id), K(SYS_LS));
+      // } else if (!palf_exist) {
+      //   // bypass
+      // } else if (OB_FAIL(log_service->open_palf(SYS_LS, palf_handle_guard))) {
+      //   FLOG_WARN("open palf failed", KR(ret), K(tenant_id), K(SYS_LS));
+      // } else if (OB_FAIL(palf_handle_guard.get_role(role, proposal_id))) {
+      //   FLOG_WARN("get role failed", KR(ret), K(tenant_id));
+      // }
+
+      ObRole role = LEADER;
       if (OB_FAIL(ret)) {
       } else if (root_service_.is_stopping()) {
         //need exit
@@ -194,6 +196,15 @@ int ObRootServiceMonitor::try_start_root_service()
   int ret = OB_SUCCESS;
   int tmp_ret = OB_SUCCESS;
   FLOG_INFO("try start root service begin");
+  if (OB_FAIL(root_service_.start_service())) {
+    FLOG_WARN("root_service start_service failed", KR(ret));
+  }
+
+  return ret;
+
+
+
+
   ObArray<ObAddr> rs_list;
   const int64_t cluster_id = GCONF.cluster_id;
   bool need_to_wait = false;

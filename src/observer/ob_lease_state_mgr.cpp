@@ -156,9 +156,11 @@ int ObLeaseStateMgr::register_self_busy_wait()
     while (!stopped_) {
       if (OB_FAIL(try_report_sys_ls())) {
         LOG_WARN("fail to try report sys log stream");
-      } else if (OB_FAIL(do_renew_lease())) {
-        LOG_WARN("fail to do_renew_lease", KR(ret));
-      }
+      } 
+      
+      // else if (OB_FAIL(do_renew_lease())) {
+      //   LOG_WARN("fail to do_renew_lease", KR(ret));
+      // }
 
       if (OB_FAIL(ret)) {
         LOG_WARN("register failed, will try again", KR(ret),
@@ -175,9 +177,9 @@ int ObLeaseStateMgr::register_self_busy_wait()
         }
       } else {
         LOG_INFO("register self successfully!");
-        if (OB_FAIL(start_heartbeat())) {
-          LOG_ERROR("start_heartbeat failed", K(ret));
-        }
+        // if (OB_FAIL(start_heartbeat())) {
+        //   LOG_ERROR("start_heartbeat failed", K(ret));
+        // }
         break;
       }
     }

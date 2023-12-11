@@ -220,9 +220,13 @@ int ObService::init(common::ObMySQLProxy &sql_proxy,
   } else if (!gctx_.is_inited()) {
     ret = OB_INVALID_ARGUMENT;
     FLOG_WARN("gctx not init", "gctx inited", gctx_.is_inited(), KR(ret));
-  } else if (OB_FAIL(heartbeat_process_.init())) {
-    FLOG_WARN("heartbeat_process_.init failed", KR(ret));
-  } else if (OB_FAIL(schema_updater_.init(gctx_.self_addr(), gctx_.schema_service_))) {
+  } 
+  
+  // else if (OB_FAIL(heartbeat_process_.init())) {
+  //   FLOG_WARN("heartbeat_process_.init failed", KR(ret));
+  // } 
+  
+  else if (OB_FAIL(schema_updater_.init(gctx_.self_addr(), gctx_.schema_service_))) {
     FLOG_WARN("client_manager_.initialize failed", "self_addr", gctx_.self_addr(), KR(ret));
   } else if (OB_FAIL(CLUSTER_EVENT_INSTANCE.init(sql_proxy))) {
     FLOG_WARN("init cluster event history table failed", KR(ret));
@@ -270,11 +274,14 @@ int ObService::register_self()
     LOG_WARN("lease_state_mgr_ not init", KR(ret));
   } else if (OB_FAIL(lease_state_mgr_.register_self_busy_wait())) {
     LOG_WARN("register self failed", KR(ret));
-  } else if (!lease_state_mgr_.is_valid_heartbeat()) {
-    ret = OB_ERROR;
-    LOG_ERROR("can't renew lease, the time difference between local and RS may be more than 2s",
-        KR(ret), "heartbeat_expire_time", lease_state_mgr_.get_heartbeat_expire_time());
-  } else {
+  } 
+  
+  // else if (!lease_state_mgr_.is_valid_heartbeat()) {
+  //   ret = OB_ERROR;
+  //   LOG_ERROR("can't renew lease, the time difference between local and RS may be more than 2s",
+  //       KR(ret), "heartbeat_expire_time", lease_state_mgr_.get_heartbeat_expire_time());
+  // } 
+  else {
     in_register_process_ = false;
     service_started_ = true;
     SERVER_EVENT_ADD("observice", "register");
